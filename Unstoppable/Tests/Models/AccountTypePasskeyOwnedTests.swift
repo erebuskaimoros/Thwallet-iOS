@@ -92,7 +92,13 @@ private struct StorageTestEnvironment {
 
     init() throws {
         let logger = Logger(minLogLevel: .error)
-        keychainStorage = KeychainStorage(service: "account-storage-tests-\(UUID().uuidString)", logger: logger)
+        // CI simulators do not have a passcode, so the production
+        // `.whenPasscodeSetThisDeviceOnly` accessibility class cannot store the fixture.
+        keychainStorage = KeychainStorage(
+            service: "account-storage-tests-\(UUID().uuidString)",
+            protection: .afterFirstUnlockThisDeviceOnly,
+            logger: logger
+        )
         let dbURL = FileManager.default.temporaryDirectory.appendingPathComponent("account-storage-tests-\(UUID().uuidString).sqlite")
         let dbPool = try DatabasePool(path: dbURL.path)
 
