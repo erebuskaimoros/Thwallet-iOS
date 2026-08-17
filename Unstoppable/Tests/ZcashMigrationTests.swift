@@ -125,8 +125,7 @@ struct ZcashMigrationTests {
 
     @Test func ironwoodActivationBoundary() throws {
         let (migrator, _) = try makeMigrator(networkType: .mainnet)
-        let network = ZcashNetworkBuilder.network(for: .mainnet)
-        let activation = try #require(network.ironwoodActivationHeight)
+        let activation = try #require(migrator.activationHeight)
 
         #expect(!migrator.ironwoodActive(latestHeight: activation - 1))
         #expect(migrator.ironwoodActive(latestHeight: activation))
