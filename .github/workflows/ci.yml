@@ -48,12 +48,21 @@ jobs:
 
       - name: Build and test
         run: |
-          set -o pipefail
+          result_bundle="$RUNNER_TEMP/ThwalletTests.xcresult"
+          set +e
           xcodebuild \
             -workspace Wallet.xcworkspace \
             -scheme Development \
             -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO \
-            -only-testing:AppTests/AccountTypePasskeyOwnedTests/accountStorageRoundTripsPasskeyOwned \
+            -resultBundlePath "$result_bundle" \
             test
+          test_exit_code=$?
+          xcrun xcresulttool get test-results summary --path "$result_bundle"
+          summary_exit_code=$?
+          set -e
+          if [[ "$summary_exit_code" -ne 0 ]]; then
+            echo "xcresult summary failed with exit code $summary_exit_code"
+          fi
+          exit "$test_exit_code"

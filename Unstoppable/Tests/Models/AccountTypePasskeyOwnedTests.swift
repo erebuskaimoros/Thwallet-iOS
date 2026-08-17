@@ -47,14 +47,6 @@ struct AccountTypePasskeyOwnedTests {
     @Test
     func accountStorageRoundTripsPasskeyOwned() throws {
         let environment = try StorageTestEnvironment()
-        let probe = Data([0xAA, 0xBB])
-        do {
-            try environment.keychainStorage.set(value: probe, for: "diagnostic-probe")
-        } catch {
-            print("KEYCHAIN_DIAGNOSTIC_WRITE_ERROR: \(String(reflecting: error))")
-            throw error
-        }
-        print("KEYCHAIN_DIAGNOSTIC_READ_MATCH: \(environment.keychainStorage.value(for: "diagnostic-probe") == probe)")
         let account = Account(
             id: UUID().uuidString,
             level: 3,
