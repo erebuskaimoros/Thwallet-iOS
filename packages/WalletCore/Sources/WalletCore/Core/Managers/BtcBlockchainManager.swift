@@ -10,6 +10,7 @@ public class BtcBlockchainManager {
         .ecash,
         .litecoin,
         .dash,
+        .dogecoin,
     ]
 
     static let allowedRbfBlockchainTypes: [BlockchainType] = [
@@ -59,15 +60,11 @@ extension BtcBlockchainManager {
     }
 
     func syncMode(blockchainType: BlockchainType, accountOrigin: AccountOrigin) -> BitcoinCore.SyncMode {
-        let _restoreMode = accountOrigin == .created
-            ? fastestSyncMode(blockchainType: blockchainType)
-            : restoreMode(blockchainType: blockchainType)
-
-        switch _restoreMode {
-        case .blockchair: return .blockchair
-        case .hybrid: return .api
-        case .blockchain: return .full
-        }
+        resolveBtcSyncMode(
+            blockchainType: blockchainType,
+            accountOrigin: accountOrigin,
+            restoreMode: restoreMode(blockchainType: blockchainType)
+        )
     }
 
     func save(restoreMode: BtcRestoreMode, blockchainType: BlockchainType) {
@@ -94,6 +91,27 @@ extension BtcBlockchainManager {
 
     func save(rbfEnabled: Bool, blockchainType: BlockchainType) {
         storage.save(btcRbfEnabled: rbfEnabled, blockchainType: blockchainType)
+    }
+}
+
+func resolveBtcSyncMode(
+    blockchainType: BlockchainType,
+    accountOrigin: AccountOrigin,
+    restoreMode: BtcRestoreMode
+) -> BitcoinCore.SyncMode {
+    let resolvedRestoreMode: BtcRestoreMode
+    if blockchainType == .dogecoin {
+        resolvedRestoreMode = restoreMode
+    } else if accountOrigin == .created {
+        resolvedRestoreMode = blockchainType.supports(restoreMode: .blockchair) ? .blockchair : .hybrid
+    } else {
+        resolvedRestoreMode = restoreMode
+    }
+
+    switch resolvedRestoreMode {
+    case .blockchair: return .blockchair
+    case .hybrid: return .api
+    case .blockchain: return .full
     }
 }
 

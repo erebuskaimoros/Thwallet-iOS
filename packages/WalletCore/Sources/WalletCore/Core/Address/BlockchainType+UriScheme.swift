@@ -9,6 +9,7 @@ extension BlockchainType {
         case .ecash: return "ecash"
         case .litecoin: return "litecoin"
         case .dash: return "dash"
+        case .dogecoin: return "dogecoin"
         case .zcash: return "zcash"
         case .tron: return "tron"
         case .ton: return "ton"
@@ -25,7 +26,7 @@ extension BlockchainType {
     var removeScheme: Bool {
         if isEvm { return true }
         switch self {
-        case .bitcoin, .litecoin, .dash, .zcash, .tron, .ton, .monero, .zano, .stellar, .solana: return true
+        case .bitcoin, .litecoin, .dash, .dogecoin, .zcash, .tron, .ton, .monero, .zano, .stellar, .solana: return true
         case .bitcoinCash, .ecash: return false
         default: return false
         }

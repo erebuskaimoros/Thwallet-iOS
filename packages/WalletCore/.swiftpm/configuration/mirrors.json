@@ -1,0 +1,29 @@
+{
+  "object": [
+    {
+      "mirror": "https://github.com/erebuskaimoros/BitcoinCore.Swift.git",
+      "original": "https://github.com/horizontalsystems/BitcoinCore.Swift"
+    },
+    {
+      "mirror": "https://github.com/erebuskaimoros/BitcoinCore.Swift.git",
+      "original": "https://github.com/horizontalsystems/BitcoinCore.Swift.git"
+    },
+    {
+      "mirror": "https://github.com/erebuskaimoros/EvmKit.Swift.git",
+      "original": "https://github.com/horizontalsystems/EvmKit.Swift"
+    },
+    {
+      "mirror": "https://github.com/erebuskaimoros/EvmKit.Swift.git",
+      "original": "https://github.com/horizontalsystems/EvmKit.Swift.git"
+    },
+    {
+      "mirror": "https://github.com/erebuskaimoros/MarketKit.Swift.git",
+      "original": "https://github.com/horizontalsystems/MarketKit.Swift"
+    },
+    {
+      "mirror": "https://github.com/erebuskaimoros/MarketKit.Swift.git",
+      "original": "https://github.com/horizontalsystems/MarketKit.Swift.git"
+    }
+  ],
+  "version": 1
+}

@@ -15,7 +15,7 @@ public class EvmBlockchainManager {
         .fantom,
         .base,
         .zkSync,
-    ]
+    ] + EvmNetworkCatalog.blockchainTypes
 
     private let syncSourceManager: EvmSyncSourceManager
     private let testNetManager: TestNetManager
@@ -77,6 +77,10 @@ extension EvmBlockchainManager {
     }
 
     func chain(blockchainType: BlockchainType) throws -> Chain {
+        if let network = EvmNetworkCatalog.network(blockchainType: blockchainType) {
+            return network.chain
+        }
+
         switch blockchainType {
         case .ethereum:
             if testNetManager.testNetEnabled {

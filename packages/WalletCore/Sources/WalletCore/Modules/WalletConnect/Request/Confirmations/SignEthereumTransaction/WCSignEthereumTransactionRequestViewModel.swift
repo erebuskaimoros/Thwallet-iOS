@@ -65,6 +65,12 @@ extension WCSignEthereumTransactionRequestViewModel {
                 throw TransactionError.invalidGasLimit
             }
 
+            try Self.validate(
+                gasPrice: gasPrice,
+                gasLimit: gasLimit,
+                maximumGasLimit: evmKitWrapper.evmKit.chain.gasLimit
+            )
+
             guard let nonce = wcTransaction.nonce else {
                 throw TransactionError.invalidNonce
             }
@@ -91,6 +97,11 @@ extension WCSignEthereumTransactionRequestViewModel {
 
     func reject() {
         wcService.rejectRequest(id: requestId)
+    }
+
+    static func validate(gasPrice: GasPrice, gasLimit: Int, maximumGasLimit: Int) throws {
+        try EvmGasValidation.validate(gasPrice: gasPrice)
+        try EvmGasValidation.validate(gasLimit: gasLimit, maximumGasLimit: maximumGasLimit)
     }
 }
 

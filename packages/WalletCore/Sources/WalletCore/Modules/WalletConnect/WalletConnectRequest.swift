@@ -36,9 +36,10 @@ public class WalletConnectRequest: Identifiable {
 }
 
 extension WalletConnectRequest {
-    enum CreationError: Error {
+    enum CreationError: Error, Equatable {
         case noActiveAccount
         case invalidChain
         case cantCreateAddress
+        case invalidFromAddress
     }
 }

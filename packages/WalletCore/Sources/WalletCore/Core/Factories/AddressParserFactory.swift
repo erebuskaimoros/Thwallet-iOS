@@ -13,30 +13,51 @@ enum AddressParserFactory {
     }
 
     static func parserChainHandlers(blockchainType: BlockchainType, filter: ParserFilter? = nil, withEns: Bool = true) -> [IAddressParserItem] {
+        if EvmNetworkCatalog.contains(blockchainType) {
+            let evmAddressParserItem = EvmAddressParser(blockchainType: blockchainType)
+            var handlers: [IAddressParserItem] = [evmAddressParserItem]
+
+            if withEns,
+               let httpSyncSource = Core.shared.evmSyncSourceManager.httpSyncSource(blockchainType: .ethereum),
+               let ensAddressParserItem = EnsAddressParserItem(rpcSource: httpSyncSource.rpcSource, rawAddressParserItem: evmAddressParserItem)
+            {
+                handlers.append(ensAddressParserItem)
+            }
+
+            return handlers
+        }
+
         switch blockchainType {
-        case .bitcoin, .dash, .litecoin, .bitcoinCash, .ecash:
+        case .bitcoin, .dash, .dogecoin, .litecoin, .bitcoinCash, .ecash:
             let scriptConverter = ScriptConverter()
 
             let specificAddressConverter: IAddressConverter?
-            let network: INetwork
+            let base58AddressConverter: IAddressConverter
             switch blockchainType {
             case .dash:
-                network = DashKit.MainNet()
+                let network = DashKit.MainNet()
                 specificAddressConverter = nil
+                base58AddressConverter = Base58AddressConverter(addressVersion: network.pubKeyHash, addressScriptVersion: network.scriptHash)
+            case .dogecoin:
+                specificAddressConverter = nil
+                base58AddressConverter = dogecoinAddressConverter()
             case .litecoin:
-                network = LitecoinKit.MainNet()
+                let network = LitecoinKit.MainNet()
                 specificAddressConverter = SegWitBech32AddressConverter(prefix: network.bech32PrefixPattern, scriptConverter: scriptConverter)
+                base58AddressConverter = Base58AddressConverter(addressVersion: network.pubKeyHash, addressScriptVersion: network.scriptHash)
             case .bitcoinCash:
-                network = BitcoinCashKit.MainNet()
+                let network = BitcoinCashKit.MainNet()
                 specificAddressConverter = CashBech32AddressConverter(prefix: network.bech32PrefixPattern)
+                base58AddressConverter = Base58AddressConverter(addressVersion: network.pubKeyHash, addressScriptVersion: network.scriptHash)
             case .ecash:
-                network = ECashKit.MainNet()
+                let network = ECashKit.MainNet()
                 specificAddressConverter = CashBech32AddressConverter(prefix: network.bech32PrefixPattern)
+                base58AddressConverter = Base58AddressConverter(addressVersion: network.pubKeyHash, addressScriptVersion: network.scriptHash)
             default:
-                network = BitcoinKit.MainNet()
+                let network = BitcoinKit.MainNet()
                 specificAddressConverter = SegWitBech32AddressConverter(prefix: network.bech32PrefixPattern, scriptConverter: scriptConverter)
+                base58AddressConverter = Base58AddressConverter(addressVersion: network.pubKeyHash, addressScriptVersion: network.scriptHash)
             }
-            let base58AddressConverter = Base58AddressConverter(addressVersion: network.pubKeyHash, addressScriptVersion: network.scriptHash)
 
             let addressConverterChain = AddressConverterChain()
             addressConverterChain.prepend(addressConverter: base58AddressConverter)
@@ -112,6 +133,13 @@ enum AddressParserFactory {
 
         return AddressParserChain().append(handlers: handlers)
     }
+}
+
+// Dogecoin mainnet deliberately supports both legacy P2PKH (`D...`) and P2SH
+// (`A...`/`9...`) destinations. Single-address watch wallets further restrict
+// this converter's output to P2PKH in WatchViewModel.
+func dogecoinAddressConverter() -> IAddressConverter {
+    Base58AddressConverter(addressVersion: 30, addressScriptVersion: 22)
 }
 
 extension AddressParserFactory {

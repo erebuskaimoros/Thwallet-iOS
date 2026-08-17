@@ -197,7 +197,7 @@ extension ExtendedKeyService {
             if coinTypesDerivableFromKey.count == 1, coinTypesDerivableFromKey[0] == .litecoin {
                 return [.litecoin]
             } else {
-                return [.bitcoin, .bitcoinCash, .litecoin, .dash]
+                return [.bitcoin, .bitcoinCash, .litecoin, .dash, .dogecoin]
             }
         default:
             if coinTypesDerivableFromKey.count == 1, coinTypesDerivableFromKey[0] == .litecoin {
@@ -246,6 +246,7 @@ extension ExtendedKeyService {
         case bitcoinCash
         case litecoin
         case dash
+        case dogecoin
 
         var title: String {
             switch self {
@@ -253,12 +254,13 @@ extension ExtendedKeyService {
             case .bitcoinCash: return "Bitcoin Cash"
             case .litecoin: return "Litecoin"
             case .dash: return "Dash"
+            case .dogecoin: return "Dogecoin"
             }
         }
 
         var extendedKeyCoinType: HDExtendedKeyVersion.ExtendedKeyCoinType {
             switch self {
-            case .bitcoin, .bitcoinCash, .dash: return .bitcoin
+            case .bitcoin, .bitcoinCash, .dash, .dogecoin: return .bitcoin
             case .litecoin: return .litecoin
             }
         }
@@ -269,6 +271,7 @@ extension ExtendedKeyService {
             case .bitcoinCash: return BitcoinCashKit.MainNet().coinType
             case .litecoin: return LitecoinKit.MainNet().coinType
             case .dash: return DashKit.MainNet().coinType
+            case .dogecoin: return 3
             }
         }
     }

@@ -6,11 +6,19 @@ extension Token {
     public var protocolName: String? {
         switch type {
         case .native:
+            if let network = EvmNetworkCatalog.network(blockchainType: blockchainType) {
+                return network.name
+            }
+
             switch blockchainType {
             case .optimism, .arbitrumOne, .base, .zkSync: return blockchain.name
             default: return nil
             }
         case .eip20:
+            if EvmNetworkCatalog.contains(blockchainType) {
+                return blockchainType == .cronos ? "CRC20" : "ERC20"
+            }
+
             switch blockchainType {
             case .ethereum: return "ERC20"
             case .binanceSmartChain: return "BEP20"

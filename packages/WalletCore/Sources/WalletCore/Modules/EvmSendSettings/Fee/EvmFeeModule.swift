@@ -6,10 +6,8 @@ import RxSwift
 import UIKit
 
 enum EvmFeeModule {
-    private static let surchargePercent: Double = 10
-
-    static func surcharged(gasLimit: Int) -> Int {
-        gasLimit + Int(Double(gasLimit) / 100.0 * surchargePercent)
+    static func surcharged(gasLimit: Int, maximumGasLimit: Int = Int.max) throws -> Int {
+        try EvmGasValidation.surcharged(gasLimit: gasLimit, maximumGasLimit: maximumGasLimit)
     }
 
     static func gasPriceService(evmKit: EvmKit.Kit, gasPrice: GasPrice? = nil, previousTransaction: EvmKit.Transaction? = nil) -> IGasPriceService {
@@ -84,11 +82,11 @@ extension EvmFeeModule {
         }
 
         var fee: BigUInt {
-            BigUInt(limit * price.max)
+            BigUInt(limit) * BigUInt(price.max)
         }
 
         var estimatedFee: BigUInt {
-            BigUInt(estimatedLimit * price.max)
+            BigUInt(estimatedLimit) * BigUInt(price.max)
         }
 
         var isSurcharged: Bool {
@@ -99,7 +97,8 @@ extension EvmFeeModule {
             "L1 transaction: gasLimit:\(limit) - gasPrice:\(price.description)"
         }
 
-        func set(price: GasPrice) {
+        func set(price: GasPrice) throws {
+            try EvmGasValidation.validate(gasPrice: price)
             self.price = price
         }
     }

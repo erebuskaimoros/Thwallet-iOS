@@ -24,9 +24,11 @@ open class Address: Equatable {
 
 class BitcoinAddress: Address {
     let tokenType: TokenType
+    let scriptType: ScriptType?
 
-    init(raw: String, domain: String? = nil, blockchainType: BlockchainType, tokenType: TokenType) {
+    init(raw: String, domain: String? = nil, blockchainType: BlockchainType, tokenType: TokenType, scriptType: ScriptType? = nil) {
         self.tokenType = tokenType
+        self.scriptType = scriptType
 
         super.init(raw: raw, domain: domain, blockchainType: blockchainType)
     }

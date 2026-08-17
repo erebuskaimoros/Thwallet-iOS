@@ -103,6 +103,15 @@ class DashFeeRateProvider: IFeeRateProvider {
     }
 }
 
+class DogecoinFeeRateProvider: IFeeRateProvider {
+    static let minimumFeeRate = 100
+    static let recommendedFeeRate = 1_000
+
+    func feeRates() async throws -> FeeRateProvider.FeeRates {
+        .init(recommended: Self.recommendedFeeRate, minimum: Self.minimumFeeRate)
+    }
+}
+
 private func ceil(_ value: Int, multiply: Double?) -> Int {
     guard let multiply else {
         return value

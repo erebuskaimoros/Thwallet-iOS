@@ -53,7 +53,7 @@ class EvmFeeService {
             single = gasDataService
                 .gasDataSingle(gasPrice: fallibleGasPrices.data.recommended, transactionData: transactionData, stubAmount: 1)
                 .flatMap { adjustedGasData in
-                    adjustedGasData.set(price: fallibleGasPrices.data.userDefined)
+                    try adjustedGasData.set(price: fallibleGasPrices.data.userDefined)
 
                     if transactionData.value <= adjustedGasData.fee {
                         return Single.error(EvmFeeModule.GasDataError.insufficientBalance)
@@ -74,7 +74,7 @@ class EvmFeeService {
                             .gasDataService
                             .gasDataSingle(gasPrice: fallibleGasPrices.data.recommended, transactionData: transactionData)
                             .map { gasData in
-                                gasData.set(price: fallibleGasPrices.data.userDefined)
+                                try gasData.set(price: fallibleGasPrices.data.userDefined)
                                 return gasData
                             }
                     }

@@ -1,7 +1,16 @@
+import BigInt
 import EvmKit
 import Foundation
 import MarketKit
 import SwiftUI
+
+enum EvmSendBalancePolicy {
+    static func validate(balance: BigUInt, transactionValue: BigUInt, fee: BigUInt) throws {
+        guard transactionValue + fee <= balance else {
+            throw AppError.ethereum(reason: .insufficientBalanceWithFee)
+        }
+    }
+}
 
 class EvmSendHandler {
     let baseToken: Token
@@ -33,8 +42,12 @@ extension EvmSendHandler: ISendHandler {
 
             do {
                 if transactionData.input.isEmpty, transactionData.value == evmBalance {
-                    let stubTransactionData = TransactionData(to: transactionData.to, value: 1, input: transactionData.input)
-                    let stubFeeData = try await evmFeeEstimator.estimateFee(evmKitWrapper: evmKitWrapper, transactionData: stubTransactionData, gasPriceData: gasPriceData)
+                    let stubFeeData = try await evmFeeEstimator.estimateFee(
+                        evmKitWrapper: evmKitWrapper,
+                        transactionData: transactionData,
+                        gasPriceData: gasPriceData,
+                        stubAmount: 1
+                    )
                     let totalFee = stubFeeData.totalFee(gasPrice: gasPriceData.userDefined)
 
                     evmFeeData = stubFeeData
@@ -49,10 +62,11 @@ extension EvmSendHandler: ISendHandler {
                     let totalFee = _evmFeeData.totalFee(gasPrice: gasPriceData.userDefined)
 
                     evmFeeData = _evmFeeData
-
-                    if evmBalance < totalFee {
-                        throw AppError.ethereum(reason: .insufficientBalanceWithFee)
-                    }
+                    try EvmSendBalancePolicy.validate(
+                        balance: evmBalance,
+                        transactionValue: transactionData.value,
+                        fee: totalFee
+                    )
                 }
             } catch {
                 transactionError = error

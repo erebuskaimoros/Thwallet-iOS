@@ -19,15 +19,12 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
     private let swapAssetStorage = Core.shared.swapAssetStorage
     private let allowanceHelper = MultiSwapAllowanceHelper()
     private let evmFeeEstimator = EvmFeeEstimator()
-    private let utxoFilters = UtxoFilters(
-        scriptTypes: [.p2pkh, .p2wpkhSh, .p2wpkh]
-    )
-
     private var assetMap = [String: String]()
     private let syncSubject = PassthroughSubject<Void, Never>()
+    private var assetStorageId: String { "\(id)-assets-v2" }
 
     init() {
-        assetMap = (try? swapAssetStorage.swapAssetMap(provider: id, as: String.self)) ?? [:]
+        assetMap = (try? swapAssetStorage.swapAssetMap(provider: assetStorageId, as: String.self)) ?? [:]
         syncAssets()
     }
 
@@ -71,8 +68,14 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
                 allowanceState: allowanceHelper.allowanceState(spenderAddress: .init(raw: router), token: tokenIn, amount: amountIn),
                 estimatedTime: estimatedTime(swapQuote, tokenOut: tokenOut)
             )
-        case .bitcoin, .bitcoinCash, .dash, .litecoin, .zcash:
-            return MultiSwapQuote(expectedBuyAmount: swapQuote.expectedAmountOut, estimatedTime: swapQuote.totalSwapSeconds)
+        case .bitcoin, .bitcoinCash, .dash, .dogecoin, .litecoin, .zcash:
+            return ThorChainUtxoMultiSwapQuote(
+                expectedBuyAmount: swapQuote.expectedAmountOut,
+                estimatedTime: swapQuote.totalSwapSeconds,
+                recommendedGasRate: swapQuote.recommendedGasRate,
+                gasRateUnits: swapQuote.gasRateUnits,
+                dustThreshold: swapQuote.dustThreshold
+            )
         default:
             throw SwapError.unsupportedTokenIn
         }
@@ -80,7 +83,9 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
 
     func confirmationQuote(multiSwapQuote _: MultiSwapQuote, tokenIn: Token, tokenOut: Token, amountIn: Decimal, slippage: Decimal, recipient: String?, transactionSettings: TransactionSettings?) async throws -> SwapFinalQuote {
         let swapQuote = try await swapQuote(tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, slippage: slippage, recipient: recipient)
-        let toAddress = try await resolveDestination(recipient: nil, token: tokenOut)
+        let toAddress = try await thorChainConfirmationDestination(recipient: recipient) {
+            try await resolveDestination(recipient: nil, token: tokenOut)
+        }
 
         switch tokenIn.blockchainType {
         case .arbitrumOne, .avalanche, .base, .binanceSmartChain, .ethereum:
@@ -147,7 +152,7 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
                 nonce: transactionSettings?.nonce,
                 toAddress: toAddress
             )
-        case .bitcoin, .bitcoinCash, .dash, .litecoin:
+        case .bitcoin, .bitcoinCash, .dash, .dogecoin, .litecoin:
             var transactionError: Error?
             var sendInfo: SendInfo?
             var params: SendParameters?
@@ -156,27 +161,33 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
                 throw SwapError.noAdapter
             }
 
-            if let satoshiPerByte = transactionSettings?.satoshiPerByte {
-                do {
-                    let value = adapter.convertToSatoshi(value: amountIn)
-                    if let dustThreshold = swapQuote.dustThreshold, value <= dustThreshold {
-                        throw BitcoinCoreErrors.SendValueErrors.dust(dustThreshold + 1)
-                    }
+            do {
+                let policy = try thorChainUtxoSendPolicy(
+                    tokenIn: tokenIn,
+                    transactionSettings: transactionSettings,
+                    recommendedGasRate: swapQuote.recommendedGasRate,
+                    gasRateUnits: swapQuote.gasRateUnits,
+                    dustThreshold: swapQuote.dustThreshold
+                )
 
-                    let _params = SendParameters(
-                        address: swapQuote.inboundAddress,
-                        value: value,
-                        feeRate: satoshiPerByte,
-                        memo: swapQuote.memo,
-                        utxoFilters: utxoFilters,
-                        changeToFirstInput: true
-                    )
-
-                    sendInfo = try adapter.sendInfo(params: _params)
-                    params = _params
-                } catch {
-                    transactionError = error
+                let value = adapter.convertToSatoshi(value: amountIn)
+                if value < policy.minimumSendValue {
+                    throw BitcoinCoreErrors.SendValueErrors.dust(policy.minimumSendValue)
                 }
+
+                let _params = SendParameters(
+                    address: swapQuote.inboundAddress,
+                    value: value,
+                    feeRate: policy.feeRate,
+                    memo: swapQuote.memo,
+                    utxoFilters: policy.utxoFilters,
+                    changeToFirstInput: true
+                )
+
+                sendInfo = try adapter.sendInfo(params: _params)
+                params = _params
+            } catch {
+                transactionError = error
             }
 
             return UtxoSwapFinalQuote(
@@ -272,7 +283,7 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
     }
 
     private func syncAssets() {
-        let lastSyncTimetamp = try? swapAssetStorage.lastSyncTimetamp(provider: id)
+        let lastSyncTimetamp = try? swapAssetStorage.lastSyncTimetamp(provider: assetStorageId)
 
         if let lastSyncTimetamp, Date().timeIntervalSince1970 - lastSyncTimetamp < assetMapExpiration {
             return
@@ -316,7 +327,7 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
 
                 tokenQueries = [TokenQuery(blockchainType: blockchainType, tokenType: tokenType)]
 
-            case .bitcoinCash, .bitcoin, .dash, .zcash:
+            case .bitcoinCash, .bitcoin, .dash, .dogecoin, .zcash:
                 tokenQueries = blockchainType.nativeTokenQueries
 
             case .litecoin:
@@ -333,8 +344,8 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
             }
         }
 
-        try? swapAssetStorage.save(swapAssetMap: assetMap, provider: id)
-        try? swapAssetStorage.save(lastSyncTimestamp: Date().timeIntervalSince1970, provider: id)
+        try? swapAssetStorage.save(swapAssetMap: assetMap, provider: assetStorageId)
+        try? swapAssetStorage.save(lastSyncTimestamp: Date().timeIntervalSince1970, provider: assetStorageId)
 
         DispatchQueue.main.async {
             self.assetMap = assetMap
@@ -343,19 +354,131 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
     }
 
     private func blockchainType(assetBlockchainId: String) -> BlockchainType? {
-        switch assetBlockchainId {
-        case "ARB": return .arbitrumOne
-        case "AVAX": return .avalanche
-        case "BASE": return .base
-        case "BCH": return .bitcoinCash
-        case "BSC": return .binanceSmartChain
-        case "BTC": return .bitcoin
-        case "DASH": return .dash
-        case "ETH": return .ethereum
-        case "LTC": return .litecoin
-        case "ZEC": return .zcash
-        default: return nil
-        }
+        thorChainBlockchainType(assetBlockchainId: assetBlockchainId)
+    }
+}
+
+func thorChainBlockchainType(assetBlockchainId: String) -> BlockchainType? {
+    switch assetBlockchainId {
+    case "ARB": return .arbitrumOne
+    case "AVAX": return .avalanche
+    case "BASE": return .base
+    case "BCH": return .bitcoinCash
+    case "BSC": return .binanceSmartChain
+    case "BTC": return .bitcoin
+    case "DASH": return .dash
+    case "DOGE": return .dogecoin
+    case "ETH": return .ethereum
+    case "LTC": return .litecoin
+    case "ZEC": return .zcash
+    default: return nil
+    }
+}
+
+func thorChainUtxoFilters(blockchainType: BlockchainType) -> UtxoFilters {
+    if blockchainType == .dogecoin {
+        return UtxoFilters(scriptTypes: [.p2pkh], maxOutputsCountForInputs: 10)
+    }
+
+    return UtxoFilters(scriptTypes: [.p2pkh, .p2wpkhSh, .p2wpkh])
+}
+
+func thorChainConfirmationDestination(
+    recipient: String?,
+    walletDestination: () async throws -> String
+) async rethrows -> String {
+    if let recipient {
+        return recipient
+    }
+
+    return try await walletDestination()
+}
+
+enum ThorChainUtxoPolicyError: Error, Equatable {
+    case invalidGasRateUnits(String?)
+    case invalidRecommendedGasRate(Int?)
+    case invalidSelectedFeeRate(Int)
+    case invalidDustThreshold(Int?)
+}
+
+// Preserves THORChain's live DOGE rate (750k) while bounding downstream size × rate arithmetic.
+private let thorChainMaximumUtxoGasRate = 1_000_000
+// Ten times the live DOGE threshold (1 DOGE), with ample room for other UTXO chains.
+private let thorChainMaximumUtxoDustThreshold = 1_000_000_000
+
+func effectiveThorChainFeeRate(
+    blockchainType: BlockchainType,
+    selectedFeeRate: Int?,
+    recommendedGasRate: Int?
+) throws -> Int? {
+    if let selectedFeeRate, !(1 ... thorChainMaximumUtxoGasRate).contains(selectedFeeRate) {
+        throw ThorChainUtxoPolicyError.invalidSelectedFeeRate(selectedFeeRate)
+    }
+    if let recommendedGasRate, !(1 ... thorChainMaximumUtxoGasRate).contains(recommendedGasRate) {
+        throw ThorChainUtxoPolicyError.invalidRecommendedGasRate(recommendedGasRate)
+    }
+
+    guard selectedFeeRate != nil || recommendedGasRate != nil else {
+        return nil
+    }
+
+    var candidates = [selectedFeeRate, recommendedGasRate].compactMap { $0 }
+    if blockchainType == .dogecoin {
+        candidates.append(DogecoinFeeRateProvider.minimumFeeRate)
+    }
+    return candidates.max()
+}
+
+struct ThorChainUtxoSendPolicy {
+    let feeRate: Int
+    let minimumSendValue: Int
+    let utxoFilters: UtxoFilters
+}
+
+func thorChainUtxoSendPolicy(
+    tokenIn: Token,
+    transactionSettings: TransactionSettings?,
+    recommendedGasRate: Int?,
+    gasRateUnits: String?,
+    dustThreshold: Int?
+) throws -> ThorChainUtxoSendPolicy {
+    guard gasRateUnits?.caseInsensitiveCompare("satsperbyte") == .orderedSame else {
+        throw ThorChainUtxoPolicyError.invalidGasRateUnits(gasRateUnits)
+    }
+
+    guard let recommendedGasRate else {
+        throw ThorChainUtxoPolicyError.invalidRecommendedGasRate(recommendedGasRate)
+    }
+
+    guard let dustThreshold, (1 ... thorChainMaximumUtxoDustThreshold).contains(dustThreshold) else {
+        throw ThorChainUtxoPolicyError.invalidDustThreshold(dustThreshold)
+    }
+
+    guard let feeRate = try effectiveThorChainFeeRate(
+        blockchainType: tokenIn.blockchainType,
+        selectedFeeRate: transactionSettings?.satoshiPerByte,
+        recommendedGasRate: recommendedGasRate
+    ) else {
+        throw ThorChainUtxoPolicyError.invalidRecommendedGasRate(recommendedGasRate)
+    }
+
+    return ThorChainUtxoSendPolicy(
+        feeRate: feeRate,
+        minimumSendValue: dustThreshold + 1,
+        utxoFilters: thorChainUtxoFilters(blockchainType: tokenIn.blockchainType)
+    )
+}
+
+class ThorChainUtxoMultiSwapQuote: MultiSwapQuote {
+    let recommendedGasRate: Int?
+    let gasRateUnits: String?
+    let dustThreshold: Int?
+
+    init(expectedBuyAmount: Decimal, estimatedTime: TimeInterval?, recommendedGasRate: Int?, gasRateUnits: String?, dustThreshold: Int?) {
+        self.recommendedGasRate = recommendedGasRate
+        self.gasRateUnits = gasRateUnits
+        self.dustThreshold = dustThreshold
+        super.init(expectedBuyAmount: expectedBuyAmount, estimatedTime: estimatedTime)
     }
 }
 
@@ -391,6 +514,8 @@ extension BaseThorChainMultiSwapProvider {
         let outboundDelaySeconds: TimeInterval?
         let streamingSwapSeconds: TimeInterval?
         let totalSwapSeconds: TimeInterval?
+        let recommendedGasRate: Int?
+        let gasRateUnits: String?
 
         init(map: Map) throws {
             inboundAddress = try map.value("inbound_address")
@@ -409,6 +534,8 @@ extension BaseThorChainMultiSwapProvider {
             outboundDelaySeconds = try? map.value("outbound_delay_seconds")
             streamingSwapSeconds = try? map.value("streaming_swap_seconds")
             totalSwapSeconds = try? map.value("total_swap_seconds")
+            recommendedGasRate = try? map.value("recommended_gas_rate", using: Transform.stringToIntTransform)
+            gasRateUnits = try? map.value("gas_rate_units")
         }
     }
 

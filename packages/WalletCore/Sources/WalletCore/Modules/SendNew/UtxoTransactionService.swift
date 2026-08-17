@@ -7,6 +7,7 @@ class UtxoTransactionService {
     private let blockchainType: BlockchainType
     private let adapter: BitcoinBaseAdapter
     private let feeRateProvider: IFeeRateProvider?
+    private let initialTransactionSettings: InitialTransactionSettings?
 
     private(set) var actualFeeRates: FeeRateProvider.FeeRates?
     private var satoshiPerByte: Int? {
@@ -18,9 +19,10 @@ class UtxoTransactionService {
     private(set) var cautions: [CautionNew] = []
     private let updateSubject = PassthroughSubject<Void, Never>()
 
-    init(blockchainType: BlockchainType, adapter: BitcoinBaseAdapter) {
+    init(blockchainType: BlockchainType, adapter: BitcoinBaseAdapter, initialTransactionSettings: InitialTransactionSettings? = nil) {
         self.blockchainType = blockchainType
         self.adapter = adapter
+        self.initialTransactionSettings = initialTransactionSettings
         feeRateProvider = Core.shared.feeRateProviderFactory.provider(blockchainType: blockchainType)
     }
 
@@ -47,8 +49,28 @@ extension UtxoTransactionService: ITransactionService {
     }
 
     func sync() async throws {
-        actualFeeRates = try await feeRateProvider?.feeRates()
+        guard let providerFeeRates = try await feeRateProvider?.feeRates() else {
+            actualFeeRates = nil
+            return
+        }
+
+        actualFeeRates = resolveUtxoFeeRates(
+            providerFeeRates: providerFeeRates,
+            initialTransactionSettings: initialTransactionSettings
+        )
     }
+}
+
+func resolveUtxoFeeRates(
+    providerFeeRates: FeeRateProvider.FeeRates,
+    initialTransactionSettings: InitialTransactionSettings?
+) -> FeeRateProvider.FeeRates {
+    guard case let .some(.bitcoin(recommendedFeeRate)) = initialTransactionSettings else {
+        return providerFeeRates
+    }
+
+    let effectiveRate = max(recommendedFeeRate, providerFeeRates.minimum)
+    return .init(recommended: effectiveRate, minimum: effectiveRate)
 }
 
 extension UtxoTransactionService {

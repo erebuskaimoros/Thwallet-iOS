@@ -52,14 +52,24 @@ extension WalletConnectEvmSendHandler: ISendHandler {
         var transactionError: Error?
 
         if let gasPriceData {
-            if let gasLimit = payload.transaction.gasLimit {
-                evmFeeData = EvmFeeData(gasLimit: gasLimit, surchargedGasLimit: gasLimit)
-            } else {
-                do {
-                    evmFeeData = try await evmFeeEstimator.estimateFee(evmKitWrapper: evmKitWrapper, transactionData: transactionData, gasPriceData: gasPriceData)
-                } catch {
-                    transactionError = error
+            do {
+                evmFeeData = try await WalletConnectEvmFeePolicy.resolve(predefinedGasLimit: payload.transaction.gasLimit) { gasLimit in
+                    try await evmFeeEstimator.estimateFee(
+                        evmKitWrapper: evmKitWrapper,
+                        transactionData: transactionData,
+                        gasPriceData: gasPriceData,
+                        predefinedGasLimit: gasLimit
+                    )
                 }
+                if let evmFeeData {
+                    try EvmSendBalancePolicy.validate(
+                        balance: evmKitWrapper.evmKit.accountState?.balance ?? 0,
+                        transactionValue: transactionData.value,
+                        fee: evmFeeData.totalFee(gasPrice: gasPriceData.userDefined)
+                    )
+                }
+            } catch {
+                transactionError = error
             }
         }
 
@@ -102,6 +112,15 @@ extension WalletConnectEvmSendHandler: ISendHandler {
         )
 
         signService.approveRequest(id: request.id, result: fullTransaction.transaction.hash)
+    }
+}
+
+enum WalletConnectEvmFeePolicy {
+    static func resolve(
+        predefinedGasLimit: Int?,
+        estimate: (Int?) async throws -> EvmFeeData
+    ) async rethrows -> EvmFeeData {
+        try await estimate(predefinedGasLimit)
     }
 }
 

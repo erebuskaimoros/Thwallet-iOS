@@ -98,7 +98,7 @@ extension ReceiveAddressModule {
 
     @ViewBuilder static func instance(wallet: Wallet, path: Binding<NavigationPath>, onDismiss: (() -> Void)? = nil) -> some View {
         switch wallet.token.blockchainType {
-        case .bitcoin, .bitcoinCash, .litecoin, .dash, .ecash: HDReceiveAddressView(wallet: wallet, onDismiss: onDismiss)
+        case .bitcoin, .bitcoinCash, .litecoin, .dash, .dogecoin, .ecash: HDReceiveAddressView(wallet: wallet, onDismiss: onDismiss)
         case .tron: TronReceiveAddressView(wallet: wallet, onDismiss: onDismiss)
         case .stellar: StellarReceiveAddressView(wallet: wallet, onDismiss: onDismiss)
         case .monero: MoneroReceiveAddressView(wallet: wallet, onDismiss: onDismiss)

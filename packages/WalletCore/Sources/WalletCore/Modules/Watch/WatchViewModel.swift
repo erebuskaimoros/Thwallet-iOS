@@ -184,8 +184,12 @@ class WatchViewModel: ObservableObject {
 
         do {
             let accountType: AccountType
-            if let bitcoinAddress = address as? BitcoinAddress, let blockchainType = bitcoinAddress.blockchainType {
-                accountType = .btcAddress(address: bitcoinAddress.raw, blockchainType: blockchainType, tokenType: bitcoinAddress.tokenType)
+            if let bitcoinAddress = address as? BitcoinAddress {
+                guard let resolvedAccountType = bitcoinWatchAccountType(address: bitcoinAddress) else {
+                    state = .error(error: ResolveError.notSupported)
+                    return
+                }
+                accountType = resolvedAccountType
             } else {
                 switch address.blockchainType {
                 case let evmAddress where EvmBlockchainManager.blockchainTypes.contains(where: { $0 == evmAddress }):
@@ -314,6 +318,25 @@ class WatchViewModel: ObservableObject {
     private var resolvedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+}
+
+func bitcoinWatchAccountType(address: BitcoinAddress) -> AccountType? {
+    guard let blockchainType = address.blockchainType else {
+        return nil
+    }
+
+    // DogecoinKit's single-address path is intentionally P2PKH-only. P2SH
+    // remains a valid send destination, but cannot be represented as a watch
+    // account without losing script semantics.
+    if blockchainType == .dogecoin, address.scriptType != .p2pkh {
+        return nil
+    }
+
+    return .btcAddress(
+        address: address.raw,
+        blockchainType: blockchainType,
+        tokenType: address.tokenType
+    )
 }
 
 extension WatchViewModel {

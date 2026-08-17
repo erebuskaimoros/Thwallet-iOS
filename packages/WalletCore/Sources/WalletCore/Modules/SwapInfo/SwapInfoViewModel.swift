@@ -192,6 +192,7 @@ class SwapInfoViewModel: ObservableObject {
         case .bitcoin: return "https://blockchair.com/bitcoin/transaction/" + hash
         case .bitcoinCash: return "https://blockchair.com/bitcoin-cash/transaction/" + hash
         case .dash: return "https://blockchair.com/dash/transaction/" + hash
+        case .dogecoin: return "https://blockchair.com/dogecoin/transaction/" + hash
         case .ecash: return "https://blockchair.com/ecash/transaction/" + hash
         case .litecoin: return "https://blockchair.com/litecoin/transaction/" + hash
         case .monero: return "https://blockchair.com/monero/transaction/" + hash
