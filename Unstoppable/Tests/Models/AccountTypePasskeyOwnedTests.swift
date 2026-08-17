@@ -1,7 +1,6 @@
 import EvmKit
 import Foundation
 import GRDB
-import HsToolKit
 import MarketKit
 import Testing
 @testable import Unstoppable
@@ -87,18 +86,9 @@ struct AccountTypePasskeyOwnedTests {
 
 private struct StorageTestEnvironment {
     let accountStorage: AccountStorage
-    let keychainStorage: KeychainStorage
     let recordStorage: AccountRecordStorage
 
     init() throws {
-        let logger = Logger(minLogLevel: .error)
-        // CI simulators do not have a passcode, so the production
-        // `.whenPasscodeSetThisDeviceOnly` accessibility class cannot store the fixture.
-        keychainStorage = KeychainStorage(
-            service: "account-storage-tests-\(UUID().uuidString)",
-            protection: .afterFirstUnlockThisDeviceOnly,
-            logger: logger
-        )
         let dbURL = FileManager.default.temporaryDirectory.appendingPathComponent("account-storage-tests-\(UUID().uuidString).sqlite")
         let dbPool = try DatabasePool(path: dbURL.path)
 
@@ -119,6 +109,32 @@ private struct StorageTestEnvironment {
         }
 
         recordStorage = AccountRecordStorage(dbPool: dbPool)
-        accountStorage = AccountStorage(keychainStorage: keychainStorage, storage: recordStorage)
+        accountStorage = AccountStorage(secureStorage: TestAccountSecureStorage(), storage: recordStorage)
+    }
+}
+
+private final class TestAccountSecureStorage: AccountSecureStorage {
+    private var strings = [String: String]()
+    private var data = [String: Data]()
+
+    func string(for key: String) -> String? {
+        strings[key]
+    }
+
+    func data(for key: String) -> Data? {
+        data[key]
+    }
+
+    func set(string: String?, for key: String) {
+        strings[key] = string
+    }
+
+    func set(data: Data?, for key: String) {
+        self.data[key] = data
+    }
+
+    func removeValue(for key: String) {
+        strings[key] = nil
+        data[key] = nil
     }
 }

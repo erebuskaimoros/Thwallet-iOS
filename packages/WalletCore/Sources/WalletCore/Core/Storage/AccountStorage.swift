@@ -4,12 +4,43 @@ import HdWalletKit
 import MarketKit
 import TronKit
 
+protocol AccountSecureStorage: AnyObject {
+    func string(for key: String) -> String?
+    func data(for key: String) -> Data?
+    func set(string: String?, for key: String) throws
+    func set(data: Data?, for key: String) throws
+    func removeValue(for key: String) throws
+}
+
+extension KeychainStorage: AccountSecureStorage {
+    func string(for key: String) -> String? {
+        value(for: key)
+    }
+
+    func data(for key: String) -> Data? {
+        value(for: key)
+    }
+
+    func set(string: String?, for key: String) throws {
+        try set(value: string, for: key)
+    }
+
+    func set(data: Data?, for key: String) throws {
+        try set(value: data, for: key)
+    }
+}
+
 public class AccountStorage {
-    private let keychainStorage: KeychainStorage
+    private let secureStorage: any AccountSecureStorage
     private let storage: AccountRecordStorage
 
     public init(keychainStorage: KeychainStorage, storage: AccountRecordStorage) {
-        self.keychainStorage = keychainStorage
+        secureStorage = keychainStorage
+        self.storage = storage
+    }
+
+    init(secureStorage: any AccountSecureStorage, storage: AccountRecordStorage) {
+        self.secureStorage = secureStorage
         self.storage = storage
     }
 
@@ -203,26 +234,26 @@ public class AccountStorage {
 
         switch account.type {
         case .mnemonic:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .mnemonic, keyName: .words))
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .mnemonic, keyName: .salt))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .mnemonic, keyName: .words))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .mnemonic, keyName: .salt))
         case .passkeyOwned:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .passkeyOwned, keyName: .credentialID))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .passkeyOwned, keyName: .credentialID))
         case .evmPrivateKey:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .evmPrivateKey, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .evmPrivateKey, keyName: .data))
         case .trcPrivateKey:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .trcPrivateKey, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .trcPrivateKey, keyName: .data))
         case .stellarSecretKey:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .stellarSecretKey, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .stellarSecretKey, keyName: .data))
         case .evmAddress:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .evmAddress, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .evmAddress, keyName: .data))
         case .tronAddress:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .tronAddress, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .tronAddress, keyName: .data))
         case .hdExtendedKey:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .hdExtendedKey, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .hdExtendedKey, keyName: .data))
         case .btcAddress:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .btcAddress, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .btcAddress, keyName: .data))
         case .moneroWatchAccount:
-            try keychainStorage.removeValue(for: secureKey(id: id, typeName: .moneroWatchAccount, keyName: .data))
+            try secureStorage.removeValue(for: secureKey(id: id, typeName: .moneroWatchAccount, keyName: .data))
         default:
             ()
         }
@@ -238,13 +269,13 @@ public class AccountStorage {
 
     private func store(_ value: some LosslessStringConvertible, id: String, typeName: TypeName, keyName: KeyName) throws -> String {
         let key = secureKey(id: id, typeName: typeName, keyName: keyName)
-        try keychainStorage.set(value: value, for: key)
+        try secureStorage.set(string: value.description, for: key)
         return key
     }
 
     private func store(data: Data, id: String, typeName: TypeName, keyName: KeyName) throws -> String {
         let key = secureKey(id: id, typeName: typeName, keyName: keyName)
-        try keychainStorage.set(value: data, for: key)
+        try secureStorage.set(data: data, for: key)
         return key
     }
 
@@ -255,12 +286,12 @@ public class AccountStorage {
 
     private func recover<T: LosslessStringConvertible>(id: String, typeName: TypeName, keyName: KeyName) -> T? {
         let key = secureKey(id: id, typeName: typeName, keyName: keyName)
-        return keychainStorage.value(for: key)
+        return secureStorage.string(for: key).flatMap { T($0) }
     }
 
     private func recoverData(id: String, typeName: TypeName, keyName: KeyName) -> Data? {
         let key = secureKey(id: id, typeName: typeName, keyName: keyName)
-        return keychainStorage.value(for: key)
+        return secureStorage.data(for: key)
     }
 }
 

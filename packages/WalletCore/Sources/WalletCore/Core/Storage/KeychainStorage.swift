@@ -3,26 +3,11 @@ import HsToolKit
 import KeychainAccess
 
 public class KeychainStorage {
-    enum Protection {
-        case passcodeSetThisDeviceOnly
-        case afterFirstUnlockThisDeviceOnly
-    }
-
     private let keychain: Keychain
     private let logger: Logger
 
     public init(service: String, logger: Logger) {
         keychain = Keychain(service: service).accessibility(.whenPasscodeSetThisDeviceOnly)
-        self.logger = logger
-    }
-
-    init(service: String, protection: Protection, logger: Logger) {
-        let accessibility: Accessibility = switch protection {
-        case .passcodeSetThisDeviceOnly: .whenPasscodeSetThisDeviceOnly
-        case .afterFirstUnlockThisDeviceOnly: .afterFirstUnlockThisDeviceOnly
-        }
-
-        keychain = Keychain(service: service).accessibility(accessibility)
         self.logger = logger
     }
 }
