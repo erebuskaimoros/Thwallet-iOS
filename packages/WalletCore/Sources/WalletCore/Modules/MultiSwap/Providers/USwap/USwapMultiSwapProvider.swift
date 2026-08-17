@@ -25,7 +25,7 @@ enum USwapEvmSignableParser {
               let valueString = jsonObject["value"] as? String,
               let dataString = jsonObject["data"] as? String
         else {
-            throw SwapError.invalidTransactionData
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
         }
 
         let valueDigits = try hexDigits(valueString)
@@ -33,21 +33,21 @@ enum USwapEvmSignableParser {
         guard significantValueDigits.count <= 64,
               let value = BigUInt(valueDigits, radix: 16)
         else {
-            throw SwapError.invalidTransactionData
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
         }
 
         let dataDigits = try hexDigits(dataString, allowEmpty: true)
         guard dataDigits.count.isMultiple(of: 2),
               let input = ("0x" + dataDigits).hs.hexData
         else {
-            throw SwapError.invalidTransactionData
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
         }
 
         let gasLimit: Int?
         if let gasString = jsonObject["gas"] as? String {
             let gasDigits = try hexDigits(gasString)
             guard let parsedGasLimit = Int(gasDigits, radix: 16) else {
-                throw SwapError.invalidTransactionData
+                throw USwapMultiSwapProvider.SwapError.invalidTransactionData
             }
             gasLimit = parsedGasLimit
         } else {
@@ -62,14 +62,14 @@ enum USwapEvmSignableParser {
 
     private static func hexDigits(_ value: String, allowEmpty: Bool = false) throws -> String {
         guard value.hasPrefix("0x") || value.hasPrefix("0X") else {
-            throw SwapError.invalidTransactionData
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
         }
 
         let digits = String(value.dropFirst(2))
         guard (allowEmpty || !digits.isEmpty),
               digits.utf8.allSatisfy(Self.isAsciiHexDigit)
         else {
-            throw SwapError.invalidTransactionData
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
         }
 
         return digits
