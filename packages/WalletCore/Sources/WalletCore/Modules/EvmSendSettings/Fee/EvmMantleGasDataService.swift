@@ -13,7 +13,7 @@ extension MantleFeeProvider: IMantleFeeProviding {}
 final class EvmMantleGasDataService: EvmCommonGasDataService {
     private let mantleFeeProvider: IMantleFeeProviding
 
-    init(evmKit: EvmKit.Kit, predefinedGasLimit: Int?) {
+    override init(evmKit: EvmKit.Kit, predefinedGasLimit: Int?) {
         mantleFeeProvider = MantleFeeProvider(evmKit: evmKit)
         super.init(evmKit: evmKit, predefinedGasLimit: predefinedGasLimit)
     }
