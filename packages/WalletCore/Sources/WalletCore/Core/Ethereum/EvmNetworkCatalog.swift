@@ -164,7 +164,7 @@ enum EvmNetworkCatalog {
         networkByType[blockchainType] != nil
     }
 
-    static func transactionSource(blockchainType: BlockchainType, etherscanKeys: [String]) -> TransactionSource {
+    static func transactionSource(blockchainType: BlockchainType, etherscanKeys: [String]) -> EvmKit.TransactionSource {
         guard let network = network(blockchainType: blockchainType) else {
             preconditionFailure("Missing EVM catalog network: \(blockchainType.uid)")
         }
@@ -173,7 +173,7 @@ enum EvmNetworkCatalog {
         case .rpcOnly:
             return .rpcOnly(name: URL(string: network.explorerBaseUrl)?.host ?? network.name, explorerUrl: network.explorerBaseUrl)
         case .etherscanV2:
-            return TransactionSource(
+            return EvmKit.TransactionSource(
                 name: URL(string: network.explorerBaseUrl)?.host ?? network.name,
                 type: .etherscan(
                     apiBaseUrl: "https://api.etherscan.io/v2",
@@ -182,7 +182,7 @@ enum EvmNetworkCatalog {
                 )
             )
         case .blockscout:
-            return TransactionSource(
+            return EvmKit.TransactionSource(
                 name: URL(string: network.explorerBaseUrl)?.host ?? network.name,
                 type: .etherscan(
                     apiBaseUrl: network.explorerBaseUrl,
