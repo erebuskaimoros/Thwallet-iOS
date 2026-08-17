@@ -55,4 +55,5 @@ jobs:
             -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
             -enableCodeCoverage YES \
             CODE_SIGNING_ALLOWED=NO \
+            -only-testing:AppTests/AccountTypePasskeyOwnedTests/accountStorageRoundTripsPasskeyOwned \
             test
