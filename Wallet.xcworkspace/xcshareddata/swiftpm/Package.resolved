@@ -166,7 +166,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/EvmKit.Swift.git",
       "state" : {
-        "revision" : "e9cfc0367211346ca7864109e8a5c7c24380186b"
+        "revision" : "8da42a8a67a2a9d6e00079bc0aafe7cce9ca9161"
       }
     },
     {

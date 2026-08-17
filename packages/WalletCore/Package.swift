@@ -32,7 +32,7 @@ let package = Package(
         .package(url: "https://github.com/horizontalsystems/Eip20Kit.Swift", exact: "2.0.4"),
         .package(
             url: "https://github.com/erebuskaimoros/EvmKit.Swift.git",
-            revision: "e9cfc0367211346ca7864109e8a5c7c24380186b"
+            revision: "8da42a8a67a2a9d6e00079bc0aafe7cce9ca9161"
         ),
         .package(url: "https://github.com/horizontalsystems/FeeRateKit.Swift", exact: "2.1.1"),
         .package(url: "https://github.com/horizontalsystems/HCaptcha-ios-sdk.git", exact: "1.0.0"),

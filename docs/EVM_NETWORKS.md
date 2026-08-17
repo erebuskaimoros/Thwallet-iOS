@@ -32,8 +32,10 @@ catalog; a future move to `sei-v2` needs an alias and persisted-ID migration.
   send-all, predefined-gas, and WalletConnect paths use checked arithmetic and
   validate value plus the complete fee against the available balance.
 - Cronos intentionally has no indexed history provider in the current fork.
-  Local sends work, but inbound history may be incomplete until a reviewed
-  indexer is added.
+  Locally broadcast hashes are reconciled from pending to mined or failed via
+  RPC on subsequent block updates. Incoming and externally submitted history
+  is unavailable until a reviewed keyed and paginated indexer is added;
+  dropped or unknown hashes remain pending rather than being falsely failed.
 - Direct THORChain quote paths continue to omit wallet affiliate and
   affiliate-bps parameters. uSwap availability remains controlled by its
   backend and is not implied by local chain support.
@@ -41,7 +43,7 @@ catalog; a future move to `sei-v2` needs an alias and persisted-ID migration.
 ## Immutable dependencies
 
 - `MarketKit.Swift`: `612b3457dc01e484d6fe808db8c5f12e88bf98c2`
-- `EvmKit.Swift`: `e9cfc0367211346ca7864109e8a5c7c24380186b`
+- `EvmKit.Swift`: `8da42a8a67a2a9d6e00079bc0aafe7cce9ca9161`
 
 WalletCore pins both full revisions and commits SwiftPM mirrors for both
 upstream URL spellings. This keeps transitive EVM consumers on the same audited
@@ -53,8 +55,10 @@ Before enabling these networks in a production build:
 
 1. Run dependency and integrated app tests with the supported full Xcode
    version and a locked package graph.
-2. Provision and verify Etherscan V2 credentials, then test inbound/outbound
-   history and explorer links on every network.
+2. Provision and verify Etherscan V2 credentials for Blast, Mantle, Sei EVM,
+   and HyperEVM; test indexed history, local receipt reconciliation, and
+   explorer links. Keep Cronos inbound-history support disabled until its
+   dedicated keyed/paginated provider is implemented and canaried.
 3. Exercise native and contract sends, send-all, WalletConnect, explicit gas,
    insufficient-balance, failed-RPC, restart, and database-cleanup paths.
 4. Add independently operated RPC fallbacks and monitor rate limits and chain
