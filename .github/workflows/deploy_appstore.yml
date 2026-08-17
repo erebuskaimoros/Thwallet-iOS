@@ -7,6 +7,7 @@ on:
 
 jobs:
   build_and_deploy:
+    if: ${{ github.repository == 'horizontalsystems/unstoppable-wallet-ios' }}
     name: Build and Deploy to TestFlight
     runs-on: macos-26
 

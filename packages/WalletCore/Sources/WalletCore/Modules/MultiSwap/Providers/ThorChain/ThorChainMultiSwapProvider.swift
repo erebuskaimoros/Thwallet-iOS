@@ -1,3 +1,8 @@
+enum ThorChainAffiliatePolicy {
+    static let affiliate: String? = nil
+    static let affiliateBps: Int? = nil
+}
+
 class ThorChainMultiSwapProvider: BaseThorChainMultiSwapProvider {
     static let id = "THORCHAIN"
     static let name = "THORChain"
@@ -12,11 +17,11 @@ class ThorChainMultiSwapProvider: BaseThorChainMultiSwapProvider {
     override var icon: String { "swap_provider_thorchain" }
 
     override var affiliate: String? {
-        AppConfig.thorchainAffiliate
+        ThorChainAffiliatePolicy.affiliate
     }
 
     override var affiliateBps: Int? {
-        AppConfig.thorchainAffiliateBps
+        ThorChainAffiliatePolicy.affiliateBps
     }
 
     override var streamingInterval: Int { 0 }

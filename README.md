@@ -1,34 +1,55 @@
-# Unstoppable Wallet
+# Thwallet iOS
 
-We dream of a world… A world where private property is untouchable and market access is unconditional.
+This repository is the iOS half of Thwallet, an experimental,
+community-maintained wallet focused on THORChain-native self-custody and swaps.
+The companion Android product is maintained in
+[Thwallet](https://github.com/erebuskaimoros/Thwallet).
 
-That obsession led us to engineer a crypto wallet that is equally open to all, lives online forever and unconditionally protects your assets.
+The project is derived from the MIT-licensed
+[Unstoppable Wallet iOS](https://github.com/horizontalsystems/unstoppable-wallet-ios)
+codebase. Its GitHub fork relationship and `upstream` Git remote preserve that
+provenance and provide a path for security updates.
 
-It is fully peer-to-peer and works without any centrally managed servers. It can't be stopped, blocked or taken down.
+## Current status
 
-Unstoppable is a powerful non-custodial multi-wallet for Bitcoin, Ethereum, Binance Smart Chain, Avalanche, Solana and other blockchains. It provides non-custodial crypto and NFT storage, on-chain decentralized swaps, institutional grade analytics for cryptocurrency and NFT markets, extensive privacy controls and human oriented design. 
+Thwallet is in its initial bootstrap phase. It has not completed independent
+bundle-ID, branding, signing, endpoint, reproducible-build, privacy, or security
+review work and must not be treated as a production release.
 
- - It is built with care and adheres to best programming practices and implementation standards in cryptocurrency world. Fully implemented on Swift.
- - It is fully peer-to-peer and works without any centrally managed servers. It can't be stopped, blocked or taken down.
+Direct THORChain quote requests omit wallet affiliate parameters. Users still
+pay unavoidable network, outbound, liquidity, slip, and gas costs. Other swap
+providers have independent fee models and must be evaluated separately.
 
-Such approach enables the wallet to operate anywhere and remain censorship-resistant. Only the user is in control of the money.
+Blockchain and protocol features are scoped for iOS and Android together by
+default. A feature is complete only when equivalent user-visible behavior and
+security invariants are tested and pushed on both platforms, unless an
+intentional exception is documented in both repositories.
 
-More at [https://unstoppable.money](https://unstoppable.money)
+## Development
 
-## Download
+The app is implemented in Swift and requires a full supported Xcode
+installation.
 
-[https://itunes.apple.com/us/app/bank-wallet/id1447619907?ls=1&mt=8](https://itunes.apple.com/us/app/bank-wallet/id1447619907?ls=1&mt=8)
+```bash
+xcodebuild -workspace Wallet.xcworkspace -scheme Development \
+  -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -workspace Wallet.xcworkspace -scheme Development \
+  -destination 'platform=iOS Simulator,name=iPhone 16' test
+```
 
-## Installation
+Use an installed simulator when the example destination is unavailable.
+Project-specific contribution and security rules are in
+[AGENTS.md](./AGENTS.md).
 
-1. `git clone git@github.com:horizontalsystems/unstoppable-wallet-ios.git`
+## Independence and attribution
 
-2. You need to have `Config.xcconfig` configuration file in `Unstoppable/Unstoppable/Configuration`.
-You can use sample configuration in `Config.template.xcconfig` file.
-
-3. Open in Xcode and run.
- 
+Thwallet is not an official THORChain, Nine Realms, or Horizontal Systems
+product. The current user interface still contains upstream Unstoppable Wallet
+branding while the independent identity is designed. Do not distribute builds
+under either project's name or signing identity.
 
 ## License
 
-This wallet is open source and available under the terms of the MIT License.
+The inherited source is available under the [MIT License](./LICENSE). Preserve
+the license and upstream attribution when redistributing substantial portions
+of the software.

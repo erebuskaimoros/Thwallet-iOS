@@ -1,0 +1,58 @@
+name: Thwallet iOS CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_and_test:
+    if: ${{ github.repository == 'erebuskaimoros/Thwallet-iOS' }}
+    runs-on: macos-26
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Select Xcode 26.4
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: '26.4'
+
+      - name: Create local build configuration
+        run: cp Unstoppable/Unstoppable/Configuration/Config.template.xcconfig Unstoppable/Unstoppable/Configuration/Config.xcconfig
+
+      - name: Resolve packages
+        run: xcodebuild -resolvePackageDependencies -workspace Wallet.xcworkspace -scheme Development
+
+      - name: Select simulator
+        id: simulator
+        run: |
+          simulator_id=$(xcrun simctl list devices available --json | ruby -rjson -e '
+            devices = JSON.parse(STDIN.read).fetch("devices")
+            iphone = devices.values.flatten.find { |device| device.fetch("name").start_with?("iPhone") }
+            abort "No available iPhone simulator" unless iphone
+            print iphone.fetch("udid")
+          ')
+          test -n "$simulator_id"
+          echo "id=$simulator_id" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace Wallet.xcworkspace \
+            -scheme Development \
+            -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
+            -enableCodeCoverage YES \
+            CODE_SIGNING_ALLOWED=NO \
+            test
