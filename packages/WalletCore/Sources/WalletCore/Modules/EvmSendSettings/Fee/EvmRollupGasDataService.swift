@@ -35,7 +35,7 @@ class EvmRollupGasDataService: EvmCommonGasDataService {
         return newValue
     }
 
-    override func gasDataSingle(gasPrice: GasPrice, transactionData: TransactionData, stubAmount: BigUInt?) -> Single<EvmFeeModule.GasData> {
+    override func gasDataSingle(gasPrice: GasPrice, transactionData: TransactionData, stubAmount: BigUInt? = nil) -> Single<EvmFeeModule.GasData> {
         if let predefinedGasLimit {
             let validatedGasLimit: Int
             do {
