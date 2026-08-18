@@ -25,7 +25,15 @@ class BitcoinAddressParserItem {
                 guard let tokenType = tokenType(scriptType: btcAddress.scriptType) else {
                     throw ParseError.couldNotInfereDerivation
                 }
-                return Single.just(BitcoinAddress(raw: address, domain: nil, blockchainType: blockchainType, tokenType: tokenType))
+                return Single.just(
+                    BitcoinAddress(
+                        raw: address,
+                        domain: nil,
+                        blockchainType: blockchainType,
+                        tokenType: tokenType,
+                        scriptType: btcAddress.scriptType
+                    )
+                )
             }
         } catch {
             return Single.error(error)
@@ -34,7 +42,7 @@ class BitcoinAddressParserItem {
 
     private func tokenType(scriptType: ScriptType) -> TokenType? {
         switch blockchainType {
-        case .dash:
+        case .dash, .dogecoin:
             return .native
 
         case .bitcoinCash, .ecash:

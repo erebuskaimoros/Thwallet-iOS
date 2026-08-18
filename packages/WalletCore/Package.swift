@@ -13,17 +13,27 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/mischa-hildebrand/AlignedCollectionViewFlowLayout", branch: "master"),
         .package(url: "https://github.com/horizontalsystems/BitcoinCashKit.Swift", exact: "3.0.1"),
-        .package(url: "https://github.com/horizontalsystems/BitcoinCore.Swift", exact: "3.2.0"),
+        .package(
+            url: "https://github.com/erebuskaimoros/BitcoinCore.Swift.git",
+            revision: "74331848b91ae39e90781872e2006665d3c4abf7"
+        ),
         .package(url: "https://github.com/horizontalsystems/BitcoinKit.Swift", exact: "3.0.1"),
         .package(url: "https://github.com/horizontalsystems/Chart.Swift", exact: "3.0.2"),
         .package(url: "https://github.com/horizontalsystems/Checkpoints", exact: "1.0.29"),
         .package(url: "https://github.com/Coeur/CollectionViewCenteredFlowLayout", from: "1.0.4"),
         .package(url: "https://github.com/krzyzanowskim/CryptoSwift", from: "1.9.0"),
         .package(url: "https://github.com/horizontalsystems/DashKit.Swift", exact: "3.1.0"),
+        .package(
+            url: "https://github.com/erebuskaimoros/DogecoinKit.Swift.git",
+            revision: "367559c58f9d2c5e4c8cd649a9bcb61e5bc751bc"
+        ),
         .package(url: "https://github.com/johnxnguyen/Down", from: "0.11.0"),
         .package(url: "https://github.com/horizontalsystems/ECashKit.Swift.git", exact: "3.0.2"),
         .package(url: "https://github.com/horizontalsystems/Eip20Kit.Swift", exact: "2.0.4"),
-        .package(url: "https://github.com/horizontalsystems/EvmKit.Swift", exact: "2.4.6"),
+        .package(
+            url: "https://github.com/erebuskaimoros/EvmKit.Swift.git",
+            revision: "8da42a8a67a2a9d6e00079bc0aafe7cce9ca9161"
+        ),
         .package(url: "https://github.com/horizontalsystems/FeeRateKit.Swift", exact: "2.1.1"),
         .package(url: "https://github.com/horizontalsystems/HCaptcha-ios-sdk.git", exact: "1.0.0"),
         .package(url: "https://github.com/horizontalsystems/HdWalletKit.Swift", exact: "1.3.1"),
@@ -33,7 +43,10 @@ let package = Package(
         .package(url: "https://github.com/kishikawakatsumi/KeychainAccess.git", from: "4.0.0"),
         .package(url: "https://github.com/onevcat/Kingfisher.git", from: "8.6.2"),
         .package(url: "https://github.com/horizontalsystems/LitecoinKit.Swift", exact: "3.0.2"),
-        .package(url: "https://github.com/horizontalsystems/MarketKit.Swift", exact: "3.6.12"),
+        .package(
+            url: "https://github.com/erebuskaimoros/MarketKit.Swift.git",
+            revision: "612b3457dc01e484d6fe808db8c5f12e88bf98c2"
+        ),
         .package(url: "https://github.com/horizontalsystems/MoneroKit.Swift", exact: "0.2.9"),
         .package(url: "https://github.com/horizontalsystems/NftKit.Swift", exact: "2.0.2"),
         .package(url: "https://github.com/tristanhimmelman/ObjectMapper", exact: "4.2.0"),
@@ -67,6 +80,7 @@ let package = Package(
                 .product(name: "CollectionViewCenteredFlowLayout", package: "CollectionViewCenteredFlowLayout"),
                 .product(name: "CryptoSwift", package: "CryptoSwift"),
                 .product(name: "DashKit", package: "DashKit.Swift"),
+                .product(name: "DogecoinKit", package: "DogecoinKit.Swift"),
                 .product(name: "Down", package: "Down"),
                 .product(name: "ECashKit", package: "ECashKit.Swift"),
                 .product(name: "Eip20Kit", package: "Eip20Kit.Swift"),

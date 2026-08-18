@@ -17,6 +17,7 @@ public extension KitCleaner {
             try? LitecoinAdapter.clear(except: accountIds)
             try? BitcoinCashAdapter.clear(except: accountIds)
             try? DashAdapter.clear(except: accountIds)
+            try? DogecoinAdapter.clear(except: accountIds)
             try? EvmAdapter.clear(except: accountIds)
             try? EvmNftAdapter.clear(except: accountIds)
             try? ZcashAdapter.clear(except: accountIds)

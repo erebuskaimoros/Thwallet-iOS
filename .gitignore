@@ -44,6 +44,12 @@ Package.resolved
 buildServer.json
 .sourcekit-lsp/
 
+# Keep Thwallet's package-source mirrors and workspace resolution lock.
+!Wallet.xcworkspace/xcshareddata/swiftpm/Package.resolved
+!packages/WalletCore/.swiftpm/
+!packages/WalletCore/.swiftpm/configuration/
+!packages/WalletCore/.swiftpm/configuration/mirrors.json
+
 # Claude
 
 .claude

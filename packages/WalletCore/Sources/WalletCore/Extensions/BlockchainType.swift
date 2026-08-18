@@ -11,6 +11,7 @@ extension BlockchainType {
         .ecash,
         .litecoin,
         .dash,
+        .dogecoin,
         .zcash,
         .monero,
         .zano,
@@ -24,6 +25,12 @@ extension BlockchainType {
         .base,
         .zkSync,
         .binanceSmartChain,
+        .cronos,
+        .blast,
+        .mantle,
+        .seiEvm,
+        .hyperEvm,
+        .robinhood,
         .tron,
         .ton,
         .stellar,
@@ -51,6 +58,10 @@ extension BlockchainType {
     }
 
     var order: Int {
+        if let network = EvmNetworkCatalog.network(blockchainType: self) {
+            return network.order
+        }
+
         let blockchainTypes: [BlockchainType] = [
             .bitcoin,
             .ethereum,
@@ -66,6 +77,7 @@ extension BlockchainType {
             .optimism,
             .stellar,
             .dash,
+            .dogecoin,
             .litecoin,
             .bitcoinCash,
             .avalanche,
@@ -80,6 +92,10 @@ extension BlockchainType {
     }
 
     var resendable: Bool {
+        if EvmNetworkCatalog.contains(self) {
+            return false
+        }
+
         switch self {
         case .optimism, .arbitrumOne, .base: return false
         default: return true
@@ -87,6 +103,10 @@ extension BlockchainType {
     }
 
     var rollupFeeContractAddress: EvmKit.Address? {
+        if EvmNetworkCatalog.network(blockchainType: self)?.feeModel == .opStack {
+            return try? EvmKit.Address(hex: "0x420000000000000000000000000000000000000F")
+        }
+
         switch self {
         case .optimism, .base:
             return try? EvmKit.Address(hex: "0x420000000000000000000000000000000000000F")
@@ -97,7 +117,7 @@ extension BlockchainType {
     // used for EVM blockchains only
     var feePriceScale: FeePriceScale {
         switch self {
-        case .bitcoin, .bitcoinCash, .dash, .litecoin, .ecash: return .satoshi
+        case .bitcoin, .bitcoinCash, .dash, .dogecoin, .litecoin, .ecash: return .satoshi
         case .avalanche: return .nAvax
         default: return .gwei
         }
@@ -127,12 +147,15 @@ extension BlockchainType {
             switch self {
             case .bitcoin: return key.coinTypes.contains(where: { $0 == .bitcoin })
             case .litecoin: return key.coinTypes.contains(where: { $0 == .litecoin })
-            case .bitcoinCash, .ecash, .dash:
+            case .bitcoinCash, .ecash, .dash, .dogecoin:
                 return key.coinTypes.contains(where: { $0 == .bitcoin })
                     && key.purposes.contains(where: { $0 == .bip44 })
             default: return false
             }
         case .evmPrivateKey, .evmAddress:
+            if EvmNetworkCatalog.contains(self) {
+                return true
+            }
             switch self {
             case .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne,
                  .gnosis, .fantom, .base, .zkSync:
@@ -158,6 +181,10 @@ extension BlockchainType {
     }
 
     var isEvm: Bool {
+        if EvmNetworkCatalog.contains(self) {
+            return true
+        }
+
         switch self {
         case .arbitrumOne, .avalanche, .base, .binanceSmartChain, .ethereum, .fantom, .gnosis, .optimism, .polygon, .zkSync: return true
         default: return false
@@ -165,11 +192,17 @@ extension BlockchainType {
     }
 
     var isUnsupported: Bool {
+        if EvmNetworkCatalog.contains(self) { return false }
         if case .unsupported = self { return true }
         return false
     }
 
     var description: String {
+        if let network = EvmNetworkCatalog.network(blockchainType: self) {
+            let protocolName = self == .cronos ? "CRC20" : "ERC20"
+            return "\(network.nativeCode), \(protocolName) tokens"
+        }
+
         switch self {
         case .bitcoin: return "BTC (BIP44, BIP49, BIP84, BIP86)"
         case .ethereum: return "ETH, ERC20 tokens"
@@ -186,6 +219,7 @@ extension BlockchainType {
         case .monero: return "XMR"
         case .zano: return "ZANO, confidential assets"
         case .dash: return "DASH"
+        case .dogecoin: return "DOGE"
         case .bitcoinCash: return "BCH (Legacy, CashAddress)"
         case .ecash: return "XEC"
         case .litecoin: return "LTC (BIP44, BIP49, BIP84, BIP86)"
@@ -263,12 +297,16 @@ extension BlockchainType {
         }
 
         switch self {
-        case .bitcoin, .bitcoinCash, .litecoin: return true
+        case .bitcoin, .bitcoinCash, .litecoin, .dogecoin: return true
         default: return false
         }
     }
 
     var blockTime: TimeInterval? {
+        if let network = EvmNetworkCatalog.network(blockchainType: self) {
+            return network.blockTime
+        }
+
         switch self {
         case .ethereum: return 12
         case .binanceSmartChain, .tron: return 3
@@ -276,6 +314,7 @@ extension BlockchainType {
         case .gnosis, .stellar, .ton: return 5
         case .bitcoin, .bitcoinCash, .ecash: return 600
         case .dash, .litecoin: return 150
+        case .dogecoin: return 60
         case .zcash: return 75
         case .monero: return 120
         case .zano: return 60

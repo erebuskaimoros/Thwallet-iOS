@@ -170,6 +170,17 @@ extension AdapterFactory {
     }
 
     func adapter(wallet: Wallet) -> IAdapter? {
+        if EvmNetworkCatalog.contains(wallet.token.blockchainType) {
+            switch wallet.token.type {
+            case .native:
+                return evmAdapter(wallet: wallet)
+            case let .eip20(address):
+                return eip20Adapter(address: address, wallet: wallet, coinManager: coinManager)
+            default:
+                return nil
+            }
+        }
+
         switch (wallet.token.type, wallet.token.blockchain.type) {
         case (.derived, .bitcoin):
             let syncMode = btcBlockchainManager.syncMode(blockchainType: .bitcoin, accountOrigin: wallet.account.origin)
@@ -190,6 +201,10 @@ extension AdapterFactory {
         case (.native, .dash):
             let syncMode = btcBlockchainManager.syncMode(blockchainType: .dash, accountOrigin: wallet.account.origin)
             return try? DashAdapter(wallet: wallet, syncMode: syncMode)
+
+        case (.native, .dogecoin):
+            let syncMode = btcBlockchainManager.syncMode(blockchainType: .dogecoin, accountOrigin: wallet.account.origin)
+            return try? DogecoinAdapter(wallet: wallet, syncMode: syncMode)
 
         case (.native, .zcash):
             let restoreSettings = restoreSettingsManager.settings(accountId: wallet.account.id, blockchainType: .zcash)

@@ -1,5 +1,14 @@
+import EvmKit
 import Foundation
 import WalletConnectSign
+
+enum WalletConnectAccountPolicy {
+    static func validate(requestedFrom: EvmKit.Address, activeAddress: EvmKit.Address) throws {
+        guard requestedFrom == activeAddress else {
+            throw WalletConnectRequest.CreationError.invalidFromAddress
+        }
+    }
+}
 
 class Eip155RequestFactory {
     let evmBlockchainManager: EvmBlockchainManager
@@ -29,6 +38,13 @@ extension Eip155RequestFactory {
         )
         else {
             throw WalletConnectRequest.CreationError.cantCreateAddress
+        }
+
+        if let transactionPayload = payload as? WCEthereumTransactionPayload {
+            try WalletConnectAccountPolicy.validate(
+                requestedFrom: transactionPayload.transaction.from,
+                activeAddress: address
+            )
         }
 
         let chain = WalletConnectRequest.Chain(id: request.chainId.reference, chainName: blockchain.name, address: address.eip55)

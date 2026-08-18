@@ -59,6 +59,8 @@ enum DestinationHelper {
             address = try ECashAdapter.firstAddress(accountType: account.type)
         case .dash:
             address = try DashAdapter.firstAddress(accountType: account.type)
+        case .dogecoin:
+            address = try DogecoinAdapter.firstAddress(accountType: account.type)
         case .litecoin:
             address = try LitecoinAdapter.firstAddress(accountType: account.type, tokenType: token.type)
         case .tron:

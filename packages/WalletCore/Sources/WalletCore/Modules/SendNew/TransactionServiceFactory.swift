@@ -19,7 +19,11 @@ enum TransactionServiceFactory {
         }
 
         if BtcBlockchainManager.blockchainTypes.contains(baseToken.blockchainType), let adapter = Core.shared.adapterManager.adapter(for: baseToken) as? BitcoinBaseAdapter {
-            return UtxoTransactionService(blockchainType: baseToken.blockchainType, adapter: adapter)
+            return UtxoTransactionService(
+                blockchainType: baseToken.blockchainType,
+                adapter: adapter,
+                initialTransactionSettings: initialTransactionSettings
+            )
         }
 
         if baseToken.blockchainType == .monero, let adapter = Core.shared.adapterManager.adapter(for: baseToken) as? MoneroAdapter {

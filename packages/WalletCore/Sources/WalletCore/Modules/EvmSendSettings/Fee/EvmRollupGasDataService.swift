@@ -1,20 +1,31 @@
 import BigInt
 import EvmKit
+import Foundation
 import RxCocoa
 import RxRelay
 import RxSwift
 
 class EvmRollupGasDataService: EvmCommonGasDataService {
-    private let l1FeeProvider: L1FeeProvider
+    typealias L1Fee = (GasPrice, Int, EvmKit.Address, BigUInt, Data) -> Single<BigUInt>
+
+    private let l1Fee: L1Fee
 
     init(evmKit: EvmKit.Kit, l1GasFeeContractAddress: EvmKit.Address, predefinedGasLimit: Int?) {
-        l1FeeProvider = L1FeeProvider.instance(evmKit: evmKit, contractAddress: l1GasFeeContractAddress, minLogLevel: .error)
+        let provider = L1FeeProvider.instance(evmKit: evmKit, contractAddress: l1GasFeeContractAddress, minLogLevel: .error)
+        l1Fee = { gasPrice, gasLimit, to, value, data in
+            provider.getL1Fee(gasPrice: gasPrice, gasLimit: gasLimit, to: to, value: value, data: data)
+        }
 
         super.init(evmKit: evmKit, predefinedGasLimit: predefinedGasLimit)
     }
 
+    init(gasEstimator: IEvmGasEstimating, predefinedGasLimit: Int?, maximumGasLimit: Int = Int.max, l1Fee: @escaping L1Fee) {
+        self.l1Fee = l1Fee
+        super.init(gasEstimator: gasEstimator, predefinedGasLimit: predefinedGasLimit, maximumGasLimit: maximumGasLimit)
+    }
+
     private func l1GasFeeSingle(transactionData: TransactionData, gasPrice: GasPrice, gasLimit: Int) -> Single<BigUInt> {
-        l1FeeProvider.getL1Fee(gasPrice: gasPrice, gasLimit: gasLimit, to: transactionData.to, value: transactionData.value, data: transactionData.input)
+        l1Fee(gasPrice, gasLimit, transactionData.to, transactionData.value, transactionData.input)
     }
 
     private func stubMaxHex(value: BigUInt) -> BigUInt {
@@ -24,10 +35,18 @@ class EvmRollupGasDataService: EvmCommonGasDataService {
         return newValue
     }
 
-    override func gasDataSingle(gasPrice: GasPrice, transactionData: TransactionData, stubAmount: BigUInt?) -> Single<EvmFeeModule.GasData> {
+    override func gasDataSingle(gasPrice: GasPrice, transactionData: TransactionData, stubAmount: BigUInt? = nil) -> Single<EvmFeeModule.GasData> {
         if let predefinedGasLimit {
-            return l1GasFeeSingle(transactionData: transactionData, gasPrice: gasPrice, gasLimit: predefinedGasLimit).map { l1GasFee in
-                EvmFeeModule.RollupGasData(additionalFee: l1GasFee, limit: predefinedGasLimit, price: gasPrice)
+            let validatedGasLimit: Int
+            do {
+                try EvmGasValidation.validate(gasPrice: gasPrice)
+                validatedGasLimit = try validated(gasLimit: predefinedGasLimit)
+            } catch {
+                return .error(error)
+            }
+
+            return l1GasFeeSingle(transactionData: transactionData, gasPrice: gasPrice, gasLimit: validatedGasLimit).map { l1GasFee in
+                EvmFeeModule.RollupGasData(additionalFee: l1GasFee, limit: validatedGasLimit, price: gasPrice)
             }
         }
 

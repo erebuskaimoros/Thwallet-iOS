@@ -2,7 +2,7 @@ name: Thwallet iOS CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, doge-evm-support]
   pull_request:
   workflow_dispatch:
 
@@ -32,7 +32,12 @@ jobs:
         run: cp Unstoppable/Unstoppable/Configuration/Config.template.xcconfig Unstoppable/Unstoppable/Configuration/Config.xcconfig
 
       - name: Resolve packages
-        run: xcodebuild -resolvePackageDependencies -workspace Wallet.xcworkspace -scheme Development
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -workspace Wallet.xcworkspace \
+            -scheme Development \
+            -disableAutomaticPackageResolution
 
       - name: Select simulator
         id: simulator
@@ -54,5 +59,15 @@ jobs:
             -scheme Development \
             -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
             -enableCodeCoverage YES \
+            -disableAutomaticPackageResolution \
+            -resultBundlePath "$RUNNER_TEMP/Thwallet.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
             test
+
+          xcrun xcresulttool get test-results summary \
+            --path "$RUNNER_TEMP/Thwallet.xcresult" \
+            --compact |
+            ruby -rjson -e '
+              count = JSON.parse(STDIN.read).fetch("totalTestCount")
+              abort "No tests executed" unless count.positive?
+            '

@@ -80,6 +80,18 @@ public enum AccountType: Identifiable {
     }
 
     func supports(token: Token) -> Bool {
+        if EvmNetworkCatalog.contains(token.blockchainType) {
+            switch token.type {
+            case .native, .eip20:
+                switch self {
+                case .mnemonic, .evmPrivateKey, .evmAddress: return true
+                default: return false
+                }
+            default:
+                return false
+            }
+        }
+
         switch self {
         case .mnemonic:
             switch (token.blockchainType, token.type) {
@@ -88,6 +100,7 @@ public enum AccountType: Identifiable {
             case (.ecash, .native): return true
             case (.litecoin, .derived): return true
             case (.dash, .native): return true
+            case (.dogecoin, .native): return true
             case (.zcash, .native): return true
             case (.monero, .native): return true
             case (.zano, .native): return true
@@ -120,6 +133,9 @@ public enum AccountType: Identifiable {
                 }
 
                 return key.coinTypes.contains(where: { $0 == .litecoin })
+            case .dogecoin:
+                return key.coinTypes.contains(where: { $0 == .bitcoin })
+                    && key.purposes.contains(where: { $0 == .bip44 })
             case .bitcoinCash, .ecash, .dash:
                 return key.purposes.contains(where: { $0 == .bip44 })
             default:

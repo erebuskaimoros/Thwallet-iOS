@@ -44,6 +44,23 @@ class MultiSwapSendHandler {
 }
 
 extension MultiSwapSendHandler: ISendHandler {
+    var initialTransactionSettings: InitialTransactionSettings? {
+        guard
+            let quote = multiSwapQuote as? ThorChainUtxoMultiSwapQuote,
+            let policy = try? thorChainUtxoSendPolicy(
+                tokenIn: tokenIn,
+                transactionSettings: nil,
+                recommendedGasRate: quote.recommendedGasRate,
+                gasRateUnits: quote.gasRateUnits,
+                dustThreshold: quote.dustThreshold
+            )
+        else {
+            return nil
+        }
+
+        return .bitcoin(recommendedFeeRate: policy.feeRate)
+    }
+
     var syncingText: String? {
         "swap.confirmation.quoting".localized
     }

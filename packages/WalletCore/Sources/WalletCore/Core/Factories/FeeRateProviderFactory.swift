@@ -10,6 +10,7 @@ class FeeRateProviderFactory {
         case .bitcoinCash: return BitcoinCashFeeRateProvider(feeRateProvider: feeRateProvider)
         case .ecash: return ECashFeeRateProvider()
         case .dash: return DashFeeRateProvider(feeRateProvider: feeRateProvider)
+        case .dogecoin: return DogecoinFeeRateProvider()
         default: return nil
         }
     }

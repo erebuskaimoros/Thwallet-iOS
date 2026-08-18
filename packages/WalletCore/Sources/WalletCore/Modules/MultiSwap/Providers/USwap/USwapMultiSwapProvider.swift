@@ -14,6 +14,72 @@ import TronKit
 import ZanoKit
 import ZcashLightClientKit
 
+enum USwapEvmSignableParser {
+    struct ParsedTransaction {
+        let transactionData: TransactionData
+        let gasLimit: Int?
+    }
+
+    static func parse(_ jsonObject: [String: Any]) throws -> ParsedTransaction {
+        guard let to = jsonObject["to"] as? String,
+              let valueString = jsonObject["value"] as? String,
+              let dataString = jsonObject["data"] as? String
+        else {
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+        }
+
+        let valueDigits = try hexDigits(valueString)
+        let significantValueDigits = valueDigits.drop(while: { $0 == "0" })
+        guard significantValueDigits.count <= 64,
+              let value = BigUInt(valueDigits, radix: 16)
+        else {
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+        }
+
+        let dataDigits = try hexDigits(dataString, allowEmpty: true)
+        guard dataDigits.count.isMultiple(of: 2),
+              let input = ("0x" + dataDigits).hs.hexData
+        else {
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+        }
+
+        let gasLimit: Int?
+        if let gasString = jsonObject["gas"] as? String {
+            let gasDigits = try hexDigits(gasString)
+            guard let parsedGasLimit = Int(gasDigits, radix: 16) else {
+                throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+            }
+            gasLimit = parsedGasLimit
+        } else {
+            gasLimit = nil
+        }
+
+        return try ParsedTransaction(
+            transactionData: TransactionData(to: .init(hex: to), value: value, input: input),
+            gasLimit: gasLimit
+        )
+    }
+
+    private static func hexDigits(_ value: String, allowEmpty: Bool = false) throws -> String {
+        guard value.hasPrefix("0x") || value.hasPrefix("0X") else {
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+        }
+
+        let digits = String(value.dropFirst(2))
+        guard (allowEmpty || !digits.isEmpty),
+              digits.utf8.allSatisfy(Self.isAsciiHexDigit)
+        else {
+            throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+        }
+
+        return digits
+    }
+
+    private static func isAsciiHexDigit(_ byte: UInt8) -> Bool {
+        (48 ... 57).contains(byte) || (65 ... 70).contains(byte) || (97 ... 102).contains(byte)
+    }
+}
+
 class USwapMultiSwapProvider: IMultiSwapProvider {
     static let baseUrl = "\(AppConfig.swapApiUrl)/v2"
     static var headers: HTTPHeaders? { AppConfig.uswapApiKey.map { HTTPHeaders([HTTPHeader(name: "x-api-key", value: $0)]) } }
@@ -31,6 +97,7 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
     private let evmFeeEstimator = EvmFeeEstimator()
     private var assetMap = [String: String]()
     private let syncSubject = PassthroughSubject<Void, Never>()
+    private var assetStorageId: String { "\(id)-assets-v2" }
 
     // Exolix's shielded Zcash route. Quoted explicitly as a second dry-quote variant
     // alongside ZEC.ZEC whenever either side of the swap is Zcash; the better-priced
@@ -54,7 +121,7 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
         headers = Self.headers
 
         if !provider.isEvm {
-            assetMap = (try? swapAssetStorage.swapAssetMap(provider: id, as: String.self)) ?? [:]
+            assetMap = (try? swapAssetStorage.swapAssetMap(provider: assetStorageId, as: String.self)) ?? [:]
             syncAssets()
         }
     }
@@ -71,7 +138,7 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
     }
 
     private func syncAssets() {
-        let lastSyncTimetamp = try? swapAssetStorage.lastSyncTimetamp(provider: id)
+        let lastSyncTimetamp = try? swapAssetStorage.lastSyncTimetamp(provider: assetStorageId)
 
         if let lastSyncTimetamp, Date().timeIntervalSince1970 - lastSyncTimetamp < assetMapExpiration {
             return
@@ -101,7 +168,8 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
             var tokenQueries: [TokenQuery] = []
 
             switch blockchainType {
-            case .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne, .gnosis, .fantom, .tron, .base, .zkSync:
+            case .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne, .gnosis, .fantom, .tron, .base, .zkSync,
+                 .cronos, .blast, .mantle, .seiEvm, .hyperEvm, .robinhood:
                 let tokenType: TokenType
 
                 if let address = token.address, !address.isEmpty {
@@ -134,7 +202,7 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
 
                 tokenQueries = [TokenQuery(blockchainType: blockchainType, tokenType: tokenType)]
 
-            case .bitcoin, .bitcoinCash, .ecash, .dash, .zcash, .monero, .stellar:
+            case .bitcoin, .bitcoinCash, .ecash, .dash, .dogecoin, .zcash, .monero, .stellar:
                 tokenQueries = blockchainType.nativeTokenQueries
 
             case .zano:
@@ -158,8 +226,8 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
             }
         }
 
-        try? swapAssetStorage.save(swapAssetMap: assetMap, provider: id)
-        try? swapAssetStorage.save(lastSyncTimestamp: Date().timeIntervalSince1970, provider: id)
+        try? swapAssetStorage.save(swapAssetMap: assetMap, provider: assetStorageId)
+        try? swapAssetStorage.save(lastSyncTimestamp: Date().timeIntervalSince1970, provider: assetStorageId)
 
         DispatchQueue.main.async {
             self.assetMap = assetMap
@@ -483,7 +551,8 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
         let blockchainType = tokenIn.blockchainType
 
         switch blockchainType {
-        case .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne, .gnosis, .fantom, .tron, .base, .zkSync:
+        case .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne, .gnosis, .fantom, .tron, .base, .zkSync,
+             .cronos, .blast, .mantle, .seiEvm, .hyperEvm, .robinhood:
             var allowanceState: MultiSwapAllowanceHelper.AllowanceState = .notRequired
 
             if let approvalAddress = quote.approvalSpender {
@@ -497,7 +566,7 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
             let esimatedTime = quote.esimatedTime ?? MultiSwapHelpers.estimate(tokenIn: tokenIn, tokenOut: tokenOut)
             return USwapEvmMultiSwapQuote(expectedBuyAmount: quote.expectedBuyAmount, allowanceState: allowanceState, estimatedTime: esimatedTime, selectedAlternateRoute: alternateRoute)
 
-        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash, .zcash, .monero, .ton, .stellar, .zano, .solana:
+        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash, .dogecoin, .zcash, .monero, .ton, .stellar, .zano, .solana:
             let estimatedTime = quote.esimatedTime ?? MultiSwapHelpers.estimate(tokenIn: tokenIn, tokenOut: tokenOut)
             return USwapMultiSwapQuote(expectedBuyAmount: quote.expectedBuyAmount, estimatedTime: estimatedTime, selectedAlternateRoute: alternateRoute)
 
@@ -523,7 +592,8 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
 
         let finalQuote: SwapFinalQuote
         switch blockchainType {
-        case .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne, .gnosis, .fantom, .base, .zkSync:
+        case .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne, .gnosis, .fantom, .base, .zkSync,
+             .cronos, .blast, .mantle, .seiEvm, .hyperEvm, .robinhood:
             finalQuote = try await buildEvmConfirmationQuote(
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
@@ -535,7 +605,7 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
                 recipient: recipient,
                 transactionSettings: transactionSettings
             )
-        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash:
+        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash, .dogecoin:
             finalQuote = try await buildBtcConfirmationQuote(
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
@@ -703,28 +773,9 @@ class USwapMultiSwapProvider: IMultiSwapProvider {
         guard let signable = quote.execution?.primarySignable, signable.kind == "evm" else {
             throw SwapError.noTransactionData
         }
-        let jsonObject = signable.json
-
-        guard let to = jsonObject["to"] as? String,
-              let valueString = jsonObject["value"] as? String,
-              let dataString = jsonObject["data"] as? String,
-              let input = dataString.hs.hexData
-        else {
-            throw SwapError.invalidTransactionData
-        }
-
-        let gasLimitData: Int? = (jsonObject["gas"] as? String).flatMap {
-            let hex = $0.stripping(prefix: "0x")
-            return Int(hex, radix: 16)
-        }
-
-        let value = BigUInt(valueString.stripping(prefix: "0x"), radix: 16) ?? BigUInt(0)
-
-        let transactionData = try TransactionData(
-            to: .init(hex: to),
-            value: value,
-            input: input
-        )
+        let parsedTransaction = try USwapEvmSignableParser.parse(signable.json)
+        let transactionData = parsedTransaction.transactionData
+        let gasLimitData = parsedTransaction.gasLimit
 
         let blockchainType = tokenIn.blockchainType
         let gasPriceData = transactionSettings?.gasPriceData
@@ -1222,6 +1273,7 @@ extension USwapMultiSwapProvider {
         "ecash": .ecash,
         "litecoin": .litecoin,
         "dash": .dash,
+        "dogecoin": .dogecoin,
         "zcash": .zcash,
         "monero": .monero,
         "1": .ethereum,
@@ -1237,6 +1289,12 @@ extension USwapMultiSwapProvider {
         "ton": .ton,
         "8453": .base,
         "324": .zkSync,
+        "25": .cronos,
+        "81457": .blast,
+        "5000": .mantle,
+        "1329": .seiEvm,
+        "999": .hyperEvm,
+        "4663": .robinhood,
         "stellar": .stellar,
         "zano": .zano,
     ]

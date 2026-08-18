@@ -19,6 +19,13 @@ public class EvmSyncSourceManager {
     }
 
     private func defaultTransactionSource(blockchainType: BlockchainType) -> EvmKit.TransactionSource {
+        if EvmNetworkCatalog.contains(blockchainType) {
+            return EvmNetworkCatalog.transactionSource(
+                blockchainType: blockchainType,
+                etherscanKeys: AppConfig.etherscanKeys
+            )
+        }
+
         switch blockchainType {
         case .ethereum: return .ethereumEtherscan(apiKeys: AppConfig.etherscanKeys)
         case .binanceSmartChain: return .bscscan(apiKeys: AppConfig.bscscanKeys)
@@ -46,6 +53,16 @@ extension EvmSyncSourceManager {
     }
 
     func defaultSyncSources(blockchainType: BlockchainType) -> [EvmSyncSource] {
+        if let network = EvmNetworkCatalog.network(blockchainType: blockchainType) {
+            return [
+                EvmSyncSource(
+                    name: network.rpcName,
+                    rpcSource: .http(urls: network.rpcUrls, auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+            ]
+        }
+
         switch blockchainType {
         case .ethereum:
             if testNetManager.testNetEnabled {
