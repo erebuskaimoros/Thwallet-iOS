@@ -127,12 +127,14 @@ struct XrpStorageTests {
     func durablePendingRejectsTamperedHashBlobAndSignedMetadata() async throws {
         let fixture = try Fixture()
         let pending = try signedPending(privateKey: fixture.privateKey)
+        let replacementNibble = pending.blobHex.last == "0" ? "1" : "0"
+        let tamperedBlobHex = String(pending.blobHex.dropLast()) + replacementNibble
 
         await #expect(throws: (any Error).self) {
             try await fixture.storage.save(pending.replacing(hash: String(repeating: "A", count: 64)))
         }
         await #expect(throws: (any Error).self) {
-            try await fixture.storage.save(pending.replacing(blobHex: String(pending.blobHex.dropLast()) + "0"))
+            try await fixture.storage.save(pending.replacing(blobHex: tamperedBlobHex))
         }
         await #expect(throws: (any Error).self) {
             try await fixture.storage.save(pending.replacing(sequence: pending.sequence + 1))

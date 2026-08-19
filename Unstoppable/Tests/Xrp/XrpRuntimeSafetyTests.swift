@@ -28,7 +28,7 @@ struct XrpRuntimeSafetyTests {
 
         await #expect(throws: XrpRuntimeError.destinationTagRequired) {
             try await engine.sendInfo(
-                destination: "r3AgF9ZagH4g4RohRrMbBGL4fT4m3KDx17",
+                destination: xrpDestination,
                 separateTag: nil,
                 amountDrops: 100_000,
                 memo: nil,
@@ -37,7 +37,7 @@ struct XrpRuntimeSafetyTests {
         }
 
         let info = try await engine.sendInfo(
-            destination: "r3AgF9ZagH4g4RohRrMbBGL4fT4m3KDx17",
+            destination: xrpDestination,
             separateTag: 0,
             amountDrops: 100_000,
             memo: nil,
@@ -406,7 +406,7 @@ struct XrpRuntimeSafetyTests {
         let gap = try signedPendingTransaction(sequence: 1, lastLedgerSequence: 104)
         try await store.save(gap)
         await rpc.configure(
-            server: XrpServerState(networkId: 0, validatedLedger: 120, completeLedgers: try XrpLedgerRanges("1-50,70-120")),
+            server: XrpServerState(networkId: 0, validatedLedger: 120, completeLedgers: try XrpLedgerRanges("1-101,103-120")),
             accountState: XrpAccountState(address: gap.account, balanceDrops: 2_000_000, sequence: 2, ownerCount: 0, flags: 0)
         )
         try await service.reconcile(account: gap.account)

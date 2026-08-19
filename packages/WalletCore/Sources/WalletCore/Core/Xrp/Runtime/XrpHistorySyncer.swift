@@ -121,6 +121,7 @@ final class XrpHistorySyncer: @unchecked Sendable {
 
         let amount: UInt64
         if result == "tesSUCCESS" {
+            if meta["delivered_amount"]?.object != nil { return nil }
             if let delivered = meta["delivered_amount"], delivered.object == nil,
                let nativeDelivered = delivered.uint64,
                nativeDelivered <= XrpAmount.maximumDrops
