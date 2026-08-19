@@ -10,14 +10,15 @@ struct SmartAccountPasskeyManagerTests {
         let manager = SmartAccountPasskeyManager(requester: requester)
 
         let firstTask = Task { try? await manager.register(name: "first") }
-        try await waitForInvocations(requester, count: 1)
+        await requester.waitForInvocations(1)
 
         await #expect(throws: SmartAccountPasskeyManager.AAError.busy) {
             try await manager.register(name: "second")
         }
         #expect(requester.invocations == 1)
 
-        firstTask.cancel()
+        requester.finishPendingRequest()
+        _ = await firstTask.value
     }
 
     @Test func assertForSigningRejectsReentryWhileInFlight() async throws {
@@ -25,7 +26,7 @@ struct SmartAccountPasskeyManagerTests {
         let manager = SmartAccountPasskeyManager(requester: requester)
 
         let firstTask = Task { try? await manager.register(name: "first") }
-        try await waitForInvocations(requester, count: 1)
+        await requester.waitForInvocations(1)
 
         await #expect(throws: SmartAccountPasskeyManager.AAError.busy) {
             try await manager.assertForSigning(
@@ -35,27 +36,91 @@ struct SmartAccountPasskeyManagerTests {
         }
         #expect(requester.invocations == 1)
 
-        firstTask.cancel()
-    }
-
-    private func waitForInvocations(_ requester: FakeRequester, count: Int) async throws {
-        for _ in 0 ..< 200 {
-            if requester.invocations >= count { return }
-            await Task.yield()
-        }
-        Issue.record("Requester never reached \(count) invocations (saw \(requester.invocations))")
+        requester.finishPendingRequest()
+        _ = await firstTask.value
     }
 }
 
 private final class FakeRequester: PasskeyAuthorizationRequesting, @unchecked Sendable {
-    private(set) var invocations: Int = 0
+    private struct InvocationWaiter {
+        let count: Int
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    private struct PendingRequest {
+        let requests: [ASAuthorizationRequest]
+        let delegate: ASAuthorizationControllerDelegate
+    }
+
+    private enum FakeError: Error {
+        case finished
+    }
+
+    private let lock = NSLock()
+    private var invocationCount = 0
+    private var invocationWaiters = [InvocationWaiter]()
+    private var pendingRequest: PendingRequest?
+
+    var invocations: Int {
+        lock.withLock { invocationCount }
+    }
+
+    func waitForInvocations(_ count: Int) async {
+        await withCheckedContinuation { continuation in
+            let shouldResume = lock.withLock {
+                guard invocationCount < count else { return true }
+
+                invocationWaiters.append(InvocationWaiter(count: count, continuation: continuation))
+                return false
+            }
+
+            if shouldResume {
+                continuation.resume()
+            }
+        }
+    }
 
     func perform(
-        requests _: [ASAuthorizationRequest],
-        delegate _: ASAuthorizationControllerDelegate,
+        requests: [ASAuthorizationRequest],
+        delegate: ASAuthorizationControllerDelegate,
         contextProvider _: ASAuthorizationControllerPresentationContextProviding
     ) {
-        invocations += 1
-        // Intentionally do nothing else — keeps the continuation pending so reentry is observable.
+        let readyContinuations = lock.withLock {
+            invocationCount += 1
+            pendingRequest = PendingRequest(requests: requests, delegate: delegate)
+
+            let currentCount = invocationCount
+            var ready = [CheckedContinuation<Void, Never>]()
+            var remaining = [InvocationWaiter]()
+
+            for waiter in invocationWaiters {
+                if waiter.count <= currentCount {
+                    ready.append(waiter.continuation)
+                } else {
+                    remaining.append(waiter)
+                }
+            }
+            invocationWaiters = remaining
+
+            return ready
+        }
+
+        for continuation in readyContinuations {
+            continuation.resume()
+        }
+    }
+
+    func finishPendingRequest() {
+        let request = lock.withLock {
+            defer { pendingRequest = nil }
+            return pendingRequest
+        }
+        guard let request else { return }
+
+        let controller = ASAuthorizationController(authorizationRequests: request.requests)
+        request.delegate.authorizationController?(
+            controller: controller,
+            didCompleteWithError: FakeError.finished
+        )
     }
 }
