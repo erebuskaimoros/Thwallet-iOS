@@ -1,4 +1,5 @@
 import Foundation
+import MarketKit
 import Testing
 @testable import WalletCore
 
