@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-final class XrpKitManager {
+public final class XrpKitManager {
     static let defaultMainnetEndpoint = URL(string: "https://xrplcluster.com")!
 
     private let dbPool: DatabasePool
