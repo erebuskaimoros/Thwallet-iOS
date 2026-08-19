@@ -288,7 +288,7 @@ extension XrpAdapter: ITransactionsAdapter {
                         address: address
                     )))
                 } catch {
-                    observer(.failure(error))
+                    observer(.error(error))
                 }
             }
             return Disposables.create { task.cancel() }
@@ -302,7 +302,7 @@ extension XrpAdapter: ITransactionsAdapter {
                     guard let self else { throw CancellationError() }
                     observer(.success(try await loadTransactionsAfter(paginationData: paginationData)))
                 } catch {
-                    observer(.failure(error))
+                    observer(.error(error))
                 }
             }
             return Disposables.create { task.cancel() }
