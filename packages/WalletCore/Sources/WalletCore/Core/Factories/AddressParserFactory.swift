@@ -113,6 +113,8 @@ enum AddressParserFactory {
             return [TonAddressParserItem()]
         case .stellar:
             return [StellarAddressParserItem()]
+        case .ripple:
+            return [XrpAddressParserItem()]
         case .monero:
             return [MoneroAddressParserItem()]
         case .zano:

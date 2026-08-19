@@ -1,0 +1,438 @@
+{
+  "schema_version": 1,
+  "fixture_purpose": "Cross-platform Thwallet XRPL native-XRP codec and signing conformance",
+  "security_notice": "PUBLIC BIP39 TEST MNEMONIC AND PRIVATE KEY. NEVER FUND OR USE THESE KEYS OUTSIDE TESTS.",
+  "oracle": {
+    "primary": {
+      "implementation": "XRPLF xrpl.js",
+      "package": "xrpl",
+      "version": "5.0.0",
+      "source": "https://github.com/XRPLF/xrpl.js",
+      "package_registry": "https://www.npmjs.com/package/xrpl/v/5.0.0"
+    },
+    "transitive_codecs": {
+      "ripple_binary_codec": "2.9.0",
+      "ripple_address_codec": "5.0.1",
+      "ripple_keypairs": "3.0.0",
+      "scure_bip32": "2.3.0",
+      "scure_bip39": "2.3.0"
+    },
+    "independent_x_address_cross_check": {
+      "implementation": "XRPLF xrpl4j",
+      "version": "6.0.0",
+      "commit": "142acd861d48f660e48608704295f0d722bbd4be",
+      "source": "https://github.com/XRPLF/xrpl4j/blob/142acd861d48f660e48608704295f0d722bbd4be/xrpl4j-core/src/test/java/org/xrpl/xrpl4j/codec/addresses/XAddressTest.java"
+    },
+    "transaction_hash_cross_check": "Node.js crypto SHA-512 first 32 bytes over ASCII TXN\\0 prefix plus signed blob"
+  },
+  "protocol": {
+    "network": "XRPL Mainnet",
+    "network_id": 0,
+    "network_id_field_policy": "MUST be omitted on Mainnet",
+    "coin_type": 144,
+    "curve": "secp256k1",
+    "derivation_path": "m/44'/144'/0'/0/0",
+    "address_account_id_hash": "RIPEMD160(SHA256(compressed_public_key))",
+    "signing_prefix_hex": "53545800",
+    "transaction_id_prefix_hex": "54584E00",
+    "signing_hash": "SHA512Half",
+    "signature_encoding": "strict DER, low-S",
+    "flags": {
+      "tfFullyCanonicalSig": 2147483648
+    },
+    "destination_tag": {
+      "type": "UInt32",
+      "minimum": 0,
+      "maximum": 4294967295,
+      "presence_is_distinct_from_zero": true
+    }
+  },
+  "derivation": {
+    "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    "bip39_passphrase": "",
+    "path": "m/44'/144'/0'/0/0",
+    "raw_private_key_hex": "90802A50AA84EFB6CDB225F17C27616EA94048C179142FECF03F4712A07EA7A4",
+    "xrpl_js_secp_private_key_hex": "0090802A50AA84EFB6CDB225F17C27616EA94048C179142FECF03F4712A07EA7A4",
+    "compressed_public_key_hex": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE",
+    "account_id_hex": "AFF3C2E33458B30714CA16FFEE19952DD35C17C8",
+    "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3"
+  },
+  "transaction_destination": {
+    "derivation_path": "m/44'/144'/0'/0/1",
+    "compressed_public_key_hex": "038BF420B5271ADA2D7479358FF98A29954CF18DC25155184AEAD05796DA737E89",
+    "account_id_hex": "5720939C1336A7356A70ED861D5934345C6B6360",
+    "classic_address": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17"
+  },
+  "x_address_vectors": [
+    {
+      "name": "tag_absent",
+      "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+      "tag": null,
+      "tag_present": false,
+      "mainnet_x_address": "XVMFQQBMhdouRqhPMuawgBMN1AVFTofPAdRsXG5RkPtUPNQ",
+      "testnet_x_address": "TVHLFWLKvbMv1LFzd6FA2Bf9MPpcy4mRto4VFAAxLuNpvdW"
+    },
+    {
+      "name": "tag_zero",
+      "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+      "tag": 0,
+      "tag_present": true,
+      "mainnet_x_address": "XVMFQQBMhdouRqhPMuawgBMN1AVFToUN3u1CU1342EmLWLX",
+      "testnet_x_address": "TVHLFWLKvbMv1LFzd6FA2Bf9MPpcy4iGanqfWYMuwiggt3t"
+    },
+    {
+      "name": "tag_uint32_max",
+      "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+      "tag": 4294967295,
+      "tag_present": true,
+      "mainnet_x_address": "XVMFQQBMhdouRqhPMuawgBMN1AVFToHhLULG9epfqbfPuTW",
+      "testnet_x_address": "TVHLFWLKvbMv1LFzd6FA2Bf9MPpcy4AaH4H5TKEeSauvKZW"
+    }
+  ],
+  "xrpl4j_published_x_address_vectors": [
+    {
+      "name": "xrpl4j_tag_absent",
+      "classic_address": "rGWrZyQqhTp9Xu7G5Pkayo7bXjH4k4QYpf",
+      "tag": null,
+      "mainnet_x_address": "XVLhHMPHU98es4dbozjVtdWzVrDjtV5fdx1mHp98tDMoQXb",
+      "testnet_x_address": "TVE26TYGhfLC7tQDno7G8dGtxSkYQn49b3qD26PK7FcGSKE",
+      "tag_present": false
+    },
+    {
+      "name": "xrpl4j_tag_zero",
+      "classic_address": "rGWrZyQqhTp9Xu7G5Pkayo7bXjH4k4QYpf",
+      "tag": 0,
+      "mainnet_x_address": "XVLhHMPHU98es4dbozjVtdWzVrDjtV8AqEL4xcZj5whKbmc",
+      "testnet_x_address": "TVE26TYGhfLC7tQDno7G8dGtxSkYQnSy8RHqGHoGJ59spi2",
+      "tag_present": true
+    },
+    {
+      "name": "xrpl4j_tag_uint32_max",
+      "classic_address": "rGWrZyQqhTp9Xu7G5Pkayo7bXjH4k4QYpf",
+      "tag": 4294967295,
+      "mainnet_x_address": "XVLhHMPHU98es4dbozjVtdWzVrDjtV18pX8yuPT7y4xaEHi",
+      "testnet_x_address": "TVE26TYGhfLC7tQDno7G8dGtxSkYQnXoy6kSDh6rZzApc69",
+      "tag_present": true
+    }
+  ],
+  "destination_resolution_contract": [
+    {
+      "name": "classic_without_tag",
+      "address_input": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+      "separate_tag": null,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": null
+      }
+    },
+    {
+      "name": "classic_with_explicit_zero",
+      "address_input": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+      "separate_tag": 0,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": 0
+      }
+    },
+    {
+      "name": "classic_with_uint32_max",
+      "address_input": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+      "separate_tag": 4294967295,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": 4294967295
+      }
+    },
+    {
+      "name": "x_address_without_tag",
+      "address_input": "XVMFQQBMhdouRqhPMuawgBMN1AVFTofPAdRsXG5RkPtUPNQ",
+      "separate_tag": null,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": null
+      }
+    },
+    {
+      "name": "x_address_without_tag_plus_separate_zero",
+      "address_input": "XVMFQQBMhdouRqhPMuawgBMN1AVFTofPAdRsXG5RkPtUPNQ",
+      "separate_tag": 0,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": 0
+      }
+    },
+    {
+      "name": "x_address_embedded_zero",
+      "address_input": "XVMFQQBMhdouRqhPMuawgBMN1AVFToUN3u1CU1342EmLWLX",
+      "separate_tag": null,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": 0
+      }
+    },
+    {
+      "name": "x_address_embedded_zero_plus_matching_separate_zero",
+      "address_input": "XVMFQQBMhdouRqhPMuawgBMN1AVFToUN3u1CU1342EmLWLX",
+      "separate_tag": 0,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": 0
+      }
+    },
+    {
+      "name": "x_address_embedded_max_plus_matching_separate_max",
+      "address_input": "XVMFQQBMhdouRqhPMuawgBMN1AVFToHhLULG9epfqbfPuTW",
+      "separate_tag": 4294967295,
+      "expected": {
+        "outcome": "accept",
+        "classic_address": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "tag": 4294967295
+      }
+    },
+    {
+      "name": "x_address_embedded_zero_plus_conflicting_separate_one",
+      "address_input": "XVMFQQBMhdouRqhPMuawgBMN1AVFToUN3u1CU1342EmLWLX",
+      "separate_tag": 1,
+      "expected": {
+        "outcome": "reject",
+        "error": "destination_tag_conflict"
+      }
+    },
+    {
+      "name": "x_address_embedded_max_plus_conflicting_separate_zero",
+      "address_input": "XVMFQQBMhdouRqhPMuawgBMN1AVFToHhLULG9epfqbfPuTW",
+      "separate_tag": 0,
+      "expected": {
+        "outcome": "reject",
+        "error": "destination_tag_conflict"
+      }
+    },
+    {
+      "name": "testnet_x_address_on_mainnet",
+      "address_input": "TVHLFWLKvbMv1LFzd6FA2Bf9MPpcy4iGanqfWYMuwiggt3t",
+      "separate_tag": null,
+      "expected": {
+        "outcome": "reject",
+        "error": "wrong_network"
+      }
+    },
+    {
+      "name": "classic_tag_over_uint32",
+      "address_input": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+      "separate_tag_decimal_string": "4294967296",
+      "expected": {
+        "outcome": "reject",
+        "error": "destination_tag_out_of_range"
+      }
+    }
+  ],
+  "memo": {
+    "text_utf8": "THORCHAIN-TEST-MEMO",
+    "memo_data_hex": "54484F52434841494E2D544553542D4D454D4F",
+    "inert_test_only": true
+  },
+  "native_payment_signing_vectors": [
+    {
+      "name": "native_xrp_tag_absent",
+      "transaction": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648
+      },
+      "transaction_for_signing": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648,
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE"
+      },
+      "signing_preimage_hex": "5354580012000022800000002400000001201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE8114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360",
+      "signing_digest_sha512half_hex": "2A315068B42A8396E9B6734F96697B331EF49EFB5096E6C18309DE0E0B65483A",
+      "signature_der_hex": "3045022100F7F5169EA94C474C8970E4604960F3A8D1DCD7FE26BBE7E3F51FE5D139ED894B02206ED2A6638E6C58CC15E4EF6A4D957A030114E1E25B5F41D9E601F50F9C7BFE0D",
+      "signed_blob_hex": "12000022800000002400000001201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE74473045022100F7F5169EA94C474C8970E4604960F3A8D1DCD7FE26BBE7E3F51FE5D139ED894B02206ED2A6638E6C58CC15E4EF6A4D957A030114E1E25B5F41D9E601F50F9C7BFE0D8114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360",
+      "transaction_hash_hex": "08B15FE1FCA80E2042ECC6189732C998187267C62B2D1543BAE5CDB8B56B5270",
+      "decoded_signed_transaction": {
+        "TransactionType": "Payment",
+        "Flags": 2147483648,
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Amount": "1000000",
+        "Fee": "12",
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE",
+        "TxnSignature": "3045022100F7F5169EA94C474C8970E4604960F3A8D1DCD7FE26BBE7E3F51FE5D139ED894B02206ED2A6638E6C58CC15E4EF6A4D957A030114E1E25B5F41D9E601F50F9C7BFE0D",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17"
+      },
+      "signature_verified_by_xrpl_js": true
+    },
+    {
+      "name": "native_xrp_tag_zero",
+      "transaction": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648,
+        "DestinationTag": 0
+      },
+      "transaction_for_signing": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648,
+        "DestinationTag": 0,
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE"
+      },
+      "signing_preimage_hex": "53545800120000228000000024000000012E00000000201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE8114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360",
+      "signing_digest_sha512half_hex": "E4362162E058A9E4E98EDB0F5B5F72F27B51DED53A92D9BCE16D26696B5E1547",
+      "signature_der_hex": "3045022100F61C68E017402AB6FF54F23E76FB4B93B37C74E597B424E85EB06BC6A05CBCDA022073D3F3AFED1BF3E386A8B8E2DEA7414B17E90F6E5F459D740340C86A27F96A28",
+      "signed_blob_hex": "120000228000000024000000012E00000000201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE74473045022100F61C68E017402AB6FF54F23E76FB4B93B37C74E597B424E85EB06BC6A05CBCDA022073D3F3AFED1BF3E386A8B8E2DEA7414B17E90F6E5F459D740340C86A27F96A288114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360",
+      "transaction_hash_hex": "F2AB1A28EBDD58942CDD44276CF17F1B9365786EF7B286CDF93A7DD8C14BB5D1",
+      "decoded_signed_transaction": {
+        "TransactionType": "Payment",
+        "Flags": 2147483648,
+        "Sequence": 1,
+        "DestinationTag": 0,
+        "LastLedgerSequence": 100,
+        "Amount": "1000000",
+        "Fee": "12",
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE",
+        "TxnSignature": "3045022100F61C68E017402AB6FF54F23E76FB4B93B37C74E597B424E85EB06BC6A05CBCDA022073D3F3AFED1BF3E386A8B8E2DEA7414B17E90F6E5F459D740340C86A27F96A28",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17"
+      },
+      "signature_verified_by_xrpl_js": true
+    },
+    {
+      "name": "native_xrp_tag_uint32_max",
+      "transaction": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648,
+        "DestinationTag": 4294967295
+      },
+      "transaction_for_signing": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648,
+        "DestinationTag": 4294967295,
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE"
+      },
+      "signing_preimage_hex": "53545800120000228000000024000000012EFFFFFFFF201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE8114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360",
+      "signing_digest_sha512half_hex": "2B59C1BA2CCE583E868355E021BB0E0DEBC4B9AB21C5E0DAC50484A480844A45",
+      "signature_der_hex": "304402202F31AAB22EF647068D78451CDCD120415C2A79C93154E0AB3D092CDCE9FD5E9A02200A8D854624DFB6BBC64F0C2F2A66BEC892873E1CAA5E7382957C50837394769E",
+      "signed_blob_hex": "120000228000000024000000012EFFFFFFFF201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE7446304402202F31AAB22EF647068D78451CDCD120415C2A79C93154E0AB3D092CDCE9FD5E9A02200A8D854624DFB6BBC64F0C2F2A66BEC892873E1CAA5E7382957C50837394769E8114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360",
+      "transaction_hash_hex": "949B545BC2363DA5947ABE046441E9392A20D79EE29C494AEAE0E2527DF616B0",
+      "decoded_signed_transaction": {
+        "TransactionType": "Payment",
+        "Flags": 2147483648,
+        "Sequence": 1,
+        "DestinationTag": 4294967295,
+        "LastLedgerSequence": 100,
+        "Amount": "1000000",
+        "Fee": "12",
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE",
+        "TxnSignature": "304402202F31AAB22EF647068D78451CDCD120415C2A79C93154E0AB3D092CDCE9FD5E9A02200A8D854624DFB6BBC64F0C2F2A66BEC892873E1CAA5E7382957C50837394769E",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17"
+      },
+      "signature_verified_by_xrpl_js": true
+    },
+    {
+      "name": "native_xrp_thor_text_memo",
+      "transaction": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648,
+        "Memos": [
+          {
+            "Memo": {
+              "MemoData": "54484F52434841494E2D544553542D4D454D4F"
+            }
+          }
+        ]
+      },
+      "transaction_for_signing": {
+        "TransactionType": "Payment",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Amount": "1000000",
+        "Fee": "12",
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Flags": 2147483648,
+        "Memos": [
+          {
+            "Memo": {
+              "MemoData": "54484F52434841494E2D544553542D4D454D4F"
+            }
+          }
+        ],
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE"
+      },
+      "signing_preimage_hex": "5354580012000022800000002400000001201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE8114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360F9EA7D1354484F52434841494E2D544553542D4D454D4FE1F1",
+      "signing_digest_sha512half_hex": "D1CA4A0E6441114D5DADDB9656C458E83C4B0B372667358CB761133B53AC5DD4",
+      "signature_der_hex": "30450221009FC65645A0486070E528CD2E09A12365CF0092812169ADA28CE52B5FF6BC9DED02201FCD7B07E64F19D3698976A2690290DD5F49DB0986C993C564ECF44C01E2E1EB",
+      "signed_blob_hex": "12000022800000002400000001201B000000646140000000000F424068400000000000000C7321031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE744730450221009FC65645A0486070E528CD2E09A12365CF0092812169ADA28CE52B5FF6BC9DED02201FCD7B07E64F19D3698976A2690290DD5F49DB0986C993C564ECF44C01E2E1EB8114AFF3C2E33458B30714CA16FFEE19952DD35C17C883145720939C1336A7356A70ED861D5934345C6B6360F9EA7D1354484F52434841494E2D544553542D4D454D4FE1F1",
+      "transaction_hash_hex": "C672CBA68B75FFB52B09BEE80CBE84AB28946A116ED849C62BC2F99D09B0EE91",
+      "decoded_signed_transaction": {
+        "TransactionType": "Payment",
+        "Flags": 2147483648,
+        "Sequence": 1,
+        "LastLedgerSequence": 100,
+        "Amount": "1000000",
+        "Fee": "12",
+        "SigningPubKey": "031D68BC1A142E6766B2BDFB006CCFE135EF2E0E2E94ABB5CF5C9AB6104776FBAE",
+        "TxnSignature": "30450221009FC65645A0486070E528CD2E09A12365CF0092812169ADA28CE52B5FF6BC9DED02201FCD7B07E64F19D3698976A2690290DD5F49DB0986C993C564ECF44C01E2E1EB",
+        "Account": "rHsMGQEkVNJmpGWs8XUBoTBiAAbwxZN5v3",
+        "Destination": "r3AgF9mMBFtaLhKcg96weMhbbEFLZ3mx17",
+        "Memos": [
+          {
+            "Memo": {
+              "MemoData": "54484F52434841494E2D544553542D4D454D4F"
+            }
+          }
+        ]
+      },
+      "signature_verified_by_xrpl_js": true
+    }
+  ]
+}

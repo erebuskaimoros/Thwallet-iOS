@@ -17,6 +17,7 @@ extension BlockchainType {
         case .zano: return "zano"
         case .stellar: return "stellar"
         case .solana: return "solana"
+        case .ripple: return "xrpl"
         default: return nil
         }
     }
@@ -26,7 +27,7 @@ extension BlockchainType {
     var removeScheme: Bool {
         if isEvm { return true }
         switch self {
-        case .bitcoin, .litecoin, .dash, .dogecoin, .zcash, .tron, .ton, .monero, .zano, .stellar, .solana: return true
+        case .bitcoin, .litecoin, .dash, .dogecoin, .zcash, .tron, .ton, .monero, .zano, .stellar, .solana, .ripple: return true
         case .bitcoinCash, .ecash: return false
         default: return false
         }

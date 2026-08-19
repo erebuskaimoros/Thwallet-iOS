@@ -39,4 +39,8 @@ extension PublicKeysService {
         default: return false
         }
     }
+
+    var xrpAddressSupported: Bool {
+        (try? XrpKitManager.address(accountType: account.type)) != nil
+    }
 }

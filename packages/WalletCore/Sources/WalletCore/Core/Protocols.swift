@@ -154,6 +154,65 @@ protocol ISendSolanaAdapter {
     var fee: Decimal { get }
 }
 
+protocol ISendXrpAdapter {
+    var canSign: Bool { get }
+    func sendInfo(
+        destination: String,
+        destinationTag: UInt32?,
+        amount: Decimal,
+        memo: String?,
+        minimumFeeDrops: UInt64?
+    ) async throws -> XrpSendInfo
+    func send(
+        destination: String,
+        destinationTag: UInt32?,
+        amount: Decimal,
+        memo: String?,
+        minimumFeeDrops: UInt64?,
+        maximumFeeDrops: UInt64?,
+        validUntilEpochSeconds: Int?
+    ) async throws -> String
+}
+
+extension ISendXrpAdapter {
+    func send(
+        destination: String,
+        destinationTag: UInt32?,
+        amount: Decimal,
+        memo: String?,
+        minimumFeeDrops: UInt64?
+    ) async throws -> String {
+        try await send(
+            destination: destination,
+            destinationTag: destinationTag,
+            amount: amount,
+            memo: memo,
+            minimumFeeDrops: minimumFeeDrops,
+            maximumFeeDrops: nil,
+            validUntilEpochSeconds: nil
+        )
+    }
+
+    func send(
+        destination: String,
+        destinationTag: UInt32?,
+        amount: Decimal,
+        memo: String?,
+        minimumFeeDrops: UInt64?,
+        maximumFeeDrops: UInt64?
+    ) async throws -> String {
+        try await send(
+            destination: destination,
+            destinationTag: destinationTag,
+            amount: amount,
+            memo: memo,
+            minimumFeeDrops: minimumFeeDrops,
+            maximumFeeDrops: maximumFeeDrops,
+            validUntilEpochSeconds: nil
+        )
+    }
+}
+
 protocol IAllowanceAdapter {
     var pendingTransactions: [TransactionRecord] { get }
     func allowance(spenderAddress: Address, defaultBlockParameter: BlockParameter) async throws -> Decimal

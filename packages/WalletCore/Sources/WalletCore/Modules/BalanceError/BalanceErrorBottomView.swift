@@ -12,10 +12,14 @@ struct BalanceErrorBottomView: View {
     }
 
     var body: some View {
+        let xrpSubmission = viewModel.item.xrpSubmission
         BottomSheetView(
             items: [
-                .title(icon: ThemeImage.error, title: "balance_error.sync_error".localized),
-                .text(text: viewModel.item.sourceType != nil ? "balance_error.sync_error.description.with_source".localized : "balance_error.sync_error.description.without_source".localized),
+                .title(
+                    icon: ThemeImage.error,
+                    title: xrpSubmission == nil ? "balance_error.sync_error".localized : "XRP payment status"
+                ),
+                .text(text: xrpSubmission?.message ?? (viewModel.item.sourceType != nil ? "balance_error.sync_error.description.with_source".localized : "balance_error.sync_error.description.without_source".localized)),
                 .buttonGroup(.init(buttons: buttons(item: viewModel.item))),
             ],
         )
@@ -54,6 +58,21 @@ struct BalanceErrorBottomView: View {
                     case let .zcash(blockchain):
                         Coordinator.shared.present { isPresented in
                             ZcashNetworkView(blockchain: blockchain, isPresented: isPresented)
+                        }
+                    }
+                }
+            )
+        }
+
+        if item.xrpSubmission?.canAcknowledge == true {
+            buttons.append(
+                .init(style: .yellow, title: "Acknowledge result") {
+                    Task { @MainActor in
+                        do {
+                            try await viewModel.acknowledgeXrpSubmission()
+                            isPresented = false
+                        } catch {
+                            HudHelper.instance.show(banner: .error(string: error.localizedDescription))
                         }
                     }
                 }

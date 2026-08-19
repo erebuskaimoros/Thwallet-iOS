@@ -55,6 +55,7 @@ extension AddressUri {
         case txAmount = "tx_amount"
         case txDescription = "tx_description"
         case memo
+        case destinationTag = "dt"
         case label
         case message
         case blockchainUid = "blockchain_uid"

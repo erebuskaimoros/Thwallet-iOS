@@ -280,9 +280,9 @@
     {
       "identity" : "marketkit.swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/horizontalsystems/MarketKit.Swift",
+      "location" : "https://github.com/erebuskaimoros/MarketKit.Swift.git",
       "state" : {
-        "revision" : "612b3457dc01e484d6fe808db8c5f12e88bf98c2"
+        "revision" : "67f401499c86d958a215fc035c37def6c6c6a65e"
       }
     },
     {

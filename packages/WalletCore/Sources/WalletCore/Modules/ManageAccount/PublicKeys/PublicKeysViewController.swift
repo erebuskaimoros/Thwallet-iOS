@@ -81,6 +81,13 @@ class PublicKeysViewController: ThemeViewController {
         navigationController?.pushViewController(viewController, animated: true)
         stat(page: .privateKeys, event: .open(page: .moneroPublicKeys))
     }
+
+    private func openXrpAddress() {
+        guard let viewController = PublicAddressModule.xrpViewController(account: viewModel.account) else {
+            return
+        }
+        navigationController?.pushViewController(viewController, animated: true)
+    }
 }
 
 extension PublicKeysViewController: SectionsDataSource {
@@ -166,6 +173,26 @@ extension PublicKeysViewController: SectionsDataSource {
                             isLast: true
                         ) { [weak self] in
                             self?.openMoneroPublicKey()
+                        },
+                    ]
+                )
+            )
+        }
+
+        if viewModel.showXrpAddress {
+            sections.append(
+                Section(
+                    id: "xrp-address",
+                    footerState: tableView.sectionFooter(text: "The classic XRP Ledger address derived at m/44'/144'/0'/0/0."),
+                    rows: [
+                        tableView.universalRow48(
+                            id: "xrp-address",
+                            title: .body("XRP Address"),
+                            accessoryType: .disclosure,
+                            isFirst: true,
+                            isLast: true
+                        ) { [weak self] in
+                            self?.openXrpAddress()
                         },
                     ]
                 )

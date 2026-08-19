@@ -18,10 +18,19 @@ enum PublicAddressModule {
         let viewModel = PublicAddressViewModel(service: service)
         return PublicAddressViewController(viewModel: viewModel, accountType: .tron)
     }
+
+    static func xrpViewController(account: Account) -> UIViewController? {
+        guard let service = XrpAddressService(account: account) else {
+            return nil
+        }
+
+        let viewModel = PublicAddressViewModel(service: service)
+        return PublicAddressViewController(viewModel: viewModel, accountType: .xrp)
+    }
 }
 
 extension PublicAddressModule {
     enum AbstractAccountType {
-        case evm, tron
+        case evm, tron, xrp
     }
 }

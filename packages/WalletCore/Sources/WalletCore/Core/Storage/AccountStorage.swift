@@ -118,6 +118,14 @@ public class AccountStorage {
             }
 
             type = .stellarAccount(accountId: accountId)
+        case .xrpAddress:
+            guard let address = record.dataKey,
+                  (try? XrpAddressCodec.accountId(classicAddress: address)) != nil
+            else {
+                return nil
+            }
+
+            type = .xrpAddress(address: address)
         case .hdExtendedKey:
             guard let data = recoverData(id: id, typeName: typeName, keyName: .data) else {
                 return nil
@@ -200,6 +208,12 @@ public class AccountStorage {
         case let .stellarAccount(accountId):
             typeName = .stellarAccount
             dataKey = accountId
+        case let .xrpAddress(address):
+            guard (try? XrpAddressCodec.accountId(classicAddress: address)) != nil else {
+                throw XrpCodecError.invalidAddress
+            }
+            typeName = .xrpAddress
+            dataKey = address
         case let .hdExtendedKey(key):
             typeName = .hdExtendedKey
             dataKey = try store(data: key.serialized, id: id, typeName: typeName, keyName: .data)
@@ -342,6 +356,7 @@ extension AccountStorage {
         case tronAddress
         case tonAddress
         case stellarAccount
+        case xrpAddress
         case hdExtendedKey
         case btcAddress
         case moneroWatchAccount

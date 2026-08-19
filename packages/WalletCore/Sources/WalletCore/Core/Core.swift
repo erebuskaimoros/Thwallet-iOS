@@ -83,6 +83,7 @@ public class Core {
     let zanoKitManager: ZanoKitManager
     let solanaRpcSourceManager: SolanaRpcSourceManager
     let solanaKitManager: SolanaKitManager
+    let xrpKitManager: XrpKitManager
 
     let restoreSettingsManager: RestoreSettingsManager
     let predefinedBlockchainService: PredefinedBlockchainService
@@ -265,6 +266,8 @@ public class Core {
             walletManager: walletManager
         )
 
+        xrpKitManager = XrpKitManager(dbPool: dbPool)
+
         let restoreSettingsStorage = RestoreSettingsStorage(dbPool: dbPool)
         restoreSettingsManager = RestoreSettingsManager(storage: restoreSettingsStorage)
 
@@ -328,6 +331,7 @@ public class Core {
             stellarKitManager: stellarKitManager,
             zanoKitManager: zanoKitManager,
             solanaKitManager: solanaKitManager,
+            xrpKitManager: xrpKitManager,
             restoreSettingsManager: restoreSettingsManager,
             coinManager: coinManager,
             spamWrapper: spamWrapper,
@@ -397,7 +401,7 @@ public class Core {
         let tonConnectStorage = try TonConnectStorage(dbPool: dbPool)
         tonConnectManager = TonConnectManager(storage: tonConnectStorage, accountManager: accountManager)
 
-        kitCleaner = KitCleaner(accountManager: accountManager)
+        kitCleaner = KitCleaner(accountManager: accountManager, xrpKitManager: xrpKitManager)
 
         performanceDataManager = PerformanceDataManager(userDefaultsStorage: userDefaultsStorage)
         releaseNotesService = ReleaseNotesService(appVersionManager: appVersionManager)

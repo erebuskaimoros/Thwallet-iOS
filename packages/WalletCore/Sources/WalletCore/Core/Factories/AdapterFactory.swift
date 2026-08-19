@@ -16,6 +16,7 @@ public class AdapterFactory {
     private let stellarKitManager: StellarKitManager
     private let zanoKitManager: ZanoKitManager
     private let solanaKitManager: SolanaKitManager
+    private let xrpKitManager: XrpKitManager
     private let restoreSettingsManager: RestoreSettingsManager
     private let coinManager: CoinManager
     private let spamWrapper: SpamWrapper
@@ -23,7 +24,7 @@ public class AdapterFactory {
 
     public init(evmBlockchainManager: EvmBlockchainManager, evmSyncSourceManager: EvmSyncSourceManager, moneroNodeManager: MoneroNodeManager, zcashNodeManager: ZcashNodeManager,
                 btcBlockchainManager: BtcBlockchainManager, tronKitManager: TronKitManager, tonKitManager: TonKitManager, stellarKitManager: StellarKitManager,
-                zanoKitManager: ZanoKitManager, solanaKitManager: SolanaKitManager, restoreSettingsManager: RestoreSettingsManager, coinManager: CoinManager,
+                zanoKitManager: ZanoKitManager, solanaKitManager: SolanaKitManager, xrpKitManager: XrpKitManager, restoreSettingsManager: RestoreSettingsManager, coinManager: CoinManager,
                 spamWrapper: SpamWrapper, evmLabelManager: EvmLabelManager)
     {
         self.evmBlockchainManager = evmBlockchainManager
@@ -36,6 +37,7 @@ public class AdapterFactory {
         self.stellarKitManager = stellarKitManager
         self.zanoKitManager = zanoKitManager
         self.solanaKitManager = solanaKitManager
+        self.xrpKitManager = xrpKitManager
         self.restoreSettingsManager = restoreSettingsManager
         self.coinManager = coinManager
         self.spamWrapper = spamWrapper
@@ -276,6 +278,11 @@ extension AdapterFactory {
         case let (.spl(mintAddress), .solana):
             if let solanaKit = try? solanaKitManager.solanaKit(account: wallet.account) {
                 return SplAdapter(solanaKit: solanaKit, mintAddress: mintAddress)
+            }
+
+        case (.native, .ripple):
+            if let xrpKit = try? xrpKitManager.xrpKit(account: wallet.account) {
+                return XrpAdapter(kit: xrpKit, wallet: wallet)
             }
 
         default: ()

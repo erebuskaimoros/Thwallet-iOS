@@ -7,6 +7,14 @@ import RxSwift
 import TronKit
 import UIKit
 
+func xrpWatchAccountType(address: String) throws -> AccountType {
+    let destination = try XrpAddressCodec.resolve(address, separateTag: nil, network: .mainnet)
+    // A destination tag routes a payment at a shared account; it cannot scope that
+    // account's ledger balance or history, so it is not a valid watch identity.
+    guard destination.destinationTag == nil else { throw XrpCodecError.invalidDestinationTag }
+    return .xrpAddress(address: destination.classicAddress)
+}
+
 class WatchViewModel: ObservableObject {
     private let accountManager = Core.shared.accountManager
     private let walletManager = Core.shared.walletManager
@@ -108,6 +116,7 @@ class WatchViewModel: ObservableObject {
                 + AddressParserFactory.parserChainHandlers(blockchainType: .tron)
                 + AddressParserFactory.parserChainHandlers(blockchainType: .ton)
                 + AddressParserFactory.parserChainHandlers(blockchainType: .stellar)
+                + AddressParserFactory.parserChainHandlers(blockchainType: .ripple)
                 + AddressParserFactory.parserChainHandlers(blockchainType: .monero)
         )
     }
@@ -200,6 +209,8 @@ class WatchViewModel: ObservableObject {
                     accountType = .tonAddress(address: address.raw)
                 case .stellar:
                     accountType = .stellarAccount(accountId: address.raw)
+                case .ripple:
+                    accountType = try xrpWatchAccountType(address: address.raw)
                 case .monero:
                     (state, viewKeyCaution) = moneroParser.parseAndValidate(
                         address: address, viewKey: viewKey, forceRequiredFields: forceRequiredFields
@@ -256,6 +267,9 @@ class WatchViewModel: ObservableObject {
 
         case .stellarAccount:
             tokenQueries = BlockchainType.stellar.nativeTokenQueries
+
+        case .xrpAddress:
+            tokenQueries = BlockchainType.ripple.nativeTokenQueries
 
         case let .hdExtendedKey(key):
             guard case .public = key else {

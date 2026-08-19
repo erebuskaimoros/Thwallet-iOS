@@ -109,6 +109,7 @@ extension PublicAddressModule.AbstractAccountType {
         switch self {
         case .evm: return "evm_address.title".localized
         case .tron: return "tron_address.title".localized
+        case .xrp: return "XRP Address"
         }
     }
 }

@@ -11,7 +11,7 @@ class AddressUriParser {
     init(blockchainType: BlockchainType?, tokenType: TokenType?) {
         self.blockchainType = blockchainType
         self.tokenType = tokenType
-        bypassParsers = [TonTransferDeeplinkParser()]
+        bypassParsers = [TonTransferDeeplinkParser(), XrpUriParser()]
         chain = UriParserChain(
             parsers: [Erc681Parser(), Bip21Parser()],
             enrichers: [InitFiltersEnricher(blockchainType: blockchainType, tokenType: tokenType)]

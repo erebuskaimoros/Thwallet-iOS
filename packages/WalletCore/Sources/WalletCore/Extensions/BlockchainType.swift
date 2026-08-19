@@ -35,6 +35,7 @@ extension BlockchainType {
         .ton,
         .stellar,
         .solana,
+        .ripple,
     ]
 
     func placeholderImageName(tokenProtocol: TokenProtocol?) -> String {
@@ -76,6 +77,7 @@ extension BlockchainType {
             .arbitrumOne,
             .optimism,
             .stellar,
+            .ripple,
             .dash,
             .dogecoin,
             .litecoin,
@@ -97,7 +99,7 @@ extension BlockchainType {
         }
 
         switch self {
-        case .optimism, .arbitrumOne, .base: return false
+        case .optimism, .arbitrumOne, .base, .ripple: return false
         default: return true
         }
     }
@@ -169,6 +171,8 @@ extension BlockchainType {
             }
         case .stellarSecretKey, .stellarAccount:
             return self == .stellar
+        case .xrpAddress:
+            return self == .ripple
         case .tronAddress:
             return self == .tron
         case .tonAddress:
@@ -227,6 +231,7 @@ extension BlockchainType {
         case .ton: return "TON"
         case .stellar: return "Stellar"
         case .solana: return "SOL, SPL tokens"
+        case .ripple: return "XRP"
         default: return ""
         }
     }
@@ -312,6 +317,7 @@ extension BlockchainType {
         case .binanceSmartChain, .tron: return 3
         case .polygon, .avalanche, .optimism, .fantom, .base, .zkSync: return 2
         case .gnosis, .stellar, .ton: return 5
+        case .ripple: return 4
         case .bitcoin, .bitcoinCash, .ecash: return 600
         case .dash, .litecoin: return 150
         case .dogecoin: return 60

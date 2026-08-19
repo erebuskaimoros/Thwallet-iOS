@@ -45,7 +45,7 @@ let package = Package(
         .package(url: "https://github.com/horizontalsystems/LitecoinKit.Swift", exact: "3.0.2"),
         .package(
             url: "https://github.com/erebuskaimoros/MarketKit.Swift.git",
-            revision: "612b3457dc01e484d6fe808db8c5f12e88bf98c2"
+            revision: "67f401499c86d958a215fc035c37def6c6c6a65e"
         ),
         .package(url: "https://github.com/horizontalsystems/MoneroKit.Swift", exact: "0.2.9"),
         .package(url: "https://github.com/horizontalsystems/NftKit.Swift", exact: "2.0.2"),

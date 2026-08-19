@@ -21,7 +21,7 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
     private let evmFeeEstimator = EvmFeeEstimator()
     private var assetMap = [String: String]()
     private let syncSubject = PassthroughSubject<Void, Never>()
-    private var assetStorageId: String { "\(id)-assets-v2" }
+    private var assetStorageId: String { "\(id)-assets-v4" }
 
     init() {
         assetMap = (try? swapAssetStorage.swapAssetMap(provider: assetStorageId, as: String.self)) ?? [:]
@@ -76,6 +76,17 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
                 gasRateUnits: swapQuote.gasRateUnits,
                 dustThreshold: swapQuote.dustThreshold
             )
+        case .ripple:
+            let policy = try thorChainXrpSendPolicy(
+                recommendedFeeDrops: swapQuote.recommendedGasRate,
+                gasRateUnits: swapQuote.gasRateUnits,
+                dustThreshold: swapQuote.dustThreshold
+            )
+            return ThorChainXrpMultiSwapQuote(
+                expectedBuyAmount: swapQuote.expectedAmountOut,
+                estimatedTime: swapQuote.totalSwapSeconds,
+                policy: policy
+            )
         default:
             throw SwapError.unsupportedTokenIn
         }
@@ -85,6 +96,42 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
         let swapQuote = try await swapQuote(tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, slippage: slippage, recipient: recipient)
         let toAddress = try await thorChainConfirmationDestination(recipient: recipient) {
             try await resolveDestination(recipient: nil, token: tokenOut)
+        }
+        if tokenIn.blockchainType == .ripple {
+            async let inboundsRequest: [ThorChainInboundAddress] = networkManager.fetch(url: "\(baseUrl)/inbound_addresses")
+            async let poolsRequest: [Pool] = networkManager.fetch(url: "\(baseUrl)/pools")
+            let (inbounds, pools) = try await (inboundsRequest, poolsRequest)
+            _ = try validatedThorXrpInbound(
+                quoteAddress: swapQuote.inboundAddress,
+                quoteRouter: swapQuote.router,
+                quoteExpiry: swapQuote.expiry,
+                quoteRecommendedFee: swapQuote.recommendedGasRate,
+                quoteDustThreshold: swapQuote.dustThreshold,
+                inboundAddresses: inbounds,
+                nowEpochSeconds: Int(Date().timeIntervalSince1970)
+            )
+            guard let expectedAsset = assetMap[tokenOut.tokenQuery.id.lowercased()],
+                  let approvedSlippageBps = Int((slippage * 100).roundedDown(decimal: 0).description)
+            else {
+                throw SwapError.unsupportedTokenOut
+            }
+            _ = try validatedThorXrpSwapCommitment(
+                memo: swapQuote.memo,
+                expectedAsset: expectedAsset,
+                availablePoolAssets: pools
+                    .filter { $0.status.caseInsensitiveCompare("available") == .orderedSame }
+                    .map(\.asset),
+                expectedDestination: toAddress,
+                expectedRefundAddress: nil,
+                expectedAmountOutBaseUnits: swapQuote.expectedAmountOutBaseUnits,
+                approvedSlippageBps: approvedSlippageBps,
+                requestedStreamingInterval: streamingInterval,
+                maxStreamingQuantity: swapQuote.maxStreamingQuantity,
+                affiliateFeeBaseUnits: swapQuote.affiliateFeeBaseUnits,
+                feeAsset: swapQuote.feeAsset
+            )
+        } else {
+            _ = try validatedThorSwapMemoDestination(memo: swapQuote.memo, expectedDestination: toAddress)
         }
 
         switch tokenIn.blockchainType {
@@ -198,6 +245,53 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
                 estimatedTime: swapQuote.totalSwapSeconds,
                 transactionError: transactionError,
                 fee: sendInfo?.fee,
+                toAddress: toAddress
+            )
+        case .ripple:
+            let policy = try thorChainXrpSendPolicy(
+                recommendedFeeDrops: swapQuote.recommendedGasRate,
+                gasRateUnits: swapQuote.gasRateUnits,
+                dustThreshold: swapQuote.dustThreshold
+            )
+            let inbound = try XrpAddressCodec.resolve(
+                swapQuote.inboundAddress,
+                separateTag: nil,
+                network: .mainnet
+            )
+            guard swapQuote.memo.utf8.count <= 256 else { throw XrpRuntimeError.memoTooLarge }
+
+            var transactionError: Error?
+            var sendInfo: XrpSendInfo?
+            do {
+                guard let adapter = adapterManager.adapter(for: tokenIn) as? ISendXrpAdapter,
+                      adapter.canSign
+                else { throw SwapError.noXrpAdapter }
+                sendInfo = try await thorChainXrpSendInfo(
+                    adapter: adapter,
+                    destination: inbound.classicAddress,
+                    destinationTag: inbound.destinationTag,
+                    amount: amountIn,
+                    memo: swapQuote.memo,
+                    policy: policy
+                )
+            } catch {
+                transactionError = error
+            }
+
+            return XrpSwapFinalQuote(
+                expectedBuyAmount: swapQuote.expectedAmountOut,
+                token: tokenIn,
+                destination: inbound.classicAddress,
+                destinationTag: inbound.destinationTag,
+                memo: swapQuote.memo,
+                recommendedFeeDrops: policy.recommendedFeeDrops,
+                minimumSendAmountDrops: policy.minimumSendAmountDrops,
+                feeDrops: sendInfo?.feeDrops,
+                validUntilEpochSeconds: swapQuote.expiry,
+                slippage: slippage,
+                recipient: recipient,
+                estimatedTime: swapQuote.totalSwapSeconds,
+                transactionError: transactionError,
                 toAddress: toAddress
             )
         default:
@@ -327,7 +421,7 @@ class BaseThorChainMultiSwapProvider: IMultiSwapProvider {
 
                 tokenQueries = [TokenQuery(blockchainType: blockchainType, tokenType: tokenType)]
 
-            case .bitcoinCash, .bitcoin, .dash, .dogecoin, .zcash:
+            case .bitcoinCash, .bitcoin, .dash, .dogecoin, .zcash, .ripple:
                 tokenQueries = blockchainType.nativeTokenQueries
 
             case .litecoin:
@@ -370,9 +464,326 @@ func thorChainBlockchainType(assetBlockchainId: String) -> BlockchainType? {
     case "DOGE": return .dogecoin
     case "ETH": return .ethereum
     case "LTC": return .litecoin
+    case "XRP": return .ripple
     case "ZEC": return .zcash
     default: return nil
     }
+}
+
+enum ThorChainSwapMemoError: Error, Equatable {
+    case malformed
+    case invalidFunction
+    case assetMismatch
+    case destinationMismatch
+    case refundAddressMismatch
+    case invalidLiquidityTolerance
+    case invalidExpectedOutput
+    case invalidStreamingPolicy
+    case tradeTargetMismatch
+    case affiliateNotAllowed
+    case feeAssetMismatch
+}
+
+struct ThorChainInboundAddress: ImmutableMappable, Equatable {
+    let chain: String
+    let address: String
+    let router: String?
+    let halted: Bool
+    let gasRate: String
+    let dustThreshold: Int?
+
+    init(chain: String, address: String, router: String?, halted: Bool, gasRate: String, dustThreshold: Int?) {
+        self.chain = chain
+        self.address = address
+        self.router = router
+        self.halted = halted
+        self.gasRate = gasRate
+        self.dustThreshold = dustThreshold
+    }
+
+    init(map: Map) throws {
+        chain = try map.value("chain")
+        address = try map.value("address")
+        router = try? map.value("router")
+        halted = try map.value("halted")
+        gasRate = try map.value("gas_rate")
+        dustThreshold = try? map.value("dust_threshold", using: Transform.stringToIntTransform)
+    }
+}
+
+enum ThorChainXrpInboundError: Error, Equatable {
+    case missingUniqueInbound
+    case halted
+    case unexpectedRouter
+    case expired
+    case addressMismatch
+    case feeMismatch
+    case dustThresholdMismatch
+}
+
+enum ThorChainXrpPolicyError: Error, Equatable {
+    case invalidGasRateUnits(String?)
+    case invalidRecommendedFee(Int?)
+    case invalidDustThreshold(Int?)
+    case arithmeticOverflow
+}
+
+struct ThorChainXrpSendPolicy: Equatable {
+    let recommendedFeeDrops: UInt64
+    let minimumSendAmountDrops: UInt64
+}
+
+func thorChainXrpSendPolicy(
+    recommendedFeeDrops: Int?,
+    gasRateUnits: String?,
+    dustThreshold: Int?
+) throws -> ThorChainXrpSendPolicy {
+    guard gasRateUnits?.caseInsensitiveCompare("drop") == .orderedSame else {
+        throw ThorChainXrpPolicyError.invalidGasRateUnits(gasRateUnits)
+    }
+    guard let recommendedFeeDrops, (1 ... 100_000).contains(recommendedFeeDrops) else {
+        throw ThorChainXrpPolicyError.invalidRecommendedFee(recommendedFeeDrops)
+    }
+    guard let dustThreshold, (1 ... 1_000_000_000).contains(dustThreshold) else {
+        throw ThorChainXrpPolicyError.invalidDustThreshold(dustThreshold)
+    }
+    let (minimum, overflow) = dustThreshold.addingReportingOverflow(1)
+    guard !overflow else { throw ThorChainXrpPolicyError.arithmeticOverflow }
+    return ThorChainXrpSendPolicy(
+        recommendedFeeDrops: UInt64(recommendedFeeDrops),
+        minimumSendAmountDrops: UInt64(minimum)
+    )
+}
+
+func thorChainXrpSendInfo(
+    adapter: ISendXrpAdapter,
+    destination: String,
+    destinationTag: UInt32?,
+    amount: Decimal,
+    memo: String,
+    policy: ThorChainXrpSendPolicy
+) async throws -> XrpSendInfo {
+    let amountDrops = try XrpAmount.drops(amount)
+    guard amountDrops >= policy.minimumSendAmountDrops else {
+        throw XrpSendHandler.TransactionError.belowMinimum(
+            minimumDrops: policy.minimumSendAmountDrops
+        )
+    }
+    return try await adapter.sendInfo(
+        destination: destination,
+        destinationTag: destinationTag,
+        amount: amount,
+        memo: memo,
+        minimumFeeDrops: policy.recommendedFeeDrops
+    )
+}
+
+func validatedThorXrpInbound(
+    quoteAddress: String,
+    quoteRouter: String?,
+    quoteExpiry: Int,
+    quoteRecommendedFee: Int?,
+    quoteDustThreshold: Int?,
+    inboundAddresses: [ThorChainInboundAddress],
+    nowEpochSeconds: Int
+) throws -> String {
+    let matches = inboundAddresses.filter { $0.chain.caseInsensitiveCompare("XRP") == .orderedSame }
+    guard matches.count == 1, let inbound = matches.first else {
+        throw ThorChainXrpInboundError.missingUniqueInbound
+    }
+    guard !inbound.halted else { throw ThorChainXrpInboundError.halted }
+    guard quoteRouter == nil, inbound.router == nil else { throw ThorChainXrpInboundError.unexpectedRouter }
+    let (minimumExpiry, overflow) = nowEpochSeconds.addingReportingOverflow(30)
+    guard !overflow, quoteExpiry > minimumExpiry else { throw ThorChainXrpInboundError.expired }
+    guard quoteAddress == inbound.address else { throw ThorChainXrpInboundError.addressMismatch }
+    guard quoteRecommendedFee == Int(inbound.gasRate) else { throw ThorChainXrpInboundError.feeMismatch }
+    guard quoteDustThreshold == inbound.dustThreshold else { throw ThorChainXrpInboundError.dustThresholdMismatch }
+    return inbound.address
+}
+
+func validatedThorSwapMemoDestination(memo: String, expectedDestination: String) throws -> String {
+    let components = memo.components(separatedBy: ":")
+    guard components.count >= 3 else {
+        throw ThorChainSwapMemoError.malformed
+    }
+
+    let function = components[0].lowercased()
+    guard function == "swap" || function == "s" || function == "=" else {
+        throw ThorChainSwapMemoError.invalidFunction
+    }
+
+    // A custom refund address may follow the output address as DESTADDR/REFUNDADDR.
+    // Base58 formats are case-sensitive, so the commitment boundary is deliberately exact.
+    guard let destination = components[2].split(separator: "/", omittingEmptySubsequences: false).first,
+          !destination.isEmpty,
+          String(destination) == expectedDestination
+    else {
+        throw ThorChainSwapMemoError.destinationMismatch
+    }
+
+    return String(destination)
+}
+
+private let thorChainAssetShortCodes: [String: String] = [
+    "THOR.RUNE": "r",
+    "BTC.BTC": "b",
+    "ETH.ETH": "e",
+    "GAIA.ATOM": "g",
+    "DOGE.DOGE": "d",
+    "LTC.LTC": "l",
+    "BCH.BCH": "c",
+    "AVAX.AVAX": "a",
+    "BSC.BNB": "s",
+    "BASE.ETH": "f",
+    "TRON.TRX": "tr",
+    "XRP.XRP": "x",
+    "SOL.SOL": "o",
+    "TAO.TAO": "ta",
+    "ZEC.ZEC": "z",
+    "XMR.XMR": "m",
+    "POL.POL": "p",
+    "SUI.SUI": "u",
+    "DOT.DOT": "do",
+    "ADA.ADA": "ad",
+]
+
+private struct ThorChainFuzzyPoolAsset {
+    let full: String
+    let chain: String
+    let ticker: String
+    let address: String
+}
+
+private func thorChainFuzzyPoolAsset(_ asset: String) -> ThorChainFuzzyPoolAsset? {
+    guard let chainSeparator = asset.firstIndex(of: "."),
+          let addressSeparator = asset[asset.index(after: chainSeparator)...].firstIndex(of: "-"),
+          chainSeparator != asset.startIndex,
+          asset.index(after: chainSeparator) != addressSeparator,
+          asset.index(after: addressSeparator) != asset.endIndex
+    else {
+        return nil
+    }
+    return ThorChainFuzzyPoolAsset(
+        full: asset,
+        chain: String(asset[..<chainSeparator]),
+        ticker: String(asset[asset.index(after: chainSeparator) ..< addressSeparator]),
+        address: String(asset[asset.index(after: addressSeparator)...])
+    )
+}
+
+private func expectedThorChainMemoAsset(
+    expectedAsset: String,
+    availablePoolAssets: [String]
+) throws -> String {
+    if let shortCode = thorChainAssetShortCodes[expectedAsset.uppercased()] {
+        return shortCode
+    }
+    guard let expected = thorChainFuzzyPoolAsset(expectedAsset) else {
+        return expectedAsset
+    }
+    guard availablePoolAssets.contains(where: {
+        $0.caseInsensitiveCompare(expectedAsset) == .orderedSame
+    }) else {
+        throw ThorChainSwapMemoError.assetMismatch
+    }
+
+    let otherAddresses = availablePoolAssets.compactMap(thorChainFuzzyPoolAsset).filter {
+        $0.full.caseInsensitiveCompare(expected.full) != .orderedSame &&
+            $0.chain.caseInsensitiveCompare(expected.chain) == .orderedSame &&
+            $0.ticker.caseInsensitiveCompare(expected.ticker) == .orderedSame
+    }.map(\.address)
+
+    let prefix = "\(expected.chain).\(expected.ticker)"
+    guard !otherAddresses.isEmpty else { return prefix }
+
+    let address = expected.address
+    guard address.count > 1 else { return expectedAsset }
+    for offset in stride(from: address.count - 1, through: 1, by: -1) {
+        let suffix = String(address.suffix(address.count - offset))
+        if otherAddresses.allSatisfy({ !$0.lowercased().hasSuffix(suffix.lowercased()) }) {
+            return "\(prefix)-\(suffix)"
+        }
+    }
+    return expectedAsset
+}
+
+func validatedThorXrpSwapCommitment(
+    memo: String,
+    expectedAsset: String,
+    availablePoolAssets: [String],
+    expectedDestination: String,
+    expectedRefundAddress: String?,
+    expectedAmountOutBaseUnits: Decimal,
+    approvedSlippageBps: Int,
+    requestedStreamingInterval: Int,
+    maxStreamingQuantity: Int?,
+    affiliateFeeBaseUnits: Decimal,
+    feeAsset: String
+) throws -> String {
+    guard (1 ... 9_999).contains(approvedSlippageBps) else {
+        throw ThorChainSwapMemoError.invalidLiquidityTolerance
+    }
+    guard (0 ... 43_200).contains(requestedStreamingInterval),
+          let maxStreamingQuantity,
+          (1 ... 1_000_000).contains(maxStreamingQuantity)
+    else {
+        throw ThorChainSwapMemoError.invalidStreamingPolicy
+    }
+    guard affiliateFeeBaseUnits == 0 else { throw ThorChainSwapMemoError.affiliateNotAllowed }
+    guard feeAsset.caseInsensitiveCompare(expectedAsset) == .orderedSame else {
+        throw ThorChainSwapMemoError.feeAssetMismatch
+    }
+
+    let components = memo.components(separatedBy: ":")
+    guard components.count == 4 else { throw ThorChainSwapMemoError.malformed }
+    guard components[0] == "=" else { throw ThorChainSwapMemoError.invalidFunction }
+
+    let expectedMemoAsset = try expectedThorChainMemoAsset(
+        expectedAsset: expectedAsset,
+        availablePoolAssets: availablePoolAssets
+    )
+    guard components[1].caseInsensitiveCompare(expectedAsset) == .orderedSame ||
+        components[1].caseInsensitiveCompare(expectedMemoAsset) == .orderedSame
+    else {
+        throw ThorChainSwapMemoError.assetMismatch
+    }
+
+    let destinations = components[2].split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+    guard destinations.first == expectedDestination else {
+        throw ThorChainSwapMemoError.destinationMismatch
+    }
+    if let expectedRefundAddress {
+        guard destinations.count == 2, destinations[1] == expectedRefundAddress else {
+            throw ThorChainSwapMemoError.refundAddressMismatch
+        }
+    } else if destinations.count != 1 {
+        throw ThorChainSwapMemoError.refundAddressMismatch
+    }
+
+    let integralExpectedAmount = expectedAmountOutBaseUnits.roundedDown(decimal: 0)
+    guard expectedAmountOutBaseUnits > 0, integralExpectedAmount == expectedAmountOutBaseUnits else {
+        throw ThorChainSwapMemoError.invalidExpectedOutput
+    }
+    let limit = (
+        integralExpectedAmount * Decimal(10_000 - approvedSlippageBps) / Decimal(10_000)
+    ).roundedDown(decimal: 0)
+    guard limit > 0 else { throw ThorChainSwapMemoError.invalidExpectedOutput }
+    let limitString = NSDecimalNumber(decimal: limit).stringValue
+    let expectedTradeTarget: String
+    if requestedStreamingInterval > 0 {
+        // Thornode preserves an explicitly requested interval and auto quantity as /I/0.
+        expectedTradeTarget = "\(limitString)/\(requestedStreamingInterval)/0"
+    } else if maxStreamingQuantity > 1 {
+        // Rapid auto-streaming rewrites quantity only when more than one sub-swap is useful.
+        expectedTradeTarget = "\(limitString)/0/\(maxStreamingQuantity)"
+    } else {
+        expectedTradeTarget = limitString
+    }
+    guard components[3] == expectedTradeTarget else {
+        throw ThorChainSwapMemoError.tradeTargetMismatch
+    }
+
+    return expectedDestination
 }
 
 func thorChainUtxoFilters(blockchainType: BlockchainType) -> UtxoFilters {
@@ -482,6 +893,15 @@ class ThorChainUtxoMultiSwapQuote: MultiSwapQuote {
     }
 }
 
+final class ThorChainXrpMultiSwapQuote: MultiSwapQuote {
+    let policy: ThorChainXrpSendPolicy
+
+    init(expectedBuyAmount: Decimal, estimatedTime: TimeInterval?, policy: ThorChainXrpSendPolicy) {
+        self.policy = policy
+        super.init(expectedBuyAmount: expectedBuyAmount, estimatedTime: estimatedTime)
+    }
+}
+
 extension BaseThorChainMultiSwapProvider {
     struct Asset {
         let id: String
@@ -501,10 +921,14 @@ extension BaseThorChainMultiSwapProvider {
     struct SwapQuote: ImmutableMappable {
         let inboundAddress: String
         let expectedAmountOut: Decimal
+        let expectedAmountOutBaseUnits: Decimal
         let memo: String
         let router: String?
+        let expiry: Int
 
         let affiliateFee: Decimal
+        let affiliateFeeBaseUnits: Decimal
+        let feeAsset: String
         let outboundFee: Decimal
         let liquidityFee: Decimal
         let totalFee: Decimal
@@ -514,16 +938,21 @@ extension BaseThorChainMultiSwapProvider {
         let outboundDelaySeconds: TimeInterval?
         let streamingSwapSeconds: TimeInterval?
         let totalSwapSeconds: TimeInterval?
+        let maxStreamingQuantity: Int?
         let recommendedGasRate: Int?
         let gasRateUnits: String?
 
         init(map: Map) throws {
             inboundAddress = try map.value("inbound_address")
-            expectedAmountOut = try map.value("expected_amount_out", using: Transform.stringToDecimalTransform) / pow(10, 8)
+            expectedAmountOutBaseUnits = try map.value("expected_amount_out", using: Transform.stringToDecimalTransform)
+            expectedAmountOut = expectedAmountOutBaseUnits / pow(10, 8)
             memo = try map.value("memo")
             router = try? map.value("router")
+            expiry = try map.value("expiry")
 
-            affiliateFee = try map.value("fees.affiliate", using: Transform.stringToDecimalTransform) / pow(10, 8)
+            affiliateFeeBaseUnits = try map.value("fees.affiliate", using: Transform.stringToDecimalTransform)
+            affiliateFee = affiliateFeeBaseUnits / pow(10, 8)
+            feeAsset = try map.value("fees.asset")
             outboundFee = try map.value("fees.outbound", using: Transform.stringToDecimalTransform) / pow(10, 8)
             liquidityFee = try map.value("fees.liquidity", using: Transform.stringToDecimalTransform) / pow(10, 8)
             totalFee = try map.value("fees.total", using: Transform.stringToDecimalTransform) / pow(10, 8)
@@ -534,6 +963,7 @@ extension BaseThorChainMultiSwapProvider {
             outboundDelaySeconds = try? map.value("outbound_delay_seconds")
             streamingSwapSeconds = try? map.value("streaming_swap_seconds")
             totalSwapSeconds = try? map.value("total_swap_seconds")
+            maxStreamingQuantity = try? map.value("max_streaming_quantity")
             recommendedGasRate = try? map.value("recommended_gas_rate", using: Transform.stringToIntTransform)
             gasRateUnits = try? map.value("gas_rate_units")
         }
@@ -546,6 +976,7 @@ extension BaseThorChainMultiSwapProvider {
         case invalidTokenInType
         case noAdapter
         case noEvmKit
+        case noXrpAdapter
     }
 }
 

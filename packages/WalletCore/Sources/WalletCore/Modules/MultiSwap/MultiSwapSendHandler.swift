@@ -179,6 +179,24 @@ extension MultiSwapSendHandler: ISendHandler {
             let fullTransaction = try adapter.send(params: sendParameters)
 
             txHash = fullTransaction.header.dataHash.hs.reversedHex
+        } else if let quote = data.quote as? XrpSwapFinalQuote {
+            guard let adapter = adapterManager.adapter(for: tokenIn) as? ISendXrpAdapter,
+                  adapter.canSign
+            else {
+                throw SendError.noXrpAdapter
+            }
+            guard let approvedFeeDrops = quote.feeDrops else {
+                throw SendError.invalidData
+            }
+            txHash = try await adapter.send(
+                destination: quote.destination,
+                destinationTag: quote.destinationTag,
+                amount: amountIn,
+                memo: quote.memo,
+                minimumFeeDrops: quote.recommendedFeeDrops,
+                maximumFeeDrops: approvedFeeDrops,
+                validUntilEpochSeconds: quote.validUntilEpochSeconds
+            )
         } else if let quote = data.quote as? ZcashSwapFinalQuote {
             guard let adapter = adapterManager.adapter(for: tokenIn) as? ZcashAdapter else {
                 throw SendError.noZcashAdapter
@@ -428,6 +446,7 @@ extension MultiSwapSendHandler {
         case noEvmKitWrapper
         case noTronKitWrapper
         case noBitcoinAdapter
+        case noXrpAdapter
         case noSendParameters
         case noZcashAdapter
         case noMoneroAdapter

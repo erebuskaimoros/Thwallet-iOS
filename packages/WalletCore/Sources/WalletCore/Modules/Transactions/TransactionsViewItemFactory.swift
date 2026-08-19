@@ -353,6 +353,25 @@ class TransactionsViewItemFactory {
 
             sentToSelf = record.sentToSelf
 
+        case let record as XrpTransactionRecord:
+            iconType = singleValueIconType(source: record.source, kind: record.value.kind)
+            if record.direction == .incoming {
+                title = "transactions.receive".localized
+                subTitle = record.from.map { "transactions.from".localized(mapped(address: $0, blockchainType: .ripple)) } ?? "---"
+                primaryValue = TransactionsViewModel.Value(text: coinString(from: record.value), type: type(value: record.value, .incoming))
+            } else {
+                title = "transactions.send".localized
+                subTitle = record.to.map { "transactions.to".localized(mapped(address: $0, blockchainType: .ripple)) } ?? "---"
+                primaryValue = TransactionsViewModel.Value(
+                    text: coinString(from: record.value, signType: record.sentToSelf ? .never : .always),
+                    type: type(value: record.value, condition: record.sentToSelf, .neutral, .outgoing)
+                )
+                sentToSelf = record.sentToSelf
+            }
+            if let currencyValue = item.currencyValue {
+                secondaryValue = TransactionsViewModel.Value(text: currencyString(from: currencyValue), type: .secondary)
+            }
+
         case let record as ZanoIncomingTransactionRecord:
             iconType = singleValueIconType(source: record.source, kind: record.value.kind)
             title = "transactions.receive".localized

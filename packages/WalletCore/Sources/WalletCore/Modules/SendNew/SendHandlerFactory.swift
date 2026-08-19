@@ -30,6 +30,16 @@ public enum SendHandlerFactory {
             return StellarSendHandler.instance(data: data, token: token, memo: memo)
         case let .solana(token, amount, address, memo):
             return SolanaSendHandler.instance(token: token, amount: amount, address: address, memo: memo)
+        case let .xrp(token, amount, destination, destinationTag, memo, recommendedFeeDrops, minimumSendAmountDrops):
+            return XrpSendHandler.instance(
+                token: token,
+                amount: amount,
+                destination: destination,
+                destinationTag: destinationTag,
+                memo: memo,
+                recommendedFeeDrops: recommendedFeeDrops,
+                minimumSendAmountDrops: minimumSendAmountDrops
+            )
         case let .monero(token, amount, address, memo):
             return MoneroSendHandler.instance(token: token, amount: amount, address: address, memo: memo)
         case let .zano(token, amount, address, memo):
@@ -72,6 +82,10 @@ public enum SendHandlerFactory {
 
         if let adapter = adapter as? ISendSolanaAdapter & IBalanceAdapter {
             return SolanaPreSendHandler(token: wallet.token, adapter: adapter)
+        }
+
+        if let adapter = adapter as? ISendXrpAdapter & IBalanceAdapter, adapter.canSign {
+            return XrpPreSendHandler(token: wallet.token, destination: address.address, adapter: adapter)
         }
 
         if let adapter = adapter as? StellarAdapter {

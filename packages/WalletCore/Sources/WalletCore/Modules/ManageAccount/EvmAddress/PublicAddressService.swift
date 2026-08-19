@@ -28,3 +28,14 @@ class TronAddressService: IPublicAddressService {
         self.address = address.base58
     }
 }
+
+class XrpAddressService: IPublicAddressService {
+    let address: String
+
+    init?(account: Account) {
+        guard let address = try? XrpKitManager.address(accountType: account.type) else {
+            return nil
+        }
+        self.address = address
+    }
+}

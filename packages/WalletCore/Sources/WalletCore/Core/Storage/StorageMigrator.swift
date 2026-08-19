@@ -958,6 +958,8 @@ public enum StorageMigrator {
             }
         }
 
+        XrpStorage.registerMigration(in: &migrator)
+
         try migrator.migrate(dbPool)
     }
 

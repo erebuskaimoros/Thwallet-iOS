@@ -21,6 +21,15 @@ public enum SendData {
     case ton(token: Token, amount: Decimal, address: FriendlyAddress, memo: String?)
     case stellar(data: StellarSendData, token: Token, memo: String?)
     case solana(token: Token, amount: Decimal, address: String, memo: String?)
+    case xrp(
+        token: Token,
+        amount: Decimal,
+        destination: String,
+        destinationTag: UInt32?,
+        memo: String?,
+        recommendedFeeDrops: UInt64?,
+        minimumSendAmountDrops: UInt64?
+    )
     case swap(tokenIn: Token, tokenOut: Token, amountIn: Decimal, provider: IMultiSwapProvider, multiSwapQuote: MultiSwapQuote)
     case walletConnect(request: WalletConnectRequest)
     case tonConnect(request: TonConnectSendTransactionRequest)

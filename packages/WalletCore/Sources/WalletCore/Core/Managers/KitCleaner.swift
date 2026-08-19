@@ -2,15 +2,18 @@ import Foundation
 
 public class KitCleaner {
     private let accountManager: AccountManager
+    private let xrpKitManager: XrpKitManager
 
-    public init(accountManager: AccountManager) {
+    public init(accountManager: AccountManager, xrpKitManager: XrpKitManager) {
         self.accountManager = accountManager
+        self.xrpKitManager = xrpKitManager
     }
 }
 
 public extension KitCleaner {
     func clear() {
-        let accountIds = accountManager.allAccounts.map(\.id)
+        let accounts = accountManager.allAccounts
+        let accountIds = accounts.map(\.id)
 
         DispatchQueue.global(qos: .background).async {
             try? BitcoinAdapter.clear(except: accountIds)
@@ -24,6 +27,7 @@ public extension KitCleaner {
             try? TronAdapter.clear(except: accountIds)
             try? MoneroAdapter.clear(except: accountIds)
             try? ZanoAdapter.clear(except: accountIds)
+            try? self.xrpKitManager.clear(except: accounts)
         }
     }
 }

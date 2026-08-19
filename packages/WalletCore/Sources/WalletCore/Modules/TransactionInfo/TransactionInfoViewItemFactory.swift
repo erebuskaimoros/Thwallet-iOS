@@ -580,6 +580,38 @@ class TransactionInfoViewItemFactory {
                 feeViewItem = .fee(title: "tx_info.fee".localized, value: feeString(appValue: fee, rate: _rate(fee.coin)))
             }
 
+        case let record as XrpTransactionRecord:
+            if record.direction == .incoming {
+                sections.append(.init(receiveSection(
+                    source: record.source,
+                    appValue: record.value,
+                    from: record.from,
+                    rates: item.rates,
+                    to: record.to,
+                    balanceHidden: balanceHidden
+                )))
+            } else {
+                sections.append(.init(sendSection(
+                    source: record.source,
+                    appValue: record.value,
+                    to: record.to,
+                    rates: item.rates,
+                    sentToSelf: record.sentToSelf,
+                    balanceHidden: balanceHidden
+                )))
+            }
+
+            var details = [TransactionInfoModule.ViewItem]()
+            if record.sentToSelf { details.append(.sentToSelf) }
+            if let destinationTag = record.destinationTag {
+                details.append(.value(title: "Destination tag", value: String(destinationTag)))
+            }
+            if let memo = record.memo { details.append(.memo(text: memo)) }
+            if !details.isEmpty { sections.append(.init(details)) }
+            if let fee = record.fee {
+                feeViewItem = .fee(title: "tx_info.fee".localized, value: feeString(appValue: fee, rate: _rate(fee.coin)))
+            }
+
         case let record as ZanoIncomingTransactionRecord:
             sections.append(.init(receiveSection(source: record.source, appValue: record.value, from: record.from, rates: item.rates, to: record.to, balanceHidden: balanceHidden)))
 

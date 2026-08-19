@@ -32,4 +32,8 @@ extension PublicKeysViewModel {
     var showMoneroPublicKey: Bool {
         service.moneroPublicKeySupported
     }
+
+    var showXrpAddress: Bool {
+        service.xrpAddressSupported
+    }
 }
