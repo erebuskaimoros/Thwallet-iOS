@@ -59,6 +59,7 @@ jobs:
             -scheme Development \
             -destination 'platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}' \
             -enableCodeCoverage YES \
+            -parallel-testing-enabled NO \
             -disableAutomaticPackageResolution \
             -resultBundlePath "$RUNNER_TEMP/Thwallet.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
