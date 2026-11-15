@@ -1,5 +1,5 @@
 {
-  "originHash" : "bf604704d3d43ec90788a524fed97c24d781d3316b76cdda433966a3ebdfb8b5",
+  "originHash" : "9346eb4cfec4486afbebcdd9dd9c9a6da87b58ac19990b31fe20dab439cf6573",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -51,8 +51,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/BitcoinCore.Swift",
       "state" : {
-        "revision" : "5b49f424f495904cf06519b1a7b861ef37b45b50",
-        "version" : "3.2.0"
+        "revision" : "74331848b91ae39e90781872e2006665d3c4abf7"
       }
     },
     {
@@ -128,6 +127,14 @@
       }
     },
     {
+      "identity" : "dogecoinkit.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/erebuskaimoros/DogecoinKit.Swift.git",
+      "state" : {
+        "revision" : "a2e55ec94b406b9323cc6b38adf0f50a67b2b144"
+      }
+    },
+    {
       "identity" : "down",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/johnxnguyen/Down",
@@ -159,8 +166,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/EvmKit.Swift",
       "state" : {
-        "revision" : "481a2161710f713098c6831749e58b3db1f242e0",
-        "version" : "2.7.0"
+        "revision" : "3171b644b0cd4b62adea1923cad47a53c8974d2a"
       }
     },
     {
@@ -276,8 +282,7 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/MarketKit.Swift",
       "state" : {
-        "revision" : "866bfa19d6eb3b675e068efafa163d2892b70eeb",
-        "version" : "3.6.22"
+        "revision" : "4270a46087932465a44b8218535730ee1a3d4be5"
       }
     },
     {
