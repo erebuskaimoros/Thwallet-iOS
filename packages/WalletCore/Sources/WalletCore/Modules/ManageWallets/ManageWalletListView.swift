@@ -20,7 +20,7 @@ struct ManageWalletListView: View {
     @ViewBuilder private func view(item: ManageWalletsViewModel.Item, forceToggleOn _: Bool? = nil) -> some View {
         Cell(
             left: {
-                CoinIconView(coin: item.token.coin)
+                CoinIconView(token: item.token)
             },
             middle: {
                 MultiText(title: item.token.coin.code, badge: item.token.badge, subtitle: item.token.coin.name)
@@ -98,7 +98,7 @@ struct ManageWalletListView: View {
     private func showContract(token: Token, value: String, explorerUrl: String?) {
         Coordinator.shared.present(type: .bottomSheet) { isPresented in
             BottomSheetView(items: [
-                .title(icon: ComponentImage(url: token.coin.imageUrl), title: token.coin.code),
+                .title(icon: ComponentImage(coin: token.coin), title: token.coin.code),
                 .customList(views: [
                     AnyView(contractRow(token: token, value: value, explorerUrl: explorerUrl)),
                 ]),
@@ -114,9 +114,7 @@ struct ManageWalletListView: View {
     @ViewBuilder private func contractRow(token: Token, value: String, explorerUrl: String?) -> some View {
         Cell(
             left: {
-                KFImage.url(URL(string: token.blockchain.type.imageUrl))
-                    .resizable()
-                    .frame(width: .iconSize32, height: .iconSize32)
+                BlockchainIcon(blockchain: token.blockchain)
             },
             middle: {
                 MiddleTextIcon(text: value)

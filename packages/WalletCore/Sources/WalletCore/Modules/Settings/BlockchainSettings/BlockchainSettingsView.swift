@@ -21,6 +21,12 @@ struct BlockchainSettingsView: View {
                     if let tronItem = viewModel.tronItem {
                         ItemView(item: tronItem)
                     }
+                    if let thorChainItem = viewModel.thorChainItem {
+                        ItemView(item: thorChainItem)
+                    }
+                    if let mayaChainItem = viewModel.mayaChainItem {
+                        ItemView(item: mayaChainItem)
+                    }
                 }
             }
             .padding(EdgeInsets(top: .margin12, leading: .margin16, bottom: .margin32, trailing: .margin16))
@@ -60,16 +66,30 @@ struct BlockchainSettingsView: View {
                     stat(page: .blockchainSettings, event: .openBlockchainSettingsZano)
                 case .zcash:
                     Coordinator.shared.present { isPresented in
-                        ZcashNetworkView(blockchain: item.blockchain, isPresented: isPresented)
+                        NodeNetworkView(blockchain: item.blockchain, isPresented: isPresented)
                     }
 
                     stat(page: .blockchainSettings, event: .openBlockchainSettingsZcash)
+                case .xrp:
+                    Coordinator.shared.present { isPresented in
+                        NodeNetworkView(blockchain: item.blockchain, isPresented: isPresented)
+                    }
+
+                    stat(page: .blockchainSettings, event: .openBlockchainSettingsXrp)
+                case .near:
+                    Coordinator.shared.present { isPresented in
+                        NodeNetworkView(blockchain: item.blockchain, isPresented: isPresented)
+                    }
+
+                    stat(page: .blockchainSettings, event: .openBlockchainSettingsNear)
+                case .thorChain:
+                    Coordinator.shared.present { isPresented in
+                        ThorChainNetworkView(blockchain: item.blockchain, isPresented: isPresented)
+                    }
                 }
 
             }) {
-                KFImage.url(URL(string: item.blockchain.type.imageUrl))
-                    .resizable()
-                    .frame(width: .iconSize32, height: .iconSize32)
+                BlockchainIcon(blockchain: item.blockchain)
 
                 VStack(spacing: 1) {
                     Text(item.blockchain.name).themeBody()
@@ -79,5 +99,17 @@ struct BlockchainSettingsView: View {
                 Image.disclosureIcon
             }
         }
+    }
+}
+
+struct BlockchainIcon: View {
+    let blockchain: Blockchain
+
+    var body: some View {
+        KFImage.url(URL(string: blockchain.type.imageUrl))
+            .resizable()
+            .placeholder { RoundedRectangle(cornerRadius: 8).fill(Color.themeBlade) }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(size: .iconSize32)
     }
 }

@@ -1,17 +1,17 @@
 import Foundation
 import MarketKit
 
-public class TransactionRecord {
-    let source: TransactionSource
-    let uid: String
-    let transactionHash: String
+open class TransactionRecord: Identifiable {
+    public let source: TransactionSource
+    public let uid: String
+    public let transactionHash: String
     let transactionIndex: Int
     let blockHeight: Int?
     let confirmationsThreshold: Int?
-    let date: Date
+    public let date: Date
     let failed: Bool
 
-    var spam: Bool
+    public internal(set) var spam: Bool
     var paginationRaw: String
 
     init(source: TransactionSource, uid: String, transactionHash: String, transactionIndex: Int, blockHeight: Int?, confirmationsThreshold: Int?, date: Date, failed: Bool, paginationRaw: String? = nil, spam: Bool = false) {
@@ -28,7 +28,7 @@ public class TransactionRecord {
         self.paginationRaw = paginationRaw ?? transactionHash
     }
 
-    func status(lastBlockHeight: Int?) -> TransactionStatus {
+    public func status(lastBlockHeight: Int?) -> TransactionStatus {
         if failed {
             return .failed
         } else if let blockHeight, let lastBlockHeight {
@@ -52,11 +52,15 @@ public class TransactionRecord {
     open var mainValue: AppValue? {
         nil
     }
+
+    open var id: String {
+        uid
+    }
 }
 
-extension TransactionRecord: Identifiable {
-    public var id: String {
-        uid
+extension TransactionRecord: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(uid)
     }
 }
 
@@ -70,7 +74,11 @@ extension TransactionRecord: Comparable {
             return lhs.transactionIndex > rhs.transactionIndex
         }
 
-        return lhs.paginationRaw > rhs.paginationRaw
+        guard lhs.paginationRaw == rhs.paginationRaw else {
+            return lhs.paginationRaw > rhs.paginationRaw
+        }
+
+        return lhs.id > rhs.id
     }
 
     public static func == (lhs: TransactionRecord, rhs: TransactionRecord) -> Bool {
@@ -78,20 +86,20 @@ extension TransactionRecord: Comparable {
     }
 }
 
-enum TransactionStatus {
+public enum TransactionStatus {
     case failed
     case pending
     case processing(progress: Double)
     case completed
 
-    var isPendingOrProcessing: Bool {
+    public var isPendingOrProcessing: Bool {
         switch self {
         case .pending, .processing: return true
         default: return false
         }
     }
 
-    var isPending: Bool {
+    public var isPending: Bool {
         switch self {
         case .pending: return true
         default: return false

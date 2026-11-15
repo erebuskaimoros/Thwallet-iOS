@@ -11,7 +11,11 @@ changing either requires an explicit storage migration.
 | Mantle | `mantle` | 5000 | MNT / 18 | `eth_estimateTotalFee` + execution | Etherscan V2 |
 | Sei EVM | `sei-network` | 1329 | SEI / 18 | standard EVM | Etherscan V2 |
 | HyperEVM | `hyperevm` | 999 | HYPE / 18 | standard EVM, 3,000,000 gas cap | Etherscan V2 |
-| Robinhood Chain | `robinhood` | 4663 | ETH / 18 | standard EVM | Blockscout |
+
+Robinhood Chain (`robinhood`, chain ID 4663) left this Thwallet-managed list in
+the November 2026 upstream synchronization: upstream MarketKit and EvmKit now
+model it as a first-class chain under the same persisted UID and chain ID, so
+existing wallets resolve to upstream's type without a migration.
 
 `hyperevm` is the blockchain UID while `hyperliquid` remains the native coin
 UID. `sei-network` intentionally matches the current MarketKit/BlocksDecoded
@@ -19,7 +23,7 @@ catalog; a future move to `sei-v2` needs an alias and persisted-ID migration.
 
 ## Wallet behavior
 
-- All six networks use Ethereum coin type 60 derivation, EIP-155 replay
+- All five networks use Ethereum coin type 60 derivation, EIP-155 replay
   protection, EIP-1559 transactions, local signing, native transfers, EIP-20
   transfers, WalletConnect, custom RPC selection, database cleanup, and
   transaction explorer links.

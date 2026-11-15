@@ -5,7 +5,12 @@ import RxSwift
 import SwiftUI
 import ZanoKit
 
-class ZanoPreSendHandler {
+class ZanoPreSendHandler: PreSendHandler {
+    override class func instance(wallet: Wallet, address _: ResolvedAddress?) -> IPreSendHandler? {
+        guard let adapter = Core.shared.adapterManager.adapter(for: wallet) as? ZanoAdapter else { return nil }
+        return ZanoPreSendHandler(token: wallet.token, baseToken: adapter.baseToken, adapter: adapter)
+    }
+
     private let token: Token
     private let baseToken: Token // same as token for native ZANO
     private let adapter: IBalanceAdapter
@@ -19,6 +24,8 @@ class ZanoPreSendHandler {
         self.token = token
         self.baseToken = baseToken
         self.adapter = adapter
+
+        super.init()
 
         adapter.balanceStateUpdatedObservable
             .observeOn(ConcurrentDispatchQueueScheduler(qos: .userInitiated))
@@ -53,8 +60,10 @@ extension ZanoPreSendHandler: IPreSendHandler {
         balanceSubject.eraseToAnyPublisher()
     }
 
-    func hasMemo(address _: String?) -> Bool {
-        true
+    // Chain-constant, so it reads the one table rather than restating it: a Zano memo is the
+    // transfer's encrypted comment (.onChainPrivate).
+    func memoType(address _: String?) -> MemoType {
+        token.blockchainType.memoType
     }
 
     func sendData(amount: Decimal, address: String, memo: String?) -> SendDataResult {

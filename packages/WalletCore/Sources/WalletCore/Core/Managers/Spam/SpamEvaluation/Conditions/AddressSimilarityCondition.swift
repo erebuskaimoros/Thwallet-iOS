@@ -6,6 +6,7 @@ final class AddressSimilarityCondition: SpamCondition {
 
     private let cache: OutputTransactionCache
     private let minMatchLength: Int
+    private let normalizer: ((String) -> String)?
     private let prefixScore: Int
     private let suffixScore: Int
     private let logger: Logger?
@@ -13,12 +14,14 @@ final class AddressSimilarityCondition: SpamCondition {
     init(
         cache: OutputTransactionCache,
         minMatchLength: Int = 4,
+        normalize: ((String) -> String)? = nil,
         prefixScore: Int = 4,
         suffixScore: Int = 4,
         logger: Logger? = nil
     ) {
         self.cache = cache
         self.minMatchLength = minMatchLength
+        normalizer = normalize
         self.prefixScore = prefixScore
         self.suffixScore = suffixScore
         self.logger = logger
@@ -36,67 +39,52 @@ final class AddressSimilarityCondition: SpamCondition {
             return 0
         }
 
-        let incomingAddresses = context.transaction.events.incoming.map { normalize($0.address) }
+        let incomingAddresses = context.transaction.events.incoming.map(\.address)
 
-        let (score, matchedOutput) = bestMatch(
-            incomingAddresses: incomingAddresses,
-            cachedOutputs: cachedOutputs
-        )
-
-        if let matched = matchedOutput ?? cachedOutputs.first {
-            context.set(SpamContextKeys.matchedAddress, value: matched.address)
-            context.set(SpamContextKeys.matchedTimestamp, value: Int(matched.timestamp))
-            if let blockHeight = matched.blockHeight {
-                context.set(SpamContextKeys.matchedBlockHeight, value: blockHeight)
-            }
-        }
-
-        return score
+        return bestMatch(incomingAddresses: incomingAddresses, cachedOutputs: cachedOutputs)
     }
 
-    private func bestMatch(
-        incomingAddresses: [String],
-        cachedOutputs: [CachedOutputTransaction]
-    ) -> (Int, CachedOutputTransaction?) {
+    private func bestMatch(incomingAddresses: [String], cachedOutputs: [CachedOutputTransaction]) -> Int {
         var bestScore = 0
-        var matchedOutput: CachedOutputTransaction?
         let maxScore = prefixScore + suffixScore
 
         for incomingAddress in incomingAddresses {
-            for cached in cachedOutputs {
-                let normalizedCached = normalize(cached.address)
+            let normalizedIncoming = normalize(incomingAddress)
 
-                // Skip if same address (legitimate return transaction)
-                guard incomingAddress != normalizedCached else {
+            for cached in cachedOutputs {
+                // Skip if same address (legitimate return transaction). Only the full address counts:
+                // two accounts the normalizer maps alike, such as `alice.near` and `alice.tg`, are a lookalike
+                guard incomingAddress.lowercased() != cached.address.lowercased() else {
                     continue
                 }
 
+                let normalizedCached = normalize(cached.address)
                 var score = 0
 
-                if hasSimilarPrefix(incomingAddress, normalizedCached) {
+                if hasSimilarPrefix(normalizedIncoming, normalizedCached) {
                     score += prefixScore
                 }
 
-                if hasSimilarSuffix(incomingAddress, normalizedCached) {
+                if hasSimilarSuffix(normalizedIncoming, normalizedCached) {
                     score += suffixScore
                 }
 
                 if score > bestScore {
                     bestScore = score
-                    matchedOutput = cached
 
                     if bestScore >= maxScore {
-                        return (bestScore, matchedOutput)
+                        return bestScore
                     }
                 }
             }
         }
 
-        return (bestScore, matchedOutput)
+        return bestScore
     }
 
+    // what a chain's addresses share carries no information; the chain's normalizer drops it
     private func normalize(_ address: String) -> String {
-        address.stripping(prefix: "0x").lowercased()
+        (normalizer?(address) ?? address).lowercased()
     }
 
     private func hasSimilarPrefix(_ address1: String, _ address2: String) -> Bool {

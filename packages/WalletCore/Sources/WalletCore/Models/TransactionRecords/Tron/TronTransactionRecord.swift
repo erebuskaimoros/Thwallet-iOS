@@ -2,13 +2,13 @@ import Foundation
 import MarketKit
 import TronKit
 
-class TronTransactionRecord: TransactionRecord {
-    let transaction: Transaction
+open class TronTransactionRecord: TransactionRecord {
+    public let transaction: Transaction
     let confirmed: Bool
     let ownTransaction: Bool
     let fee: AppValue?
 
-    init(source: TransactionSource, transaction: Transaction, baseToken: Token, ownTransaction: Bool, spam: Bool = false) {
+    public init(source: TransactionSource, transaction: Transaction, baseToken: Token, ownTransaction: Bool, spam: Bool = false) {
         self.transaction = transaction
         confirmed = transaction.confirmed
         let txHash = transaction.hash.hs.hex
@@ -58,7 +58,7 @@ class TronTransactionRecord: TransactionRecord {
         return (resultIncoming, resultOutgoing)
     }
 
-    override func status(lastBlockHeight _: Int?) -> TransactionStatus {
+    override public func status(lastBlockHeight _: Int?) -> TransactionStatus {
         if failed {
             return .failed
         }

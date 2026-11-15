@@ -2,19 +2,26 @@ import Foundation
 import MarketKit
 import MoneroKit
 
-class MoneroSendHandler {
+class MoneroSendHandler: SendHandler {
+    override class func instance(sendData: WalletCore.SendData) -> ISendHandler? {
+        guard case let .monero(token, amount, address, memo, selectedKeyImages) = sendData else { return nil }
+        return instance(token: token, amount: amount, address: address, memo: memo, selectedKeyImages: selectedKeyImages)
+    }
+
     private let token: Token
     private let adapter: MoneroAdapter
     private let amount: MoneroSendAmount
     private let address: String
     private let memo: String?
+    private let selectedKeyImages: [String]?
 
-    init(token: Token, adapter: MoneroAdapter, amount: MoneroSendAmount, address: String, memo: String?) {
+    init(token: Token, adapter: MoneroAdapter, amount: MoneroSendAmount, address: String, memo: String?, selectedKeyImages: [String]?) {
         self.token = token
         self.adapter = adapter
         self.amount = amount
         self.address = address
         self.memo = memo
+        self.selectedKeyImages = selectedKeyImages
     }
 }
 
@@ -46,6 +53,7 @@ extension MoneroSendHandler: ISendHandler {
             address: address,
             priority: priority ?? .default,
             memo: memo,
+            selectedKeyImages: selectedKeyImages,
             transactionError: transactionError,
             fee: fee
         )
@@ -56,7 +64,7 @@ extension MoneroSendHandler: ISendHandler {
             throw SendError.invalidData
         }
 
-        try adapter.send(to: data.address, amount: data.amount, priority: data.priority, memo: data.memo)
+        try adapter.send(to: data.address, amount: data.amount, priority: data.priority, memo: data.memo, selectedKeyImages: data.selectedKeyImages)
     }
 }
 
@@ -67,15 +75,17 @@ extension MoneroSendHandler {
         let address: String
         let priority: MoneroKit.SendPriority
         let memo: String?
+        let selectedKeyImages: [String]?
         let transactionError: Error?
         let fee: Decimal?
 
-        init(token: Token, amount: MoneroSendAmount, address: String, priority: MoneroKit.SendPriority, memo: String?, transactionError: Error?, fee: Decimal?) {
+        init(token: Token, amount: MoneroSendAmount, address: String, priority: MoneroKit.SendPriority, memo: String?, selectedKeyImages: [String]?, transactionError: Error?, fee: Decimal?) {
             self.token = token
             self.amount = amount
             self.address = address
             self.priority = priority
             self.memo = memo
+            self.selectedKeyImages = selectedKeyImages
             self.transactionError = transactionError
             self.fee = fee
         }
@@ -179,7 +189,7 @@ extension MoneroSendHandler {
 }
 
 extension MoneroSendHandler {
-    static func instance(token: Token, amount: MoneroSendAmount, address: String, memo: String?) -> MoneroSendHandler? {
+    static func instance(token: Token, amount: MoneroSendAmount, address: String, memo: String?, selectedKeyImages: [String]? = nil) -> MoneroSendHandler? {
         guard let adapter = Core.shared.adapterManager.adapter(for: token) as? MoneroAdapter else {
             return nil
         }
@@ -189,7 +199,8 @@ extension MoneroSendHandler {
             adapter: adapter,
             amount: amount,
             address: address,
-            memo: memo
+            memo: memo,
+            selectedKeyImages: selectedKeyImages
         )
     }
 }

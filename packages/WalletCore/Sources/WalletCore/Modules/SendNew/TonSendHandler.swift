@@ -4,7 +4,12 @@ import MarketKit
 import TonKit
 import TonSwift
 
-class TonSendHandler {
+class TonSendHandler: SendHandler {
+    override class func instance(sendData: WalletCore.SendData) -> ISendHandler? {
+        guard case let .ton(token, amount, address, memo) = sendData else { return nil }
+        return instance(token: token, amount: amount, address: address, memo: memo)
+    }
+
     private let tonKit: TonKit.Kit
     private let contract: WalletContract
     private let secretKey: Data
@@ -89,12 +94,17 @@ extension TonSendHandler: ISendHandler {
     }
 
     func send(data: ISendData) async throws {
+        _ = try await sendCapturingRef(data: data)
+    }
+}
+
+extension TonSendHandler: ISendHandlerRefCapturing {
+    func sendCapturingRef(data: ISendData) async throws -> String {
         guard let data = data as? SendData, let transferData = data.transferData else {
             throw SendError.invalidData
         }
 
-        let boc = try await TonKit.Kit.boc(transferData: transferData, contract: contract, secretKey: secretKey, network: TonKitManager.network)
-        try await TonKit.Kit.send(boc: boc, contract: contract, network: TonKitManager.network)
+        return try await TonSendHelper.sendReturningHash(transferData: transferData, contract: contract, secretKey: secretKey)
     }
 }
 

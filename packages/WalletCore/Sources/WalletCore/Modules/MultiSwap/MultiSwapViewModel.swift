@@ -12,34 +12,95 @@ public class MultiSwapViewModel: ObservableObject {
     private var providerCancellables = Set<AnyCancellable>()
     private var quotesTask: AnyTask?
     private var swapTask: AnyTask?
+    private var defaultTokensTask: AnyTask?
     private var rateInCancellable: AnyCancellable?
     private var rateOutCancellable: AnyCancellable?
     private var timer: Timer?
+    private var autoQuotingEnabled = true
+    private var quotesInterrupted = false
 
     private var balanceDisposeBag = DisposeBag()
 
-    private var providers: [IMultiSwapProvider]
-    private let swapProviderManager = Core.shared.swapProviderManager
-    private let swapHistoryManager = Core.shared.swapHistoryManager
+    // the sell wallet's step before spending, such as shielding transparent ZEC: per wallet, like the balance adapter
+    private(set) var spendStepHandler: ISpendStepHandler?
+    private var spendStepCancellable: AnyCancellable?
+
+    private var providers: [IMultiSwapProvider] = []
+    let swapProviderManager = Core.shared.swapProviderManager
     private let currencyManager = Core.shared.currencyManager
     private let marketKit = Core.shared.marketKit
     private let accountManager = Core.shared.accountManager
     private let walletManager = Core.shared.walletManager
     private let adapterManager = Core.shared.adapterManager
     private let localStorage = Core.shared.localStorage
-    private let decimalParser = AmountDecimalParser()
+    private let pathFinder = SwapPathFinder.make()
+    private let restoreSettingsService: RestoreSettingsService
+    private let restoreSettingsView: RestoreSettingsView
 
     @Published var currency: Currency
+
+    private let hasExplicitToken: Bool
+    private let autoResolveTokenOut: Bool
     private let customDecimals: Int?
+    private var tokensManuallySet = false
+    private var currentAccountId: String?
+    private var defaultTokensCancellable: AnyCancellable?
 
     private var enteringFiat = false
 
+    // External delivery address entered before confirmation for a tokenOut the account
+    // can't hold. Shared with the confirmation handler, which writes back into it when the
+    // user edits the recipient there. Cleared whenever tokenOut changes or the account
+    // switches, and when tokenIn changes while the address is optional, so it can only ever
+    // hold an address meant for the current pair.
+    let externalRecipientHolder = SwapExternalRecipientHolder()
+
+    var externalRecipient: String? {
+        // Only honored while the address is actually required: a recipient set on the
+        // confirmation screen of an ordinary swap stays local to that confirmation, as before.
+        externalRecipientRequired ? externalRecipientHolder.address : nil
+    }
+
+    func setExternalRecipient(address: String) {
+        externalRecipientHolder.address = address
+    }
+
+    // tokenOut the account can't hold: the swap is deliverable only to an external
+    // address, which the user is asked for before the confirmation screen
+    var externalRecipientRequired: Bool {
+        externalRecipientRequired(tokenOut: internalTokenOut)
+    }
+
+    private func externalRecipientRequired(tokenOut: Token?) -> Bool {
+        guard let tokenOut, let accountType = accountManager.activeAccount?.type else {
+            return false
+        }
+
+        return !accountType.supports(token: tokenOut)
+    }
+
     @Published public var validProviders = [IMultiSwapProvider]()
+
+    // A 1-hop route offered when the pair can't be served directly: no provider supports it, or
+    // the ones that do came back with no quotes. It is never quoted itself.
+    @Published public private(set) var suggestedPath: SwapPath?
+
+    // The (pair, valid providers) of the last quote round that finished with zero quotes
+    private var emptyRoundKey: QuoteRoundKey?
 
     private var internalTokenIn: Token? {
         didSet {
             guard internalTokenIn != oldValue else {
                 return
+            }
+
+            // An optional recipient set on the confirmation screen may not suit the new sell
+            // chain (a unified ZEC address does not fit a UTXO route memo), and would otherwise
+            // be picked up as the next confirmation's initial recipient. A required one stays:
+            // an account that cannot hold ZEC sells from one chain family only, so its sell
+            // chain never moves between a UTXO route and a memo-capable one.
+            if !externalRecipientRequired {
+                externalRecipientHolder.address = nil
             }
 
             syncValidProviders()
@@ -68,6 +129,8 @@ public class MultiSwapViewModel: ObservableObject {
                 return
             }
 
+            tokensManuallySet = true
+
             if enteringFiat {
                 fiatAmountIn = nil
             } else {
@@ -95,6 +158,10 @@ public class MultiSwapViewModel: ObservableObject {
                 return
             }
 
+            // An address entered for the previous tokenOut is meaningless for the new one —
+            // and would otherwise be picked up as the confirmation's initial recipient.
+            externalRecipientHolder.address = nil
+
             syncValidProviders()
 
             if internalTokenOut != tokenOut {
@@ -119,6 +186,16 @@ public class MultiSwapViewModel: ObservableObject {
                 return
             }
 
+            // picking the current sell token on the You Get side swaps the pair — blocked
+            // when the current tokenOut needs external delivery (same rule as the switch
+            // arrow), else an externally-delivered token would become the unsignable sell side
+            if internalTokenIn == tokenOut, externalRecipientRequired(tokenOut: internalTokenOut) {
+                tokenOut = internalTokenOut
+                return
+            }
+
+            tokensManuallySet = true
+
             let oldTokenOut = internalTokenOut
 
             internalTokenOut = tokenOut
@@ -138,6 +215,11 @@ public class MultiSwapViewModel: ObservableObject {
     @Published public var adapterState: AdapterState?
     @Published public var availableBalance: Decimal?
 
+    // the sell token has an active wallet; its adapter is created asynchronously after the wallet is saved
+    @Published private var tokenInWalletActive = false
+
+    @Published var spendStep: SpendStep?
+
     var spendMode: BalanceAdapterSpendMode
 
     @Published var coinPriceIn: CoinPrice? {
@@ -152,24 +234,30 @@ public class MultiSwapViewModel: ObservableObject {
         }
     }
 
+    // The fraction-digit limit of the "You pay" amount input.
+    var amountInDecimals: Int {
+        tokenIn?.decimals ?? AmountInputValidator.defaultMaxDecimals
+    }
+
     public var amountIn: Decimal? {
         didSet {
             internalUserSelectedProviderId = nil
 
             syncQuotes()
             syncFiatAmountIn()
+            syncSpendStep()
 
-            let amount = decimalParser.parseAnyDecimal(from: amountString)
+            let amount = AmountDecimalParser.parseAnyDecimal(from: amountString)
 
             if amount != amountIn {
-                amountString = amountIn?.description ?? ""
+                amountString = AmountDecimalParser.string(from: amountIn)
             }
         }
     }
 
     @Published public var amountString: String = "" {
         didSet {
-            let amount = decimalParser.parseAnyDecimal(from: amountString)
+            let amount = AmountDecimalParser.parseAnyDecimal(from: amountString)
 
             guard amount != amountIn else {
                 return
@@ -185,17 +273,17 @@ public class MultiSwapViewModel: ObservableObject {
         didSet {
             syncAmountIn()
 
-            let amount = decimalParser.parseAnyDecimal(from: fiatAmountString)?.rounded(decimal: 2)
+            let amount = AmountDecimalParser.parseAnyDecimal(from: fiatAmountString)?.rounded(decimal: 2)
 
             if amount != fiatAmountIn {
-                fiatAmountString = fiatAmountIn?.description ?? ""
+                fiatAmountString = AmountDecimalParser.string(from: fiatAmountIn)
             }
         }
     }
 
     @Published var fiatAmountString: String = "" {
         didSet {
-            let amount = decimalParser.parseAnyDecimal(from: fiatAmountString)?.rounded(decimal: 2)
+            let amount = AmountDecimalParser.parseAnyDecimal(from: fiatAmountString)?.rounded(decimal: 2)
 
             guard amount != fiatAmountIn else {
                 return
@@ -209,7 +297,10 @@ public class MultiSwapViewModel: ObservableObject {
 
     @Published public var currentQuote: Quote? {
         didSet {
-            amountOutString = currentQuote?.quote.expectedBuyAmount.description
+            // Quotes can be more precise than tokenOut allows; never show more than will be received
+            amountOut = currentQuote.map { quote in
+                internalTokenOut.map { quote.quote.expectedBuyAmount.roundedDown(decimal: $0.decimals) } ?? quote.quote.expectedBuyAmount
+            }
             syncFiatAmountOut()
             syncPrice()
         }
@@ -229,7 +320,7 @@ public class MultiSwapViewModel: ObservableObject {
         }
     }
 
-    @Published var userSelectedProviderId: String? {
+    @Published public var userSelectedProviderId: String? {
         didSet {
             guard userSelectedProviderId != internalUserSelectedProviderId else {
                 return
@@ -252,14 +343,18 @@ public class MultiSwapViewModel: ObservableObject {
             if !quotes.isEmpty {
                 nextQuoteTime = Date().timeIntervalSince1970 + autoRefreshDuration
 
-                timer = Timer.scheduledTimer(withTimeInterval: autoRefreshDuration, repeats: false) { [weak self] _ in
-                    self?.syncQuotes(silent: true)
+                if autoQuotingEnabled {
+                    timer = Timer.scheduledTimer(withTimeInterval: autoRefreshDuration, repeats: false) { [weak self] _ in
+                        self?.syncQuotes(silent: true)
+                    }
                 }
             }
+
+            didUpdateQuotes()
         }
     }
 
-    @Published public var amountOutString: String?
+    @Published public var amountOut: Decimal?
     @Published var fiatAmountOut: Decimal? {
         didSet {
             syncPriceImpact()
@@ -277,14 +372,24 @@ public class MultiSwapViewModel: ObservableObject {
 
     @Published var quoteSortType: QuoteSortType = .bestRate
 
-    public init(token: Token? = nil, autoResolveTokenOut: Bool = true, customDecimals: Int? = nil) {
-        providers = swapProviderManager.providers.compactMap { SwapProviderFactory.provider(id: $0) }
+    public init(token: Token? = nil, tokenOut: Token? = nil, autoResolveTokenOut: Bool = true, customDecimals: Int? = nil) {
         currency = currencyManager.baseCurrency
         spendMode = .fromBalanceState
+        hasExplicitToken = token != nil || tokenOut != nil
+        self.autoResolveTokenOut = autoResolveTokenOut
         self.customDecimals = customDecimals
+        currentAccountId = accountManager.activeAccount?.id
+        (restoreSettingsService, restoreSettingsView) = RestoreSettingsModule.module(statPage: .swap)
+        providers = resolveProviders()
 
         defer {
-            syncDefaultTokens(token: token, autoResolveTokenOut: autoResolveTokenOut)
+            if token != nil || tokenOut != nil {
+                internalTokenIn = token
+                internalTokenOut = tokenOut
+                syncDefaultTokens()
+            } else {
+                scheduleDefaultTokensSync()
+            }
         }
 
         currencyManager.$baseCurrency
@@ -292,22 +397,49 @@ public class MultiSwapViewModel: ObservableObject {
             .sink { [weak self] in self?.currency = $0 }
             .store(in: &cancellables)
 
+        // Fires on EVERY successful sync, not only when the id list actually changes —
+        // `@PostPublished` is a plain PassthroughSubject with no equality check (that is the
+        // separate `DistinctPublished`). That is what lets this one subscription cover suspensions
+        // too: the manager assigns them just before `providers`, so a sync that only changes which
+        // PAIRS a provider may serve still refreshes here. A second subscription on `$suspensions`
+        // would fire from the same response and cancel this refresh mid-flight, wasting a full
+        // round of provider requests.
         swapProviderManager.$providers
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] in
-                self?.providers = $0.compactMap { SwapProviderFactory.provider(id: $0) }
-                self?.syncValidProviders()
-                self?.syncQuotes(silent: true)
-                self?.subscribeToProviders()
+            .sink { [weak self] _ in
+                guard let self else {
+                    return
+                }
+
+                providers = resolveProviders()
+                syncValidProviders()
+                syncQuotesOnProvidersChange()
+                subscribeToProviders()
             }
             .store(in: &cancellables)
 
-        accountManager.activeAccountPublisher
+        walletManager.activeWalletDataUpdatedPublisher
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.syncDefaultTokens() }
+            .sink { [weak self] walletData in
+                self?.handle(walletData: walletData)
+            }
             .store(in: &cancellables)
 
-        subscribe(disposeBag, adapterManager.adapterDataReadyObservable) { [weak self] _ in self?.syncAdapter() }
+        adapterManager.adapterDataReadyPublisher
+            // off the sender's serial queue: syncAdapter re-enters adapterManager.queue.sync
+            // (the Rx subscribe helper hopped via observeOn(Concurrent...) — keep that semantic)
+            .receive(on: DispatchQueue.global(qos: .userInitiated))
+            .sink { [weak self] _ in
+                self?.syncAdapter()
+            }
+            .store(in: &cancellables)
+
+        restoreSettingsService.approveSettingsPublisher
+            .receive(on: DispatchQueue.global(qos: .userInitiated))
+            .sink { [weak self] tokenWithSettings in
+                self?.handleApproveRestoreSettings(token: tokenWithSettings.token, settings: tokenWithSettings.settings)
+            }
+            .store(in: &cancellables)
 
         subscribeToProviders()
 
@@ -317,24 +449,168 @@ public class MultiSwapViewModel: ObservableObject {
         swapProviderManager.sync()
     }
 
-    private func syncDefaultTokens(token: Token? = nil, autoResolveTokenOut: Bool = true) {
-        let bitcoin = try? marketKit.token(query: TokenQuery(blockchainType: .bitcoin, tokenType: .derived(derivation: .bip84)))
-        let monero = try? marketKit.token(query: TokenQuery(blockchainType: .monero, tokenType: .native))
+    // account switched -> full re-resolve; enabled source disappeared (spec rule 1.3) -> re-resolve
+    private func handle(walletData: WalletManager.WalletData) {
+        let accountChanged = walletData.account?.id != currentAccountId
+        currentAccountId = walletData.account?.id
 
-        if let token {
-            internalTokenIn = token
-            internalTokenOut = autoResolveTokenOut ? MultiSwapDefaultTokenResolver.default(for: token) ?? (token.blockchainType == .bitcoin ? monero : bitcoin) : nil
-        } else if let account = accountManager.activeAccount, let lastSwap = swapHistoryManager.lastSwap(accountId: account.id) {
-            internalTokenIn = lastSwap.tokenIn
-            internalTokenOut = lastSwap.tokenOut
-        } else {
-            internalTokenIn = bitcoin
-            internalTokenOut = monero
+        tokenInWalletActive = internalTokenIn.map { token in walletData.wallets.contains { $0.token == token } } ?? false
+
+        if accountChanged {
+            // an external recipient entered for the previous account must not silently
+            // redirect the new account's swaps, even if the pair stays the same — also
+            // with an explicit token, where no default-pair re-resolve happens below
+            externalRecipientHolder.address = nil
         }
+
+        guard !hasExplicitToken else {
+            return
+        }
+
+        if accountChanged {
+            tokensManuallySet = false
+            scheduleDefaultTokensSync()
+            return
+        }
+
+        if !tokensManuallySet, let internalTokenIn, !walletData.wallets.contains(where: { $0.token == internalTokenIn }) {
+            scheduleDefaultTokensSync()
+        }
+    }
+
+    // one-shot: resolve now if adapters are ready or there is nothing to wait for, otherwise once on ready
+    private func scheduleDefaultTokensSync() {
+        defaultTokensCancellable = nil
+
+        let wallets = walletManager.activeWallets
+        let resolvesImmediately = wallets.isEmpty || wallets.contains { adapterManager.balanceAdapter(for: $0) != nil }
+
+        if resolvesImmediately {
+            syncDefaultTokens()
+            return
+        }
+
+        defaultTokensCancellable = adapterManager.adapterDataReadyPublisher
+            .prefix(1)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.syncDefaultTokens()
+            }
+    }
+
+    private func syncDefaultTokens() {
+        guard !tokensManuallySet else {
+            return
+        }
+
+        if hasExplicitToken {
+            guard autoResolveTokenOut, internalTokenIn == nil || internalTokenOut == nil else {
+                return
+            }
+        }
+
+        let explicitToken = hasExplicitToken ? internalTokenIn : nil
+        let explicitTokenOut = hasExplicitToken ? internalTokenOut : nil
+        let currencyCode = currency.code
+
+        defaultTokensTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            let bitcoin = try? marketKit.token(query: BlockchainType.bitcoin.defaultTokenQuery)
+            let monero = try? marketKit.token(query: BlockchainType.monero.defaultTokenQuery)
+
+            let wallets = walletManager.activeWallets
+            let coinPriceMap = marketKit.coinPriceMap(coinUids: wallets.map(\.coin.uid).removeDuplicates(), currencyCode: currencyCode)
+
+            let items = wallets.map { wallet in
+                MultiSwapDefaultPairResolver.Item(
+                    token: wallet.token,
+                    balance: adapterManager.balanceAdapter(for: wallet)?.balanceData.available ?? 0,
+                    price: coinPriceMap[wallet.coin.uid]?.value
+                )
+            }
+
+            let pair = MultiSwapDefaultPairResolver.resolve(
+                .init(
+                    explicitToken: explicitToken,
+                    explicitTokenOut: explicitTokenOut,
+                    autoResolveTokenOut: autoResolveTokenOut,
+                    hasWallets: accountManager.activeAccount != nil && !wallets.isEmpty,
+                    items: items,
+                    popularTokens: { [marketKit] in MultiSwapPopularTokenResolver.tokens(marketKit: marketKit, for: $0) },
+                    bitcoin: bitcoin,
+                    monero: monero
+                )
+            )
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await apply(tokenIn: pair.tokenIn, tokenOut: pair.tokenOut)
+        }
+        .erased()
+    }
+
+    @MainActor private func apply(tokenIn: Token?, tokenOut: Token?) {
+        guard !tokensManuallySet else {
+            return
+        }
+
+        if hasExplicitToken {
+            if internalTokenOut == nil, let tokenOut {
+                internalTokenOut = activeWalletToken(for: tokenOut)
+            }
+
+            if internalTokenIn == nil, let tokenIn {
+                let token = activeWalletToken(for: tokenIn)
+
+                // An amount typed while there was no sell token may be more precise than the token allows.
+                // Rounded before the token is set, so the quote triggered by the token uses the rounded amount.
+                if let amountIn, amountIn.roundedDown(decimal: token.decimals) != amountIn {
+                    self.amountIn = amountIn.roundedDown(decimal: token.decimals)
+                }
+
+                internalTokenIn = token
+            }
+
+            return
+        }
+
+        set(
+            tokenIn: tokenIn.map { activeWalletToken(for: $0) },
+            tokenOut: tokenOut.map { activeWalletToken(for: $0) }
+        )
+    }
+
+    private func set(tokenIn: Token?, tokenOut: Token?) {
+        guard tokenIn != internalTokenIn || tokenOut != internalTokenOut else {
+            return
+        }
+
+        internalTokenIn = tokenIn
+        internalTokenOut = tokenOut
+
+        priceFlipped = false
+        internalUserSelectedProviderId = nil
+
+        if enteringFiat {
+            fiatAmountIn = nil
+        } else {
+            amountIn = nil
+        }
+    }
+
+    private func activeWalletToken(for token: Token) -> Token {
+        walletManager.activeWallets.first { $0.token.coin.uid == token.coin.uid && $0.token.blockchainType == token.blockchainType }?.token ?? token
     }
 
     private func syncAdapter() {
         balanceDisposeBag = .init()
+
+        let walletActive = internalTokenIn.map { token in walletManager.activeWallets.contains { $0.token == token } } ?? false
 
         if let internalTokenIn,
            let wallet = walletManager.activeWallets.first(where: { $0.token == internalTokenIn }),
@@ -343,11 +619,14 @@ public class MultiSwapViewModel: ObservableObject {
             let balanceState = adapter.balanceState
             let balance = adapter.balanceData.available
             let mode = adapter.spendMode
+            let spendStepHandler = SpendStepHandlerFactory.handler(wallet: wallet, purpose: .swap)
 
             DispatchQueue.main.async { [weak self] in
+                self?.tokenInWalletActive = walletActive
                 self?.adapterState = balanceState
                 self?.availableBalance = balance
                 self?.spendMode = mode
+                self?.set(spendStepHandler: spendStepHandler)
             }
 
             adapter.balanceStateUpdatedObservable
@@ -368,11 +647,27 @@ public class MultiSwapViewModel: ObservableObject {
                 .disposed(by: balanceDisposeBag)
         } else {
             DispatchQueue.main.async { [weak self] in
+                self?.tokenInWalletActive = walletActive
                 self?.adapterState = nil
                 self?.availableBalance = nil
                 self?.spendMode = .fromBalanceState
+                self?.set(spendStepHandler: nil)
             }
         }
+    }
+
+    private func set(spendStepHandler: ISpendStepHandler?) {
+        self.spendStepHandler = spendStepHandler
+
+        spendStepCancellable = spendStepHandler?.updatedPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] in self?.syncSpendStep() }
+
+        syncSpendStep()
+    }
+
+    func syncSpendStep() {
+        spendStep = amountIn.flatMap { spendStepHandler?.step(amount: $0) }
     }
 
     func subscribeToProviders() {
@@ -384,18 +679,80 @@ public class MultiSwapViewModel: ObservableObject {
                     .receive(on: DispatchQueue.main)
                     .sink { [weak self] in
                         self?.syncValidProviders()
-                        self?.syncQuotes(silent: true)
+                        self?.syncQuotesOnProvidersChange()
                     }
                     .store(in: &providerCancellables)
             }
         }
     }
 
+    // While auto quoting is stopped (hidden tab, presented sheet) a provider change must not start a
+    // round: it is deferred to `autoQuoteIfRequired`, which requotes an interrupted round on resume
+    private func syncQuotesOnProvidersChange() {
+        guard autoQuotingEnabled else {
+            quotesTask = nil
+            quotesInterrupted = true
+
+            if quoting {
+                quoting = false
+            }
+
+            return
+        }
+
+        syncQuotes(silent: true)
+    }
+
     private func syncValidProviders() {
         if let internalTokenIn, let internalTokenOut {
-            validProviders = providers.filter { $0.supports(tokenIn: internalTokenIn, tokenOut: internalTokenOut) }
+            let suspensions = swapProviderManager.suspensions
+
+            validProviders = providers.filter { provider in
+                // Scoped suspension from uswap-server (asset / chain / directed pair), checked here,
+                // in the one place every provider passes through, so a card the server would refuse
+                // is never shown.
+                guard !suspensions.isSuspended(providerId: provider.id, tokenIn: internalTokenIn, tokenOut: internalTokenOut) else {
+                    return false
+                }
+
+                return provider.supports(tokenIn: internalTokenIn, tokenOut: internalTokenOut)
+            }
         } else {
             validProviders = []
+        }
+
+        syncSuggestedPath()
+    }
+
+    private var currentRoundKey: QuoteRoundKey? {
+        guard let internalTokenIn, let internalTokenOut, !validProviders.isEmpty else {
+            return nil
+        }
+
+        return QuoteRoundKey(tokenIn: internalTokenIn, tokenOut: internalTokenOut, providerIds: Set(validProviders.map(\.id)))
+    }
+
+    // Scoped to the pair and its valid providers: a changed pair or an untried set of providers
+    // has not failed at anything yet. The amount is deliberately not part of it, so the
+    // suggestion stays put while the user edits the amount and leaves only once quotes arrive.
+    private var quotesUnavailable: Bool {
+        emptyRoundKey != nil && emptyRoundKey == currentRoundKey
+    }
+
+    private func syncSuggestedPath() {
+        var path: SwapPath?
+
+        if suggestedPathEnabled, let internalTokenIn, let internalTokenOut, validProviders.isEmpty || quotesUnavailable {
+            path = pathFinder.find(
+                tokenIn: internalTokenIn,
+                tokenOut: internalTokenOut,
+                providers: providers,
+                suspensions: swapProviderManager.suspensions
+            )
+        }
+
+        if suggestedPath != path {
+            suggestedPath = path
         }
     }
 
@@ -412,12 +769,12 @@ public class MultiSwapViewModel: ObservableObject {
             return
         }
 
-        guard let coinPriceIn, let fiatAmountIn else {
+        guard let coinPriceIn, let fiatAmountIn, let tokenIn else {
             amountIn = nil
             return
         }
 
-        amountIn = fiatAmountIn / coinPriceIn.value
+        amountIn = (fiatAmountIn / coinPriceIn.value).roundedDown(decimal: customDecimals ?? tokenIn.decimals)
     }
 
     private func syncFiatAmountIn() {
@@ -434,12 +791,12 @@ public class MultiSwapViewModel: ObservableObject {
     }
 
     private func syncFiatAmountOut() {
-        guard let rateOut, let currentQuote else {
+        guard let rateOut, let amountOut else {
             fiatAmountOut = nil
             return
         }
 
-        fiatAmountOut = (currentQuote.quote.expectedBuyAmount * rateOut).rounded(decimal: 2)
+        fiatAmountOut = (amountOut * rateOut).rounded(decimal: 2)
     }
 
     func syncPriceImpact() {
@@ -453,6 +810,7 @@ public class MultiSwapViewModel: ObservableObject {
 
     func syncQuotes(silent: Bool = false) {
         quotesTask = nil
+        quotesInterrupted = false
 
         if !silent {
             quotes = []
@@ -478,17 +836,25 @@ public class MultiSwapViewModel: ObservableObject {
             quoting = true
         }
 
+        let roundKey = currentRoundKey
+        let fetchQuote = quoteFetcher()
+
         quotesTask = Task { [weak self, validProviders] in
             let optionalQuotes: [Quote?] = await withTaskGroup(of: Quote?.self) { group in
                 for provider in validProviders {
                     group.addTask {
                         do {
                             let quoteTask = Task {
-                                try await provider.quote(tokenIn: internalTokenIn, tokenOut: internalTokenOut, amountIn: amountIn)
+                                try await fetchQuote(provider, internalTokenIn, internalTokenOut, amountIn)
                             }
 
+                            // Per-provider quote timeout. Must exceed uswap-server's own budget
+                            // (12s per provider / 15s overall) or slow-but-valid cross-chain
+                            // aggregators — LI.FI, Jupiter — get cancelled mid-quote and surface as
+                            // `explicitlyCancelled` (e.g. an ETH→Tron TRC-20 route that legitimately
+                            // takes several seconds). 5s was cutting those off.
                             let timeoutTask = Task {
-                                try await Task.sleep(seconds: 5)
+                                try await Task.sleep(seconds: 15)
                                 quoteTask.cancel()
                             }
 
@@ -522,12 +888,54 @@ public class MultiSwapViewModel: ObservableObject {
 
             if !Task.isCancelled {
                 await MainActor.run { [weak self, decorated] in
-                    self?.quoting = false
-                    self?.quotes = decorated
+                    guard let self, !Task.isCancelled else {
+                        return
+                    }
+
+                    quotesTask = nil
+                    quoting = false
+                    self.quotes = decorated
+
+                    let wasUnavailable = quotesUnavailable
+                    emptyRoundKey = decorated.isEmpty ? roundKey : nil
+
+                    if quotesUnavailable != wasUnavailable {
+                        syncSuggestedPath()
+                    }
                 }
             }
         }
         .erased()
+    }
+
+    // MARK: Subclass hooks (SplitSwapViewModel)
+
+    typealias QuoteFetcher = (IMultiSwapProvider, Token, Token, Decimal) async throws -> MultiSwapQuote
+
+    // Called at the end of every `quotes` assignment, after the dependent state is synced
+    func didUpdateQuotes() {}
+
+    // Providers this view model quotes. Called from init and on every provider list sync, so an
+    // override must not rely on state set after `super.init`.
+    func resolveProviders() -> [IMultiSwapProvider] {
+        SwapProviderFactory.swappableProviders(ids: swapProviderManager.providers)
+    }
+
+    // The per-provider quote call of a quote round. Built once per round on the main thread, so an
+    // override can snapshot its own inputs; the closure runs off the main thread and must not
+    // capture the view model.
+    func quoteFetcher() -> QuoteFetcher {
+        { provider, tokenIn, tokenOut, amountIn in
+            try await provider.quote(tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn)
+        }
+    }
+
+    var suggestedPathEnabled: Bool {
+        true
+    }
+
+    public func reset() {
+        amountIn = nil
     }
 
     private func syncPrice() {
@@ -543,7 +951,7 @@ public class MultiSwapViewModel: ObservableObject {
             let amountA = showAsIn ? amountIn : amountOut
             let amountB = showAsIn ? amountOut : amountIn
 
-            let formattedValue = ValueFormatter.instance.formatFull(value: amountB / amountA, decimalCount: tokenB.decimals)
+            let formattedValue = ValueFormatter.instance.formatShort(value: amountB / amountA, decimalCount: tokenB.decimals)
             price = formattedValue.map { "1 \(tokenA.coin.code) = \($0) \(tokenB.coin.code)" }
         } else {
             price = nil
@@ -565,6 +973,14 @@ public extension MultiSwapViewModel {
     }
 
     func interchange() {
+        // an externally-delivered tokenOut can't become the sell side — the account
+        // can't sign transactions for it
+        guard !externalRecipientRequired else {
+            return
+        }
+
+        tokensManuallySet = true
+
         let currentFiatAmountOut = fiatAmountOut
         let currentAmountOut = currentQuote?.quote.expectedBuyAmount
 
@@ -574,6 +990,9 @@ public extension MultiSwapViewModel {
 
         if enteringFiat {
             fiatAmountIn = currentFiatAmountOut
+        } else if let currentAmountOut, let tokenIn = self.internalTokenIn {
+            // The buy amount can be more precise than the new sell token allows
+            amountIn = currentAmountOut.roundedDown(decimal: tokenIn.decimals)
         } else {
             amountIn = currentAmountOut
         }
@@ -584,14 +1003,21 @@ public extension MultiSwapViewModel {
         syncPrice()
     }
 
+    var percentAllAvailable: Bool {
+        switch tokenIn?.type {
+        case nil, .native, .derived, .addressType, .unsupported: false
+        default: true
+        }
+    }
+
     func setAmountIn(percent: Int) {
-        guard let tokenIn, let availableBalance else {
+        guard tokenInWalletState == .ready, let tokenIn, let availableBalance else {
             return
         }
 
         enteringFiat = false
 
-        amountIn = (availableBalance * Decimal(percent) / 100).rounded(decimal: customDecimals ?? tokenIn.decimals)
+        amountIn = (availableBalance * Decimal(percent) / 100).roundedDown(decimal: customDecimals ?? tokenIn.decimals)
     }
 
     func clearAmountIn() {
@@ -600,10 +1026,24 @@ public extension MultiSwapViewModel {
     }
 
     func stopAutoQuoting() {
+        autoQuotingEnabled = false
         timer?.invalidate()
+
+        if quotesTask != nil {
+            quotesTask = nil
+            quotesInterrupted = true
+            quoting = false
+        }
     }
 
     func autoQuoteIfRequired() {
+        autoQuotingEnabled = true
+
+        if quotesInterrupted {
+            syncQuotes(silent: !quotes.isEmpty)
+            return
+        }
+
         guard !quoting, let nextQuoteTime else {
             return
         }
@@ -618,10 +1058,6 @@ public extension MultiSwapViewModel {
                 self?.syncQuotes(silent: true)
             }
         }
-    }
-
-    func reset() {
-        amountIn = nil
     }
 
     internal func validateAndProceed(onSuccess: @escaping () -> Void, onRiskDetected: @escaping (AmlRiskResult) -> Void) {
@@ -673,7 +1109,7 @@ public extension MultiSwapViewModel {
         }
     }
 
-    internal var sortedQuotes: [Quote] {
+    var sortedQuotes: [Quote] {
         switch quoteSortType {
         case .bestRate:
             return quotes.sorted { $0.quote.expectedBuyAmount > $1.quote.expectedBuyAmount }
@@ -689,19 +1125,94 @@ public extension MultiSwapViewModel {
 }
 
 extension MultiSwapViewModel {
+    var tokenInWalletState: TokenInWalletState {
+        guard let internalTokenIn else {
+            return .ready
+        }
+
+        if let adapterState {
+            return adapterState.syncing && !spendMode.spendAllowed(state: adapterState) ? .syncing : .ready
+        }
+
+        if tokenInWalletActive {
+            return .syncing
+        }
+
+        // a token the account can't hold keeps "Token Not Enabled"
+        guard let account = accountManager.activeAccount, account.type.supports(token: internalTokenIn) else {
+            return .ready
+        }
+
+        return .notEnabled
+    }
+
+    /// Enables the sell token. A chain not running yet asks its restore settings first, as Manage Wallets
+    /// does: a restored account synced from scratch takes too long, and one synced from today misses its funds.
+    func enableTokenIn() {
+        guard let tokenIn = internalTokenIn, let account = accountManager.activeAccount,
+              !walletManager.activeWallets.contains(where: { $0.token == tokenIn })
+        else {
+            return
+        }
+
+        let chainEnabled = walletManager.activeWallets.contains { $0.token.blockchainType == tokenIn.blockchainType }
+
+        if !tokenIn.blockchainType.restoreSettingTypes.isEmpty, !chainEnabled {
+            restoreSettingsService.approveSettings(token: tokenIn, account: account)
+        } else {
+            saveWallet(token: tokenIn, account: account)
+        }
+    }
+
+    private func handleApproveRestoreSettings(token: Token, settings: RestoreSettings) {
+        guard let account = accountManager.activeAccount else {
+            return
+        }
+
+        if !settings.isEmpty {
+            restoreSettingsService.save(settings: settings, account: account, blockchainType: token.blockchainType)
+        }
+
+        saveWallet(token: token, account: account)
+    }
+
+    private func saveWallet(token: Token, account: Account) {
+        walletManager.save(wallets: [Wallet(token: token, account: account)])
+        stat(page: .swap, event: .enableToken(token: token))
+    }
+}
+
+extension MultiSwapViewModel {
+    enum TokenInWalletState {
+        case ready
+        case notEnabled
+        case syncing
+    }
+
+    private struct QuoteRoundKey: Equatable {
+        let tokenIn: Token
+        let tokenOut: Token
+        let providerIds: Set<String>
+    }
+
     public struct Quote {
         public let provider: IMultiSwapProvider
         public let quote: MultiSwapQuote
         let timeState: SwapTimeState?
     }
 
-    enum SwapTimeState {
-        case neutral(TimeInterval)
-        case attention(TimeInterval)
+    enum SwapTimeValue: Equatable {
+        case approximate(TimeInterval)
+        case range(min: TimeInterval, max: TimeInterval)
+    }
 
-        var time: TimeInterval {
+    enum SwapTimeState: Equatable {
+        case neutral(SwapTimeValue)
+        case attention(SwapTimeValue)
+
+        var value: SwapTimeValue {
             switch self {
-            case let .neutral(t), let .attention(t): return t
+            case let .neutral(value), let .attention(value): return value
             }
         }
 
@@ -820,19 +1331,21 @@ extension MultiSwapViewModel {
             Quote(
                 provider: item.provider,
                 quote: item.quote,
-                timeState: timeState(for: item.quote.estimatedTime, baseline: baseline)
+                timeState: timeState(for: item.quote.estimatedTime, precise: item.provider.preciseEstimateTime, baseline: baseline)
             )
         }
     }
 
-    private static func timeState(for time: TimeInterval?, baseline: TimeInterval?) -> SwapTimeState? {
-        if let warning = warningTime(for: time, baseline: baseline) {
-            return .attention(warning)
+    // internal visibility intentional: pure function covered by unit tests via @testable import.
+    static func timeState(for time: TimeInterval?, precise: Bool, baseline: TimeInterval?) -> SwapTimeState? {
+        guard let time, time > 0 else { return nil }
+        // An imprecise estimate renders as (X−25%)–(X+25%); the warning rule judges its upper bound.
+        let value: SwapTimeValue = precise ? .approximate(time) : .range(min: time * 0.75, max: time * 1.25)
+        let comparisonTime = precise ? time : time * 1.25
+        if warningTime(for: comparisonTime, baseline: baseline) != nil {
+            return .attention(value)
         }
-        if let time, time > 0 {
-            return .neutral(time)
-        }
-        return nil
+        return .neutral(value)
     }
 
     // internal visibility intentional: pure function covered by unit tests via @testable import.

@@ -4,14 +4,28 @@ import MarketKit
 public class SwapFinalQuote {
     private let expectedBuyAmount: Decimal
     private let slippage: Decimal?
-    let recipient: String?
-    private let estimatedTime: TimeInterval?
-    private let transactionError: Error?
+    public let recipient: String?
+    public let estimatedTime: TimeInterval?
+    public private(set) var transactionError: Error?
 
-    let toAddress: String
-    let depositAddress: String?
-    let providerSwapId: String?
-    var refundAddress: String?
+    public let toAddress: String
+    public private(set) var depositAddress: String?
+    public private(set) var depositMemo: String?
+    public let providerSwapId: String?
+    public var refundAddress: String?
+    public var minAmountOut: Decimal?
+    // Set by the provider from the route: the send handler offers the MEV toggle only when true.
+    public let mevProtectionAllowed: Bool
+    // Provider-private state carried from the preview to `IMultiSwapProvider.commit(finalQuote:)`;
+    // cleared once the preview is committed so the same token can never be committed twice.
+    var providerContext: AnyObject?
+    // Built against a stand-in deposit (USwap's `stubDepositAddress`) purely for the fee row: the
+    // payload targets an address that must never receive funds, so `executable(tokenIn:)` refuses
+    // to hand it out. `canSwap` stays true — the slide button shows and commit rebuilds the quote.
+    var isEstimateOnly = false
+    // Set by the send handler from the provider; a deposit-based exchanger's estimate
+    // renders as a (X−25%)–(X+25%) range instead of ~X.
+    public var preciseEstimateTime = true
 
     public init(
         expectedBuyAmount: Decimal,
@@ -22,7 +36,9 @@ public class SwapFinalQuote {
         toAddress: String,
         depositAddress: String? = nil,
         providerSwapId: String? = nil,
-        refundAddress: String? = nil
+        refundAddress: String? = nil,
+        minAmountOut: Decimal? = nil,
+        mevProtectionAllowed: Bool = false
     ) {
         self.expectedBuyAmount = expectedBuyAmount
         self.slippage = slippage
@@ -33,18 +49,47 @@ public class SwapFinalQuote {
         self.depositAddress = depositAddress
         self.providerSwapId = providerSwapId
         self.refundAddress = refundAddress
+        self.minAmountOut = minAmountOut
+        self.mevProtectionAllowed = mevProtectionAllowed
     }
 
-    var amountOut: Decimal {
+    public var amountOut: Decimal {
         expectedBuyAmount
+    }
+
+    // Display metadata only; executable payloads retain their original address and memo.
+    func setDeposit(address: String?, memo: String?) {
+        depositAddress = address.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+        depositMemo = memo.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+    }
+
+    // server-enforced floor when the provider reports one, slippage estimate otherwise
+    var guaranteedAmountOut: Decimal? {
+        guard let slippage else {
+            return nil
+        }
+
+        return minAmountOut ?? amountOut * (1 - slippage / 100)
     }
 
     var feeData: FeeData? {
         nil
     }
 
-    var canSwap: Bool {
+    public var canSwap: Bool {
         transactionError == nil
+    }
+
+    public final func executable(tokenIn: Token) -> ISwapExecutable {
+        isEstimateOnly ? UnsupportedExecutable() : buildExecutable(tokenIn: tokenIn)
+    }
+
+    func buildExecutable(tokenIn _: Token) -> ISwapExecutable {
+        UnsupportedExecutable()
+    }
+
+    func feeFields(baseToken _: Token, currency _: Currency, baseTokenRate _: Decimal?) -> [SendField] {
+        []
     }
 
     func cautions(baseToken: Token) -> [CautionNew] {
@@ -61,12 +106,11 @@ public class SwapFinalQuote {
         nil
     }
 
-    func fields(tokenIn _: Token, tokenOut: Token, baseToken _: Token, currency _: Currency, tokenInRate _: Decimal?, tokenOutRate _: Decimal?, baseTokenRate _: Decimal?) -> [SendField] {
+    public func fields(tokenIn: Token, tokenOut: Token, baseToken _: Token, currency _: Currency, tokenInRate _: Decimal?, tokenOutRate _: Decimal?, baseTokenRate _: Decimal?) -> [SendField] {
         var fields = [SendField]()
 
         if let slippage {
-            let minAmountOut = amountOut * (1 - slippage / 100)
-            if let minRecieve = SendField.minRecieve(token: tokenOut, value: minAmountOut) {
+            if let guaranteedAmountOut, let minRecieve = SendField.minRecieve(token: tokenOut, value: guaranteedAmountOut) {
                 fields.append(minRecieve)
             }
 
@@ -79,13 +123,18 @@ public class SwapFinalQuote {
             fields.append(.recipient(recipient, blockchainType: tokenOut.blockchainType))
         }
 
-        if let estimatedTime {
+        if let depositAddress, !depositAddress.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            fields.append(.recipient(title: "swap.deposit_address".localized, value: depositAddress, copyable: true, blockchainType: tokenIn.blockchainType))
+        }
+        if let depositMemo {
+            fields.append(.hex(title: "swap.deposit_memo".localized, value: depositMemo))
+        }
+
+        // Single route on the confirm screen: no baseline, absolute threshold only.
+        if let timeState = MultiSwapViewModel.timeState(for: estimatedTime, precise: preciseEstimateTime, baseline: nil) {
             fields.append(.simpleValue(
-                title: ComponentInformedTitle("swap.swapped_time".localized, info: InfoDescription(
-                    title: "swap.swapped_time".localized,
-                    description: "swap.swapped_time.info".localized
-                )),
-                value: Duration.seconds(estimatedTime).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .narrow))
+                title: ComponentInformedTitle("swap.swapped_time".localized, info: .swapTime),
+                value: ComponentText(text: MultiSwapQuotesView.string(time: timeState.value), colorStyle: timeState.colorStyle)
             ))
         }
 

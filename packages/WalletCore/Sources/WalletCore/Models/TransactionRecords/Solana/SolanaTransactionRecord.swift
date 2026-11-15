@@ -42,7 +42,7 @@ extension SolanaTransactionRecord {
     }
 }
 
-class SolanaIncomingTransactionRecord: SolanaTransactionRecord {
+class SolanaIncomingTransactionRecord: SolanaTransactionRecord, TransferEventsProvider {
     let from: String?
     let value: AppValue
 
@@ -54,6 +54,13 @@ class SolanaIncomingTransactionRecord: SolanaTransactionRecord {
 
     override var mainValue: AppValue? {
         value
+    }
+
+    var transferEvents: TransferEvents {
+        guard let from else {
+            return .init()
+        }
+        return .init(incoming: [.init(address: from, value: value)])
     }
 }
 
@@ -74,7 +81,7 @@ class SolanaOutgoingTransactionRecord: SolanaTransactionRecord {
     }
 }
 
-class SolanaUnknownTransactionRecord: SolanaTransactionRecord {
+class SolanaUnknownTransactionRecord: SolanaTransactionRecord, TransferEventsProvider {
     let incomingTransfers: [Transfer]
     let outgoingTransfers: [Transfer]
 
@@ -82,5 +89,37 @@ class SolanaUnknownTransactionRecord: SolanaTransactionRecord {
         self.incomingTransfers = incomingTransfers
         self.outgoingTransfers = outgoingTransfers
         super.init(transaction: transaction, baseToken: baseToken, source: source)
+    }
+
+    var transferEvents: TransferEvents {
+        guard !incomingTransfers.isEmpty else {
+            return .init()
+        }
+        return .init(
+            incoming: incomingTransfers.compactMap { transfer in transfer.address.map { TransferEvent(address: $0, value: transfer.value) } },
+            outgoing: outgoingTransfers.compactMap { transfer in transfer.address.map { TransferEvent(address: $0, value: transfer.value) } }
+        )
+    }
+}
+
+// A DEX swap detected via the transaction's recognized program ids (SolanaKit `KnownPrograms`,
+// e.g. Jupiter) — the Solana counterpart of the EVM `SwapTransactionRecord`. `valueIn` (paid) /
+// `valueOut` (received) are nil while the transaction is still pending: the kit's pending record
+// carries no balance changes yet, but the program id is known at send time, so the row can already
+// render as "Swapped / <exchange>" instead of an unknown transaction.
+class SolanaSwapTransactionRecord: SolanaTransactionRecord {
+    let exchangeName: String
+    let valueIn: AppValue?
+    let valueOut: AppValue?
+
+    init(transaction: SolanaKit.Transaction, baseToken: Token, source: TransactionSource, exchangeName: String, valueIn: AppValue?, valueOut: AppValue?) {
+        self.exchangeName = exchangeName
+        self.valueIn = valueIn
+        self.valueOut = valueOut
+        super.init(transaction: transaction, baseToken: baseToken, source: source)
+    }
+
+    override var mainValue: AppValue? {
+        valueOut
     }
 }

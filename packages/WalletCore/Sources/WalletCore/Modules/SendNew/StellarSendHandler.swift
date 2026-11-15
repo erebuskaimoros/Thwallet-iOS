@@ -3,7 +3,12 @@ import MarketKit
 import StellarKit
 import stellarsdk
 
-class StellarSendHandler {
+class StellarSendHandler: SendHandler {
+    override class func instance(sendData: WalletCore.SendData) -> ISendHandler? {
+        guard case let .stellar(data, token, memo) = sendData else { return nil }
+        return instance(data: data, token: token, memo: memo)
+    }
+
     private let stellarKit: StellarKit.Kit
     private let keyPair: KeyPair
     private let token: Token
@@ -27,7 +32,8 @@ extension StellarSendHandler: ISendHandler {
     }
 
     func sendData(transactionSettings _: TransactionSettings?) async throws -> ISendData {
-        var fee: Decimal?
+        // Known before any check, so the fee row stays even when the send is refused (as XRP and Android)
+        let fee: Decimal? = try? await stellarKit.baseFee()
         var transactionError: Error?
         var operations: [stellarsdk.Operation]?
 
@@ -44,7 +50,6 @@ extension StellarSendHandler: ISendHandler {
                     stellarKit: stellarKit
                 )
                 operations = result.operations
-                fee = result.fee
 
                 if result.adjustedAmount != amount {
                     data = .payment(asset: asset, amount: result.adjustedAmount, accountId: accountId)
@@ -59,7 +64,6 @@ extension StellarSendHandler: ISendHandler {
 
                 let operation = try stellarKit.changeTrustOperation(asset: asset, limit: limit)
                 operations = [operation]
-                fee = baseFee
             }
         } catch {
             transactionError = error
@@ -76,13 +80,20 @@ extension StellarSendHandler: ISendHandler {
     }
 
     func send(data: ISendData) async throws {
+        _ = try await sendCapturingRef(data: data)
+    }
+}
+
+extension StellarSendHandler: ISendHandlerRefCapturing {
+    // Same broadcast path as `send`, returning the on-chain tx hash.
+    func sendCapturingRef(data: ISendData) async throws -> String {
         guard let data = data as? SendData, let operations = data.operations else {
             throw StellarSendHelper.SendError.noStellarKit
         }
 
         let memo = data.memo.map { Memo.text($0) } ?? Memo.none
 
-        _ = try await StellarSendHelper.send(
+        return try await StellarSendHelper.send(
             operations: operations,
             memo: memo,
             keyPair: keyPair
@@ -116,8 +127,13 @@ extension StellarSendHandler {
             transactionError == nil
         }
 
+        // An amount below the create-account minimum needs new input, not a refresh: a disabled
+        // Send, as on Android. Every other error keeps Refresh
         var customSendButtonTitle: String? {
-            nil
+            if case .belowMinimumFirstDeposit = transactionError as? StellarSendHelper.TransactionError {
+                return "button.send".localized
+            }
+            return nil
         }
 
         var rateCoins: [Coin] {
@@ -162,22 +178,21 @@ extension StellarSendHandler {
             }
         }
 
+        func feeFields(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendField] {
+            StellarSendHelper.feeFields(fee: fee, feeToken: baseToken, currency: currency, feeTokenRate: rates[baseToken.coin.uid])
+        }
+
         func sections(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendDataSection] {
+            let flow = flowSection(baseToken: baseToken, currency: currency, rates: rates)
             var fields = [SendField]()
 
             if let memo {
                 fields.append(.simpleValue(title: "send.confirmation.memo".localized, value: memo))
             }
 
-            return [
-                flowSection(baseToken: baseToken, currency: currency, rates: rates),
-                .init(fields + StellarSendHelper.feeFields(
-                    fee: fee,
-                    feeToken: baseToken,
-                    currency: currency,
-                    feeTokenRate: rates[token.coin.uid]
-                ), isMain: false),
-            ]
+            let feeFields = feeFields(baseToken: baseToken, currency: currency, rates: rates)
+
+            return [flow, .init(fields + feeFields, isMain: false)].compactMap { $0 }
         }
     }
 }

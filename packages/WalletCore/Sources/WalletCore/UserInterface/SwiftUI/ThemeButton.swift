@@ -1,18 +1,45 @@
 import SwiftUI
 
-struct ThemeButton: View {
+public struct ThemeButton: View {
     let text: String
     var icon: String? = nil
     var spinner: Bool = false
+    // a determinate spinner, as a transaction in progress shows in the transaction list
+    var progress: Double? = nil
     var style: ThemeButton.Style = .primary
     var mode: ThemeButton.Mode = .solid
     var size: ThemeButton.Size = .medium
     let action: () -> Void
 
-    var body: some View {
+    public init(
+        text: String,
+        icon: String? = nil,
+        spinner: Bool = false,
+        progress: Double? = nil,
+        style: Style = .primary,
+        mode: Mode = .solid,
+        size: Size = .medium,
+        action: @escaping () -> Void
+    ) {
+        self.text = text
+        self.icon = icon
+        self.spinner = spinner
+        self.progress = progress
+        self.style = style
+        self.mode = mode
+        self.size = size
+        self.action = action
+    }
+
+    public var body: some View {
         Button(action: action) {
             HStack(spacing: size.iconSpacing) {
-                if spinner {
+                if let progress {
+                    ProgressView(value: max(0.1, progress))
+                        .progressViewStyle(DeterminiteSpinnerStyle())
+                        .frame(size: size.iconSize)
+                        .spinning()
+                } else if spinner {
                     ProgressView()
                 }
 
@@ -22,6 +49,8 @@ struct ThemeButton: View {
 
                 Text(text)
                     .font(size.textStyle.font)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             .offset(x: 0, y: size == .small ? -1 : 0)
         }
@@ -49,7 +78,7 @@ struct ThemeButton: View {
     }
 }
 
-extension ThemeButton {
+public extension ThemeButton {
     enum Style {
         case primary
         case secondary
@@ -100,7 +129,7 @@ extension ThemeButton {
         }
     }
 
-    static func foregroundColor(style: Style, mode: Mode, size: Size, isEnabled: Bool) -> Color {
+    internal static func foregroundColor(style: Style, mode: Mode, size: Size, isEnabled: Bool) -> Color {
         switch mode {
         case .solid:
             guard isEnabled else {
@@ -123,7 +152,7 @@ extension ThemeButton {
         }
     }
 
-    static func backgroundColor(style: Style, mode: Mode, size: Size, isEnabled: Bool) -> Color {
+    internal static func backgroundColor(style: Style, mode: Mode, size: Size, isEnabled: Bool) -> Color {
         switch mode {
         case .solid:
             guard isEnabled else {

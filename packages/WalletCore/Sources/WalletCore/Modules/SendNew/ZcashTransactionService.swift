@@ -1,9 +1,20 @@
 import Combine
 import Foundation
 import MarketKit
-import ZcashLightClientKit
+import ZODLSwiftWalletSDK
 
-class ZcashTransactionService {
+class ZcashTransactionService: TransactionService {
+    override class func instance(sendData: SendData, baseToken: Token, initialTransactionSettings: InitialTransactionSettings?) -> ITransactionService? {
+        guard ZcashSendService.customFeeEnabled else { return nil }
+        guard baseToken.blockchainType == .zcash else { return nil }
+        switch sendData {
+        case let .zcash(amount, recipient, memo), let .zcashResend(amount, recipient, memo, _):
+            return ZcashTransactionService(token: baseToken, proposalRequest: .transfer(amount: amount, recipient: recipient, memo: memo), initialTransactionSettings: initialTransactionSettings)
+        default:
+            return nil
+        }
+    }
+
     enum ProposalRequest {
         case transfer(amount: Decimal, recipient: Recipient, memo: String?)
         case shield(amount: Decimal, recipient: Recipient?, memo: String?)
@@ -28,6 +39,8 @@ class ZcashTransactionService {
         if case let .some(.zcash(zip317MarginalFee)) = initialTransactionSettings {
             self.zip317MarginalFee = zip317MarginalFee
         }
+
+        super.init()
 
         validate()
     }

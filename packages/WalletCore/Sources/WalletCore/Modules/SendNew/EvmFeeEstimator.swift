@@ -21,9 +21,10 @@ struct EvmFeeEstimator {
             blockchainType: evmKitWrapper.blockchainType,
             predefinedGasLimit: predefinedGasLimit
         )
-        let simulationTransactionData = stubAmount.map {
-            TransactionData(to: transactionData.to, value: $0, input: transactionData.input)
-        } ?? transactionData
+        let simulationTransactionData = Self.simulationTransactionData(
+            transactionData: transactionData,
+            stubAmount: stubAmount
+        )
         let feeTransactionData = Self.additionalFeeTransactionData(
             transactionData: transactionData,
             stubAmount: stubAmount,
@@ -192,6 +193,16 @@ struct EvmFeeEstimator {
         } catch {
             return try await estimateGas(nil)
         }
+    }
+
+    /// Send-all estimates execution gas with a stub value, because the final value is only known
+    /// after the fee is subtracted from the balance.
+    static func simulationTransactionData(transactionData: TransactionData, stubAmount: BigUInt?) -> TransactionData {
+        guard let stubAmount else {
+            return transactionData
+        }
+
+        return TransactionData(to: transactionData.to, value: stubAmount, input: transactionData.input)
     }
 
     static func additionalFeeTransactionData(

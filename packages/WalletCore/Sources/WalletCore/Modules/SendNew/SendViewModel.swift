@@ -25,7 +25,29 @@ public class SendViewModel: ObservableObject {
     @Published public var rates = [String: Decimal]()
 
     @Published public var sendData: ISendData?
-    @Published var sending = false
+
+    // A live send owns the screen: the quote-expiry timer is stopped so it can't swap the
+    // send button for "Refresh" mid-send (a mid-send "Refresh" would allow a second committed
+    // quote and a concurrent second execution). Any sync already in flight is
+    // cancelled with it: it would otherwise land and overwrite `sendData`/`state` mid-send,
+    // re-quoting under the running execution. On failure the expiry clock resumes from the
+    // ORIGINAL deadline, so an already-stale quote expires immediately; success dismisses
+    // the screen.
+    @Published var sending = false {
+        didSet {
+            if sending {
+                stopAutoQuoting()
+                syncTask = nil
+            } else if oldValue {
+                // A sync dropped under the send (below) left `state` at .syncing with nothing in flight.
+                if state.isSyncing, syncTask == nil {
+                    sync(silent: true)
+                }
+                autoQuoteIfRequired()
+            }
+        }
+    }
+
     @Published var transactionSettingsModified = false
 
     // Set when a non-auto-refreshing quote (a swap) reaches its expiration. The UI swaps the
@@ -92,7 +114,7 @@ public class SendViewModel: ObservableObject {
         sync()
     }
 
-    var cautions: [CautionNew] {
+    public var cautions: [CautionNew] {
         var cautions = transactionService?.cautions ?? []
 
         if let sendData, let baseToken = handler?.baseToken {
@@ -127,12 +149,8 @@ public class SendViewModel: ObservableObject {
             .sink { [weak self] rates in self?.rates = rates.mapValues { $0.value } }
     }
 
-    @MainActor private func set(sending: Bool) {
-        self.sending = sending
-    }
-
     @MainActor private func report(error: Error) {
-        errorSubject.send(error.smartDescription)
+        errorSubject.send(error.convertedError.smartDescription)
     }
 }
 
@@ -146,7 +164,7 @@ public extension SendViewModel {
     }
 
     internal func autoQuoteIfRequired() {
-        guard !state.isSyncing, let nextRefreshTime else {
+        guard !sending, !state.isSyncing, let nextRefreshTime else {
             return
         }
 
@@ -166,6 +184,12 @@ public extension SendViewModel {
     // refresh); handlers that opt out of auto-refresh (swaps) mark the quote expired instead and
     // wait for the user to tap "Refresh".
     internal func onExpiration() {
+        // Never expire under a live send — an already-armed timer can still fire after
+        // `sending` flipped true (the didSet only stops FUTURE firings).
+        guard !sending else {
+            return
+        }
+
         if handler?.autoRefreshEnabled ?? true {
             sync(silent: true)
         } else {
@@ -203,15 +227,35 @@ public extension SendViewModel {
 
             if !Task.isCancelled {
                 await MainActor.run { [weak self, sendData, state] in
-                    self?.sendData = sendData
-                    self?.state = state
+                    guard let self, !Task.isCancelled else {
+                        return
+                    }
+                    // A send that started while this sync was in flight owns the screen: landing now
+                    // would swap the quote under it and re-arm the expiry timer. Mark the drop so the
+                    // send's end can re-sync instead of leaving `state` at .syncing with nothing in flight.
+                    guard !sending else {
+                        syncTask = nil
+                        return
+                    }
+
+                    self.sendData = sendData
+                    self.state = state
                 }
             }
         }
         .erased()
     }
 
-    func send() async throws {
+    // Main-actor isolated so the quote read and the `sending` flip happen in one turn: a silent
+    // re-preview landing in between would commit a quote other than the one on screen. The
+    // handler's send itself runs off the main actor as before.
+    @MainActor func send() async throws {
+        // A second slide while one is in flight is dropped here, for every handler: the quote read
+        // and the flag flip below are one main-actor turn, so this check cannot interleave with them.
+        // Throws (handled, so not reported) rather than returns: callers treat a normal return as a
+        // successful send. Kept outside the `do` so the in-flight send's `sending` flag is not reset.
+        guard !sending else { throw AlreadySendingError() }
+
         do {
             guard let handler else {
                 throw SendError.noHandler
@@ -221,7 +265,7 @@ public extension SendViewModel {
                 throw SendError.noSendData
             }
 
-            await set(sending: true)
+            sending = true
 
             _ = try await handler.send(data: sendData)
 
@@ -229,8 +273,10 @@ public extension SendViewModel {
                 try? recentAddressStorage.save(address: address, blockchainUid: handler.baseToken.blockchain.uid)
             }
         } catch {
-            await set(sending: false)
-            await report(error: error)
+            sending = false
+            if !(error is IHandledSendError) {
+                report(error: error)
+            }
             throw error
         }
     }
@@ -261,4 +307,6 @@ extension SendViewModel {
         case noHandler
         case noSendData
     }
+
+    struct AlreadySendingError: IHandledSendError {}
 }

@@ -2,7 +2,12 @@ import Foundation
 import MarketKit
 import SolanaKit
 
-class SolanaSendHandler {
+class SolanaSendHandler: SendHandler {
+    override class func instance(sendData: WalletCore.SendData) -> ISendHandler? {
+        guard case let .solana(token, amount, address, memo) = sendData else { return nil }
+        return instance(token: token, amount: amount, address: address, memo: memo)
+    }
+
     private let solanaKit: SolanaKit.Kit
     private let signer: SolanaKit.Signer
     private let token: Token
@@ -64,17 +69,26 @@ extension SolanaSendHandler: ISendHandler {
     }
 
     func send(data: ISendData) async throws {
+        _ = try await sendCapturingRef(data: data)
+    }
+}
+
+extension SolanaSendHandler: ISendHandlerRefCapturing {
+    // Same broadcast path as `send`, returning the on-chain tx hash.
+    func sendCapturingRef(data: ISendData) async throws -> String {
         guard let data = data as? SendData else {
             throw SendError.invalidData
         }
 
+        let fullTransaction: FullTransaction
+
         if token.type.isNative {
-            try await adapter.sendSol(toAddress: data.address, amount: data.amount, signer: signer)
+            fullTransaction = try await adapter.sendSol(toAddress: data.address, amount: data.amount, signer: signer)
         } else {
             guard case let .spl(mintAddress) = token.type else {
                 throw SendError.invalidData
             }
-            try await adapter.sendSpl(
+            fullTransaction = try await adapter.sendSpl(
                 mintAddress: mintAddress,
                 toAddress: data.address,
                 amount: data.amount,
@@ -82,6 +96,8 @@ extension SolanaSendHandler: ISendHandler {
                 signer: signer
             )
         }
+
+        return fullTransaction.transaction.hash
     }
 }
 
@@ -131,6 +147,15 @@ extension SolanaSendHandler {
 
                     title = "fee_settings.errors.insufficient_balance".localized
                     text = "fee_settings.errors.insufficient_balance.info".localized(balanceString ?? "")
+
+                case let .insufficientTokenBalance(balance, token):
+                    // The sent token, not feeToken: an SPL shortfall formatted with SOL decimals would
+                    // show a wrong figure, not merely a wrong symbol.
+                    let appValue = AppValue(token: token, value: balance)
+                    let balanceString = appValue.formattedShort()
+
+                    title = "fee_settings.errors.insufficient_balance".localized
+                    text = "fee_settings.errors.insufficient_balance.info".localized(balanceString ?? "")
                 }
             } else {
                 title = "ethereum_transaction.error.title".localized
@@ -164,22 +189,19 @@ extension SolanaSendHandler {
             ], isFlow: true)
         }
 
-        func sections(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendDataSection] {
+        func fields(baseToken _: Token, currency _: Currency, rates _: [String: Decimal]) -> [SendField] {
             var fields = [SendField]()
 
             if let memo {
                 fields.append(.simpleValue(title: "send.confirmation.memo".localized, value: memo))
             }
 
-            return [
-                flowSection(baseToken: baseToken, currency: currency, rates: rates),
-                .init(fields + feeFields(currency: currency, feeToken: baseToken, feeTokenRate: rates[baseToken.coin.uid]), isMain: false),
-            ]
+            return fields
         }
 
-        private func feeFields(currency: Currency, feeToken: Token, feeTokenRate: Decimal?) -> [SendField] {
-            let appValue = AppValue(token: feeToken, value: fee)
-            let currencyValue = feeTokenRate.map { CurrencyValue(currency: currency, value: fee * $0) }
+        func feeFields(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendField] {
+            let appValue = AppValue(token: baseToken, value: fee)
+            let currencyValue = rates[baseToken.coin.uid].map { CurrencyValue(currency: currency, value: fee * $0) }
 
             return [
                 .fee(
@@ -187,6 +209,14 @@ extension SolanaSendHandler {
                     amountData: .init(appValue: appValue, currencyValue: currencyValue)
                 ),
             ]
+        }
+
+        func sections(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendDataSection] {
+            let flow = flowSection(baseToken: baseToken, currency: currency, rates: rates)
+            let fields = fields(baseToken: baseToken, currency: currency, rates: rates)
+            let feeFields = feeFields(baseToken: baseToken, currency: currency, rates: rates)
+
+            return [flow, .init(fields + feeFields, isMain: false)].compactMap { $0 }
         }
     }
 }
@@ -198,6 +228,7 @@ extension SolanaSendHandler {
 
     enum TransactionError: Error {
         case insufficientSolBalance(balance: Decimal)
+        case insufficientTokenBalance(balance: Decimal, token: Token)
     }
 }
 

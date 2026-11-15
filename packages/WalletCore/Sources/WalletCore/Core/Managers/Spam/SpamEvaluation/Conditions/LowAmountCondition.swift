@@ -36,7 +36,8 @@ class LowAmountCondition: SpamCondition {
             }
         }
 
-        if let nativeCode {
+        // Outgoing legs are stored negative and never score as dust, as on Android
+        if let nativeCode, nativeTotal > 0 {
             let score = evaluateWithLimits(code: nativeCode, value: nativeTotal)
             if score >= spamScore {
                 return spamScore
@@ -51,9 +52,12 @@ class LowAmountCondition: SpamCondition {
         switch event.value.kind {
         case .nft:
             return event.value.value > 0 ? 0 : riskScore
-        case .raw, .eip20Token:
+        case .raw, .unknownToken:
             return spamScore
         default:
+            guard event.value.value > 0 else {
+                return 0
+            }
             return evaluateWithLimits(code: event.value.code, value: event.value.value)
         }
     }
@@ -78,26 +82,35 @@ class LowAmountCondition: SpamCondition {
 extension LowAmountCondition {
     static let defaultLimits: [String: AmountLimit] = [
         "XLM": .init(0.1),
-        "USDT": .init(1),
-        "USDC": .init(1),
-        "USDD": .init(1),
-        "DAI": .init(1),
-        "BUSD": .init(1),
-        "EURS": .init(1),
-        "BSC-USD": .init(1),
+        "XRP": .init(0.001),
+        "USDT": .init(1, spam: stablecoinMicroDust),
+        "USDC": .init(1, spam: stablecoinMicroDust),
+        "USDD": .init(1, spam: stablecoinMicroDust),
+        "DAI": .init(1, spam: stablecoinMicroDust),
+        "BUSD": .init(1, spam: stablecoinMicroDust),
+        "EURS": .init(1, spam: stablecoinMicroDust),
+        "BSC-USD": .init(1, spam: stablecoinMicroDust),
         "TRX": .init(1),
         "ETH": .init(0.0005),
-        "BNB": .init(0.002),
+        "BNB": .init(0.0002),
         "POL": .init(1),
+        "SOL": .init(0.0001),
+        "NEAR": .init(0.01),
     ]
+
+    /// Cent-sized stablecoin transfers are common test sends, so a stablecoin is spam on value alone
+    /// only below a tenth of a cent, not below a tenth of its limit: 0.01 USDC scores as ordinary dust,
+    /// poisoning dust such as 0.0001 USDT stays spam. Android lifts the rule for these coins entirely
+    /// (`spamCoinsWithoutMicroDust`).
+    static let stablecoinMicroDust = Decimal(string: "0.001")!
 
     struct AmountLimit {
         let spam: Decimal
         let risk: Decimal
         let danger: Decimal
 
-        init(_ default: Decimal) {
-            spam = `default` / 10
+        init(_ default: Decimal, spam: Decimal? = nil) {
+            self.spam = spam ?? `default` / 10
             risk = `default`
             danger = `default` * 5
         }

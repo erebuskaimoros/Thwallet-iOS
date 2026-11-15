@@ -1,11 +1,18 @@
+import MarketKit
 import SwiftUI
 
-struct ComponentText: CustomStringConvertible {
+public struct ComponentText: CustomStringConvertible {
     let text: String
     var colorStyle: ColorStyle?
     var dimmed: Bool = false
 
-    var description: String { text }
+    public init(text: String, colorStyle: ColorStyle? = nil, dimmed: Bool = false) {
+        self.text = text
+        self.colorStyle = colorStyle
+        self.dimmed = dimmed
+    }
+
+    public var description: String { text }
 }
 
 struct AttibutedComponentText: CustomStringConvertible {
@@ -42,6 +49,7 @@ enum ComponentImage: CustomStringConvertible {
     case icon(name: String, size: CGSize?, colorStyle: ColorStyle?)
     case image(name: String, contentMode: ContentMode, size: CGSize?)
     case remote(url: String, placeholder: String?, size: CGSize?)
+    case coin(coin: Coin, placeholder: String?, size: CGSize?)
 
     init(_ name: String, colorStyle: ColorStyle? = nil) {
         self = .icon(name: name, size: nil, colorStyle: colorStyle)
@@ -63,11 +71,16 @@ enum ComponentImage: CustomStringConvertible {
         self = .remote(url: url, placeholder: placeholder, size: size)
     }
 
+    init(coin: Coin, placeholder: String? = nil, size: CGSize? = nil) {
+        self = .coin(coin: coin, placeholder: placeholder, size: size)
+    }
+
     var description: String {
         switch self {
         case let .icon(name, _, _): return name
         case let .image(name, _, _): return name
         case let .remote(url, _, _): return url
+        case let .coin(coin, _, _): return coin.code
         }
     }
 }

@@ -6,9 +6,12 @@ struct MainView: View {
     @StateObject var walletViewModel = WalletViewModel()
     @StateObject var transactionsViewModel = TransactionsViewModel()
     @StateObject var multiSwapViewModel = MultiSwapViewModel()
+    @StateObject var splitSwapViewModel = SplitSwapViewModel()
 
     @State private var selectedWallet: Wallet?
     @State private var swapSendPresented = false
+    @State private var splitRecipientsPresented = false
+    @State private var splitSendPresented = false
     @State private var walletConnectPresented = false
 
     @State private var backupAccount: Account?
@@ -30,10 +33,15 @@ struct MainView: View {
                         .tint(.themeLeah)
 
                     if viewModel.showSwap {
-                        MultiSwapView(viewModel: multiSwapViewModel, sendPresented: $swapSendPresented)
-                            .tabItem { Label("", image: "swap_filled") }
-                            .tag(MainViewModel.Tab.swap)
-                            .tint(.themeLeah)
+                        MultiSwapView(
+                            viewModel: multiSwapViewModel,
+                            splitViewModel: splitSwapViewModel,
+                            sendPresented: $swapSendPresented,
+                            splitRecipientsPresented: $splitRecipientsPresented
+                        )
+                        .tabItem { Label("", image: "swap_filled") }
+                        .tag(MainViewModel.Tab.swap)
+                        .tint(.themeLeah)
                     }
 
                     MainSettingsView(walletConnectPresented: $walletConnectPresented)
@@ -53,10 +61,20 @@ struct MainView: View {
                     swapSendPresented = false
                 }
             }
+            .navigationDestination(isPresented: $splitRecipientsPresented) {
+                SplitSwapRecipientsView(viewModel: splitSwapViewModel) {
+                    splitSendPresented = true
+                }
+                .navigationDestination(isPresented: $splitSendPresented) {
+                    SplitSwapSendDestinationView(viewModel: splitSwapViewModel) {
+                        splitSwapViewModel.reset()
+                        splitSendPresented = false
+                        splitRecipientsPresented = false
+                    }
+                }
+            }
             .navigationDestination(isPresented: $walletConnectPresented) {
-                WalletConnectListView()
-                    .navigationTitle("wallet_connect_list.title".localized)
-                    .ignoresSafeArea()
+                WCSessionsView()
                     .onFirstAppear {
                         stat(page: .settings, event: .open(page: .walletConnect))
                     }
@@ -81,8 +99,9 @@ struct MainView: View {
                 }
             }
         case .wallet:
-            if walletViewModel.account != nil {
-                if walletViewModel.buttonHidden {
+            if let account = walletViewModel.account {
+                // a watch account has no scan button on the balance either — it cannot spend what it scans
+                if walletViewModel.buttonHidden, !account.watchAccount {
                     ToolbarItemGroup(placement: .primaryAction) {
                         Button(action: onTapScan) {
                             Image("scan")

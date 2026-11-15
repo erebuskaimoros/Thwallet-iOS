@@ -4,7 +4,12 @@ import MarketKit
 import RxSwift
 import StellarKit
 
-class StellarPreSendHandler {
+class StellarPreSendHandler: PreSendHandler {
+    override class func instance(wallet: Wallet, address _: ResolvedAddress?) -> IPreSendHandler? {
+        guard let adapter = Core.shared.adapterManager.adapter(for: wallet) as? StellarAdapter else { return nil }
+        return StellarPreSendHandler(token: wallet.token, adapter: adapter)
+    }
+
     private let token: Token
     private let adapter: StellarAdapter
 
@@ -16,6 +21,8 @@ class StellarPreSendHandler {
     init(token: Token, adapter: StellarAdapter) {
         self.token = token
         self.adapter = adapter
+
+        super.init()
 
         adapter.balanceStateUpdatedObservable
             .observeOn(ConcurrentDispatchQueueScheduler(qos: .userInitiated))
@@ -50,8 +57,10 @@ extension StellarPreSendHandler: IPreSendHandler {
         balanceSubject.eraseToAnyPublisher()
     }
 
-    func hasMemo(address _: String?) -> Bool {
-        true
+    // Chain-constant, so it reads the one table rather than restating it: a Stellar text memo is a
+    // public field of the payment (.onChainPublic).
+    func memoType(address _: String?) -> MemoType {
+        token.blockchainType.memoType
     }
 
     func sendData(amount: Decimal, address: String, memo: String?) -> SendDataResult {

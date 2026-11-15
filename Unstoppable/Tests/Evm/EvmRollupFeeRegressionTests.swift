@@ -1,72 +1,12 @@
 import BigInt
 import EvmKit
 import Foundation
-import RxSwift
 import XCTest
 @testable import WalletCore
 
 final class EvmRollupFeeRegressionTests: XCTestCase {
     private let recipient = try! EvmKit.Address(hex: "0x2222222222222222222222222222222222222222")
     private let gasPrice = GasPrice.eip1559(maxFeePerGas: 100, maxPriorityFeePerGas: 2)
-
-    func testMantleUsesEstimatedExecutionGasButRetainsExplicitSigningCeiling() throws {
-        let gasEstimator = GasEstimatorSpy(result: 100_000)
-        let feeProvider = MantleFeeProviderSpy(result: 777)
-        let service = EvmMantleGasDataService(
-            gasEstimator: gasEstimator,
-            mantleFeeProvider: feeProvider,
-            predefinedGasLimit: 250_000
-        )
-        let transaction = TransactionData(to: recipient, value: 42, input: Data([1, 2]))
-
-        let gasData = try awaitSingle(service.gasDataSingle(gasPrice: gasPrice, transactionData: transaction))
-        let rollup = try XCTUnwrap(gasData as? EvmFeeModule.RollupGasData)
-
-        XCTAssertEqual(rollup.limit, 250_000)
-        XCTAssertEqual(rollup.estimatedLimit, 100_000)
-        XCTAssertEqual(rollup.additionalFee, 777)
-        XCTAssertEqual(gasEstimator.requests.map(\.transactionData.value), [42])
-        XCTAssertEqual(feeProvider.requests.map(\.gasLimit), [100_000])
-    }
-
-    func testMantleSendAllUsesStubValueForGasAndAdditionalFeeSimulation() throws {
-        let gasEstimator = GasEstimatorSpy(result: 21_000)
-        let feeProvider = MantleFeeProviderSpy(result: 888)
-        let service = EvmMantleGasDataService(
-            gasEstimator: gasEstimator,
-            mantleFeeProvider: feeProvider,
-            predefinedGasLimit: nil
-        )
-        let transaction = TransactionData(to: recipient, value: 1_000_000, input: Data())
-
-        _ = try awaitSingle(service.gasDataSingle(gasPrice: gasPrice, transactionData: transaction, stubAmount: 1))
-
-        XCTAssertEqual(gasEstimator.requests.map(\.transactionData.value), [1])
-        XCTAssertEqual(feeProvider.requests.map(\.value), [1])
-        XCTAssertEqual(feeProvider.requests.map(\.gasLimit), [21_000])
-    }
-
-    func testBlastExplicitGasStillCallsL1Oracle() throws {
-        let gasEstimator = GasEstimatorSpy(result: 100_000)
-        var requestedGasLimits = [Int]()
-        let service = EvmRollupGasDataService(
-            gasEstimator: gasEstimator,
-            predefinedGasLimit: 250_000,
-            l1Fee: { _, gasLimit, _, _, _ in
-                requestedGasLimits.append(gasLimit)
-                return .just(999)
-            }
-        )
-        let transaction = TransactionData(to: recipient, value: 42, input: Data([1]))
-
-        let gasData = try awaitSingle(service.gasDataSingle(gasPrice: gasPrice, transactionData: transaction))
-        let rollup = try XCTUnwrap(gasData as? EvmFeeModule.RollupGasData)
-
-        XCTAssertEqual(rollup.limit, 250_000)
-        XCTAssertEqual(rollup.additionalFee, 999)
-        XCTAssertEqual(requestedGasLimits, [250_000])
-        XCTAssertTrue(gasEstimator.requests.isEmpty)
-    }
 
     func testWalletConnectExplicitGasStillInvokesFeeEstimator() async throws {
         var additionalFeeRequests = [(kind: EvmGasDataServiceKind, gasLimit: Int)]()
@@ -316,67 +256,6 @@ final class EvmRollupFeeRegressionTests: XCTestCase {
         XCTAssertEqual(result.surchargedGasLimit, 3_000_000)
     }
 
-    func testRxGasServiceCapsMarginAndRejectsExplicitGasAboveChainLimit() throws {
-        let transaction = TransactionData(to: recipient, value: 0, input: Data([1]))
-        let cappedService = EvmCommonGasDataService(
-            gasEstimator: GasEstimatorSpy(result: 2_900_000),
-            predefinedGasLimit: nil,
-            maximumGasLimit: 3_000_000
-        )
-
-        let capped = try awaitSingle(cappedService.gasDataSingle(gasPrice: gasPrice, transactionData: transaction))
-        XCTAssertEqual(capped.estimatedLimit, 2_900_000)
-        XCTAssertEqual(capped.limit, 3_000_000)
-
-        var calledOracle = false
-        let invalidExplicitService = EvmRollupGasDataService(
-            gasEstimator: GasEstimatorSpy(result: 21_000),
-            predefinedGasLimit: 3_000_001,
-            maximumGasLimit: 3_000_000,
-            l1Fee: { _, _, _, _, _ in
-                calledOracle = true
-                return .just(1)
-            }
-        )
-
-        XCTAssertThrowsError(try awaitSingle(invalidExplicitService.gasDataSingle(gasPrice: gasPrice, transactionData: transaction))) { error in
-            XCTAssertEqual(error as? EvmGasValidationError, .invalidGasLimit(3_000_001, maximum: 3_000_000))
-        }
-        XCTAssertFalse(calledOracle)
-    }
-
-    func testMantleRejectsInvalidEstimatedGasBeforeCallingFeeRpc() throws {
-        let feeProvider = MantleFeeProviderSpy(result: 1)
-        let service = EvmMantleGasDataService(
-            gasEstimator: GasEstimatorSpy(result: Int.max),
-            mantleFeeProvider: feeProvider,
-            predefinedGasLimit: 2_000_000,
-            maximumGasLimit: 3_000_000
-        )
-        let transaction = TransactionData(to: recipient, value: 0, input: Data([1]))
-
-        XCTAssertThrowsError(try awaitSingle(service.gasDataSingle(gasPrice: gasPrice, transactionData: transaction))) { error in
-            XCTAssertEqual(error as? EvmGasValidationError, .invalidGasLimit(Int.max, maximum: 3_000_000))
-        }
-        XCTAssertTrue(feeProvider.requests.isEmpty)
-    }
-
-    func testMantleRejectsExplicitGasBelowEstimatedRequirement() throws {
-        let feeProvider = MantleFeeProviderSpy(result: 1)
-        let service = EvmMantleGasDataService(
-            gasEstimator: GasEstimatorSpy(result: 300_000),
-            mantleFeeProvider: feeProvider,
-            predefinedGasLimit: 250_000,
-            maximumGasLimit: 3_000_000
-        )
-        let transaction = TransactionData(to: recipient, value: 0, input: Data([1]))
-
-        XCTAssertThrowsError(try awaitSingle(service.gasDataSingle(gasPrice: gasPrice, transactionData: transaction))) { error in
-            XCTAssertEqual(error as? EvmGasValidationError, .insufficientGasLimit(250_000, estimated: 300_000))
-        }
-        XCTAssertTrue(feeProvider.requests.isEmpty)
-    }
-
     func testGasPriceValidationRejectsInvalidEip1559OrderingBeforeRpc() async {
         let invalidGasPrice = GasPrice.eip1559(maxFeePerGas: 99, maxPriorityFeePerGas: 100)
         let transaction = TransactionData(to: recipient, value: 0, input: Data())
@@ -404,37 +283,145 @@ final class EvmRollupFeeRegressionTests: XCTestCase {
         XCTAssertFalse(calledEstimator)
     }
 
-    func testRxGasDataFeePromotesOperandsBeforeMultiplication() {
-        let gasData = EvmFeeModule.GasData(
-            limit: 10_000_000,
-            price: .legacy(gasPrice: 1_000_000_000_000)
-        )
+    func testSendAllSimulatesGasWithStubValueButKeepsRecipientAndCalldata() {
+        let transaction = TransactionData(to: recipient, value: 1_000_000, input: Data([1, 2]))
 
-        XCTAssertEqual(
-            gasData.fee,
-            BigUInt(10_000_000) * BigUInt(1_000_000_000_000)
-        )
-        XCTAssertEqual(
-            gasData.estimatedFee,
-            BigUInt(10_000_000) * BigUInt(1_000_000_000_000)
-        )
+        let simulation = EvmFeeEstimator.simulationTransactionData(transactionData: transaction, stubAmount: 1)
+        let unchanged = EvmFeeEstimator.simulationTransactionData(transactionData: transaction, stubAmount: nil)
+
+        XCTAssertEqual(simulation.value, 1)
+        XCTAssertEqual(simulation.to, transaction.to)
+        XCTAssertEqual(simulation.input, transaction.input)
+        XCTAssertEqual(unchanged.value, 1_000_000)
     }
 
-    func testRxGasDataRejectsInvalidReplacementPriceBeforeFeeConversion() {
-        let gasData = EvmFeeModule.GasData(
-            limit: 21_000,
-            price: .legacy(gasPrice: 100)
+    func testMantleSendAllPricesAdditionalFeeWithUnsurchargedEstimatedGas() async throws {
+        var additionalFeeRequests = [(kind: EvmGasDataServiceKind, gasLimit: Int)]()
+        let transaction = TransactionData(to: recipient, value: 1, input: Data())
+
+        let result = try await EvmFeeEstimator().estimateFee(
+            transactionData: transaction,
+            gasPrice: gasPrice,
+            predefinedGasLimit: nil,
+            feeServiceKind: .mantle,
+            evmBalance: 100_000_000,
+            estimateGas: { _ in 21_000 },
+            additionalFee: { kind, gasLimit in
+                additionalFeeRequests.append((kind, gasLimit))
+                return 888
+            }
         )
 
-        XCTAssertThrowsError(try gasData.set(price: .legacy(gasPrice: -1))) { error in
-            XCTAssertEqual(error as? EvmGasValidationError, .invalidGasPrice(-1))
+        XCTAssertEqual(result.gasLimit, 21_000)
+        XCTAssertEqual(result.surchargedGasLimit, 21_000)
+        XCTAssertEqual(result.l1Fee, 888)
+        XCTAssertEqual(additionalFeeRequests.map(\.kind), [.mantle])
+        XCTAssertEqual(additionalFeeRequests.map(\.gasLimit), [21_000])
+    }
+
+    func testOpStackExplicitGasStillCallsL1OracleWithoutReEstimating() async throws {
+        var additionalFeeRequests = [(kind: EvmGasDataServiceKind, gasLimit: Int)]()
+        let transaction = TransactionData(to: recipient, value: 42, input: Data([1]))
+
+        let result = try await EvmFeeEstimator().estimateFee(
+            transactionData: transaction,
+            gasPrice: gasPrice,
+            predefinedGasLimit: 250_000,
+            feeServiceKind: .opStack,
+            evmBalance: 100_000_000,
+            estimateGas: { _ in
+                XCTFail("A provider-supplied OP-stack gas limit must not be re-estimated")
+                return 100_000
+            },
+            additionalFee: { kind, gasLimit in
+                additionalFeeRequests.append((kind, gasLimit))
+                return 999
+            }
+        )
+
+        XCTAssertEqual(result.gasLimit, 250_000)
+        XCTAssertEqual(result.surchargedGasLimit, 250_000)
+        XCTAssertEqual(result.l1Fee, 999)
+        XCTAssertEqual(additionalFeeRequests.map(\.kind), [.opStack])
+        XCTAssertEqual(additionalFeeRequests.map(\.gasLimit), [250_000])
+    }
+
+    func testOpStackRejectsExplicitGasAboveChainLimitBeforeCallingOracle() async {
+        let transaction = TransactionData(to: recipient, value: 0, input: Data([1]))
+        var calledOracle = false
+
+        await XCTAssertThrowsErrorAsync(
+            try await EvmFeeEstimator().estimateFee(
+                transactionData: transaction,
+                gasPrice: gasPrice,
+                predefinedGasLimit: 3_000_001,
+                feeServiceKind: .opStack,
+                evmBalance: 1_000_000_000,
+                maximumGasLimit: 3_000_000,
+                estimateGas: { _ in 21_000 },
+                additionalFee: { _, _ in
+                    calledOracle = true
+                    return 1
+                }
+            )
+        ) { error in
+            XCTAssertEqual(error as? EvmGasValidationError, .invalidGasLimit(3_000_001, maximum: 3_000_000))
         }
-        XCTAssertEqual(gasData.price, .legacy(gasPrice: 100))
+        XCTAssertFalse(calledOracle)
+    }
+
+    func testMantleRejectsUnboundedEstimatedGasBeforeCallingFeeRpc() async {
+        let transaction = TransactionData(to: recipient, value: 0, input: Data([1]))
+        var calledAdditionalFee = false
+
+        await XCTAssertThrowsErrorAsync(
+            try await EvmFeeEstimator().estimateFee(
+                transactionData: transaction,
+                gasPrice: gasPrice,
+                predefinedGasLimit: 2_000_000,
+                feeServiceKind: .mantle,
+                evmBalance: 1_000_000_000,
+                maximumGasLimit: 3_000_000,
+                estimateGas: { _ in Int.max },
+                additionalFee: { _, _ in
+                    calledAdditionalFee = true
+                    return 1
+                }
+            )
+        ) { error in
+            XCTAssertEqual(error as? EvmGasValidationError, .invalidGasLimit(Int.max, maximum: 3_000_000))
+        }
+        XCTAssertFalse(calledAdditionalFee)
+    }
+
+    func testGasPriceValidationRejectsNonPositiveLegacyPriceBeforeRpc() async {
+        let transaction = TransactionData(to: recipient, value: 0, input: Data())
+
+        for invalidPrice in [0, -1] {
+            var calledEstimator = false
+            await XCTAssertThrowsErrorAsync(
+                try await EvmFeeEstimator().estimateFee(
+                    transactionData: transaction,
+                    gasPrice: .legacy(gasPrice: invalidPrice),
+                    predefinedGasLimit: nil,
+                    feeServiceKind: .standard,
+                    evmBalance: 1_000_000_000,
+                    estimateGas: { _ in
+                        calledEstimator = true
+                        return 21_000
+                    },
+                    additionalFee: { _, _ in nil }
+                )
+            ) { error in
+                XCTAssertEqual(error as? EvmGasValidationError, .invalidGasPrice(invalidPrice))
+            }
+            XCTAssertFalse(calledEstimator)
+        }
     }
 
     func testWalletConnectSignValidationRejectsGasAboveChainLimit() {
         XCTAssertThrowsError(
-            try WCSignEthereumTransactionRequestViewModel.validate(
+            try WalletConnectEvmFeePolicy.validate(
                 gasPrice: gasPrice,
                 gasLimit: 3_000_001,
                 maximumGasLimit: 3_000_000
@@ -446,57 +433,57 @@ final class EvmRollupFeeRegressionTests: XCTestCase {
 
     func testWalletConnectRejectsMalformedOrNegativeQuantitiesInsteadOfDroppingThem() throws {
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(gas: "-0x1"))
+            try WCEvmTransaction(raw: wcTransaction(gas: "-0x1"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .invalidQuantity("gas"))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .invalidQuantity("gas"))
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(gas: "0x10x2"))
+            try WCEvmTransaction(raw: wcTransaction(gas: "0x10x2"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .invalidQuantity("gas"))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .invalidQuantity("gas"))
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(gas: "0xffffffffffffffffffff"))
+            try WCEvmTransaction(raw: wcTransaction(gas: "0xffffffffffffffffffff"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .invalidQuantity("gas"))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .invalidQuantity("gas"))
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(value: "0xnot-a-number"))
+            try WCEvmTransaction(raw: wcTransaction(value: "0xnot-a-number"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .invalidQuantity("value"))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .invalidQuantity("value"))
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(value: "0x1" + String(repeating: "0", count: 64)))
+            try WCEvmTransaction(raw: wcTransaction(value: "0x1" + String(repeating: "0", count: 64)))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .invalidQuantity("value"))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .invalidQuantity("value"))
         }
     }
 
     func testWalletConnectRejectsMalformedCalldataAndIncompleteEip1559Price() {
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(data: "0x0g"))
+            try WCEvmTransaction(raw: wcTransaction(data: "0x0g"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .invalidData)
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .malformedParams)
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(maxFeePerGas: "0x64"))
+            try WCEvmTransaction(raw: wcTransaction(maxFeePerGas: "0x64"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .incompleteEip1559GasPrice)
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .incompleteEip1559GasPrice)
         }
     }
 
     func testWalletConnectRejectsUnsupportedOrContradictoryTransactionTypes() {
         XCTAssertThrowsError(
-            try WalletConnectTransaction(
-                transaction: wcTransaction(
+            try WCEvmTransaction(
+                raw: wcTransaction(
                     type: "0x2",
                     accessList: [
-                        WCEthereumAccessListEntry(
+                        WCEvmAccessListEntry(
                             address: recipient.hex,
                             storageKeys: ["0x" + String(repeating: "0", count: 64)]
                         ),
@@ -504,43 +491,43 @@ final class EvmRollupFeeRegressionTests: XCTestCase {
                 )
             )
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .unsupportedAccessList)
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .unsupportedAccessList)
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(
-                transaction: wcTransaction(
+            try WCEvmTransaction(
+                raw: wcTransaction(
                     gasPrice: "0x64",
                     maxPriorityFeePerGas: "0x2",
                     maxFeePerGas: "0x64"
                 )
             )
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .conflictingGasPriceFields)
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .conflictingGasPriceFields)
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(gasPrice: "0x64", type: "0x2"))
+            try WCEvmTransaction(raw: wcTransaction(gasPrice: "0x64", type: "0x2"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .incompatibleTransactionType(2))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .incompatibleTransactionType(2))
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(
-                transaction: wcTransaction(
+            try WCEvmTransaction(
+                raw: wcTransaction(
                     maxPriorityFeePerGas: "0x2",
                     maxFeePerGas: "0x64",
                     type: "0x0"
                 )
             )
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .incompatibleTransactionType(0))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .incompatibleTransactionType(0))
         }
 
         XCTAssertThrowsError(
-            try WalletConnectTransaction(transaction: wcTransaction(type: "0x1"))
+            try WCEvmTransaction(raw: wcTransaction(type: "0x1"))
         ) { error in
-            XCTAssertEqual(error as? WalletConnectTransaction.TransactionError, .unsupportedTransactionType(1))
+            XCTAssertEqual(error as? WCEvmTransaction.ParsingError, .unsupportedTransactionType(1))
         }
     }
 
@@ -551,14 +538,14 @@ final class EvmRollupFeeRegressionTests: XCTestCase {
         XCTAssertThrowsError(
             try WalletConnectAccountPolicy.validate(requestedFrom: requested, activeAddress: active)
         ) { error in
-            XCTAssertEqual(error as? WalletConnectRequest.CreationError, .invalidFromAddress)
+            XCTAssertEqual(error as? WalletConnectAccountPolicy.ValidationError, .invalidFromAddress)
         }
         XCTAssertNoThrow(try WalletConnectAccountPolicy.validate(requestedFrom: requested, activeAddress: requested))
     }
 
     func testWalletConnectParsesValidJsonRpcQuantitiesWithoutGlobalPrefixReplacement() throws {
-        let transaction = try WalletConnectTransaction(
-            transaction: wcTransaction(
+        let transaction = try WCEvmTransaction(
+            raw: wcTransaction(
                 nonce: "0x2a",
                 gasPrice: "0x64",
                 gas: "0x5208",
@@ -607,10 +594,10 @@ final class EvmRollupFeeRegressionTests: XCTestCase {
         maxFeePerGas: String? = nil,
         type: String? = nil,
         value: String? = nil,
-        accessList: [WCEthereumAccessListEntry]? = nil,
-        data: String = "0x"
-    ) -> WCEthereumTransaction {
-        WCEthereumTransaction(
+        accessList: [WCEvmAccessListEntry]? = nil,
+        data: String? = "0x"
+    ) -> WCEvmRawTransaction {
+        WCEvmRawTransaction(
             from: "0x1111111111111111111111111111111111111111",
             to: recipient.hex,
             nonce: nonce,
@@ -625,71 +612,6 @@ final class EvmRollupFeeRegressionTests: XCTestCase {
             data: data
         )
     }
-}
-
-private final class GasEstimatorSpy: IEvmGasEstimating {
-    struct Request {
-        let transactionData: TransactionData
-        let gasPrice: GasPrice?
-    }
-
-    private(set) var requests = [Request]()
-    private let result: Int
-
-    init(result: Int) {
-        self.result = result
-    }
-
-    func estimateGas(transactionData: TransactionData, gasPrice: GasPrice?) -> Single<Int> {
-        requests.append(Request(transactionData: transactionData, gasPrice: gasPrice))
-        return .just(result)
-    }
-}
-
-private final class MantleFeeProviderSpy: IMantleFeeProviding {
-    struct Request {
-        let gasLimit: Int
-        let to: EvmKit.Address
-        let value: BigUInt
-        let data: Data
-    }
-
-    private(set) var requests = [Request]()
-    private let result: BigUInt
-
-    init(result: BigUInt) {
-        self.result = result
-    }
-
-    func additionalFee(gasLimit: Int, to: EvmKit.Address, value: BigUInt, data: Data) async throws -> BigUInt {
-        requests.append(Request(gasLimit: gasLimit, to: to, value: value, data: data))
-        return result
-    }
-}
-
-private func awaitSingle<Element>(_ single: Single<Element>) throws -> Element {
-    let semaphore = DispatchSemaphore(value: 0)
-    var result: Result<Element, Error>?
-    let disposable = single.subscribe(
-        onSuccess: {
-            result = .success($0)
-            semaphore.signal()
-        },
-        onError: {
-            result = .failure($0)
-            semaphore.signal()
-        }
-    )
-
-    defer { disposable.dispose() }
-    guard semaphore.wait(timeout: .now() + 5) == .success, let result else {
-        throw TestError.timeout
-    }
-    return try result.get()
-}
-
-private enum TestError: Error {
-    case timeout
 }
 
 private func XCTAssertThrowsErrorAsync<T>(

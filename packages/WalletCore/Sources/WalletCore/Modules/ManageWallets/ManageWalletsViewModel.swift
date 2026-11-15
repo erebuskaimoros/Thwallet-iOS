@@ -20,6 +20,7 @@ class ManageWalletsViewModel: ObservableObject {
     @Published var filter = ""
 
     let blockchains: [Blockchain]
+    let canAddToken: Bool
     @Published var blockchainFilter: Blockchain? = nil {
         didSet {
             guard blockchainFilter != oldValue else {
@@ -30,13 +31,10 @@ class ManageWalletsViewModel: ObservableObject {
         }
     }
 
-    var canAddToken: Bool {
-        account.type.canAddTokens
-    }
-
     init(account: Account, restoreSettingsService: RestoreSettingsService) {
         self.account = account
         self.restoreSettingsService = restoreSettingsService
+        canAddToken = !AddTokenModule.items(account: account).isEmpty
         tokenInfoProvider = ManageWalletsTokenInfoProvider(restoreSettingsService: restoreSettingsService)
 
         wallets = Set(walletManager.activeWallets)
@@ -189,7 +187,10 @@ extension ManageWalletsViewModel {
     }
 
     private func enable(token: Token) {
-        if !token.blockchainType.restoreSettingTypes.isEmpty {
+        // settings are asked once per chain: a token of a chain already running uses that chain's settings
+        let chainEnabled = wallets.contains { $0.token.blockchainType == token.blockchainType }
+
+        if !token.blockchainType.restoreSettingTypes.isEmpty, !chainEnabled {
             restoreSettingsService.approveSettings(token: token, account: account)
         } else {
             saveWallet(for: token)

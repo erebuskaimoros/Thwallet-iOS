@@ -61,7 +61,7 @@ class SwapInfoViewModel: ObservableObject {
         let rateKeyOut = RateKey(token: swap.tokenOut, date: swap.date)
 
         var fields: [SendField] = []
-        if !swap.status.isExpected {
+        if [.swap, .splitSwap].contains(swap.operation), !swap.status.isExpected {
             fields.append(
                 .simpleValue(
                     title: "swap_info.provider".localized,
@@ -77,7 +77,27 @@ class SwapInfoViewModel: ObservableObject {
             )
         )
 
-        if let recipient = swap.recipient {
+        if [.swap, .splitSwap].contains(swap.operation) {
+            // The estimate captured when the swap was sent; single route, so no baseline.
+            let precise = SwapProviderFactory.provider(id: swap.providerId)?.preciseEstimateTime ?? true
+            if let timeState = MultiSwapViewModel.timeState(for: swap.estimatedTime, precise: precise, baseline: nil) {
+                fields.append(
+                    .simpleValue(
+                        title: ComponentInformedTitle("swap.swapped_time".localized, info: .swapTime),
+                        value: ComponentText(text: MultiSwapQuotesView.string(time: timeState.value), colorStyle: timeState.colorStyle)
+                    )
+                )
+            }
+        } else if swap.isPending, let estimatedTime = swap.estimatedTime {
+            fields.append(
+                .simpleValue(
+                    title: "private_send.estimated_time".localized,
+                    value: Duration.seconds(estimatedTime).formatted(.units(allowed: [.hours, .minutes, .seconds], width: .narrow))
+                )
+            )
+        }
+
+        if swap.operation != .privateSend, let recipient = swap.recipient {
             fields.append(
                 .recipient(
                     title: "swap_info.recipient".localized,
@@ -88,25 +108,96 @@ class SwapInfoViewModel: ObservableObject {
             )
         }
 
+        let amountIn = SendField.amount(
+            token: swap.tokenIn,
+            appValueType: .regular(appValue: AppValue(token: swap.tokenIn, value: swap.amountIn)),
+            currencyValue: rates[rateKeyIn].map { CurrencyValue(currency: $0.currency, value: swap.amountIn * $0.value) },
+        )
+
+        let amountOut = SendField.amount(
+            token: swap.tokenOut,
+            appValueType: .regular(appValue: AppValue(token: swap.tokenOut, value: swap.amountOut)),
+            currencyValue: rates[rateKeyOut].map { CurrencyValue(currency: $0.currency, value: swap.amountOut * $0.value) },
+        )
+
+        let flowSection: SendDataSection
+
+        // the split layout needs every recipient's amount; until the track reports them it reads as one swap
+        if swap.operation == .splitSwap, let outputs = swap.outputs, !outputs.isEmpty, outputs.allSatisfy({ $0.toAmount != nil }) {
+            flowSection = splitFlowSection(amountIn: amountIn, outputs: outputs, rate: rates[rateKeyOut])
+        } else {
+            // Private send mirrors its confirmation: what the recipient gets, then the recipient
+            let flowFields: [SendField] = switch swap.operation {
+            case .privateSend: [amountOut] + (swap.recipient.map { [.address(value: $0, blockchainType: swap.tokenOut.blockchainType)] } ?? [])
+            case .swap, .splitSwap, .crossPay: [amountIn, amountOut]
+            }
+
+            flowSection = .init(flowFields, isFlow: true)
+        }
+
         let sections: [SendDataSection] = [
-            .init([
-                .amount(
-                    token: swap.tokenIn,
-                    appValueType: .regular(appValue: AppValue(token: swap.tokenIn, value: swap.amountIn)),
-                    currencyValue: rates[rateKeyIn].map { CurrencyValue(currency: $0.currency, value: swap.amountIn * $0.value) },
-                ),
-                .amount(
-                    token: swap.tokenOut,
-                    appValueType: .regular(appValue: AppValue(token: swap.tokenOut, value: swap.amountOut)),
-                    currencyValue: rates[rateKeyOut].map { CurrencyValue(currency: $0.currency, value: swap.amountOut * $0.value) },
-                ),
-            ], isFlow: true),
+            flowSection,
             .init(fields, isMain: false),
         ]
 
         DispatchQueue.main.async {
             self.sections = sections
         }
+    }
+
+    // Input, then an output + address pair per recipient, as on the split confirmation
+    private func splitFlowSection(amountIn: SendField, outputs: [Swap.Output], rate: CurrencyValue?) -> SendDataSection {
+        var fields = [amountIn]
+        // dividers[i] sits after fields[i], so each one is added together with the field it precedes
+        var dividers = [SendDataSection.FlowDivider]()
+        let percents = Self.percents(outputs: outputs)
+
+        for (position, output) in outputs.enumerated() {
+            let amount = output.toAmount ?? 0
+
+            dividers.append(position == 0 ? .arrow : .line)
+            fields.append(
+                .splitOutput(
+                    token: swap.tokenOut,
+                    percent: percents[position],
+                    appValueType: .regular(appValue: AppValue(token: swap.tokenOut, value: amount)),
+                    currencyValue: rate.map { CurrencyValue(currency: $0.currency, value: amount * $0.value) }
+                )
+            )
+
+            if let toAddress = output.toAddress {
+                dividers.append(.hidden)
+                fields.append(
+                    .recipient(
+                        title: "swap.private.address".localized(output.index + 1),
+                        value: toAddress,
+                        copyable: true,
+                        blockchainType: swap.tokenOut.blockchainType
+                    )
+                )
+            }
+        }
+
+        return .init(fields, isFlow: true, flowDividers: dividers)
+    }
+
+    // Each output's share of the deposit; the last one takes the rounding remainder so they add up to 100
+    static func percents(outputs: [Swap.Output]) -> [Int] {
+        // One unit for every output: the deposit shares (tokenIn) when all are known, else the payouts (tokenOut)
+        let fromAmounts = outputs.compactMap(\.fromAmount)
+        let amounts = fromAmounts.count == outputs.count ? fromAmounts : outputs.map { $0.toAmount ?? 0 }
+        let total = amounts.reduce(0, +)
+
+        guard total > 0 else {
+            return outputs.map { _ in 0 }
+        }
+
+        var percents = amounts.dropLast().map { amount in
+            NSDecimalNumber(decimal: amount / total * 100).rounding(accordingToBehavior: nil).intValue
+        }
+        percents.append(100 - percents.reduce(0, +))
+
+        return percents
     }
 
     private func syncLegs() {
@@ -119,26 +210,71 @@ class SwapInfoViewModel: ObservableObject {
             return
         }
 
+        if swap.operation == .splitSwap, let outputs = swap.outputs, !outputs.isEmpty {
+            legs = splitLegs(outputs: outputs, fromAsset: fromAsset, toAsset: toAsset)
+            return
+        }
+
         if swap.status == .actionRequired {
             legs = actionRequiredLegs(existingLegs: swapLegs)
             return
         }
 
-        legs = swapLegs.enumerated().map { _, leg in
-            var title = "swap_info.unknown".localized
+        legs = swapLegs.map { leg(leg: $0, fromAsset: fromAsset, toAsset: toAsset) }
+    }
 
-            if leg.type == USwapMultiSwapProvider.legTypeNativeSend {
-                if leg.fromAsset == fromAsset {
-                    title = "swap_info.deposit".localized(swap.tokenIn.coin.code)
-                } else if leg.toAsset == toAsset {
-                    title = "swap_info.send".localized(swap.tokenOut.coin.code)
-                }
-            } else if leg.type == USwapMultiSwapProvider.legTypeSwap {
-                title = "swap_info.swap".localized
+    // Every output reports its share of the one deposit tx as its own deposit leg: those collapse into a
+    // single shared step on top, followed by each recipient's own steps, numbered by recipient
+    private func splitLegs(outputs: [Swap.Output], fromAsset: String, toAsset: String) -> [Leg] {
+        let isDeposit: (Swap.Leg) -> Bool = { $0.type == USwapMultiSwapProvider.legTypeNativeSend && $0.fromAsset == fromAsset }
+
+        var depositGroups = [(txHash: String, legs: [Swap.Leg])]()
+        for depositLeg in outputs.flatMap(\.legs).filter(isDeposit) {
+            if let index = depositGroups.firstIndex(where: { $0.txHash == depositLeg.txHash }) {
+                depositGroups[index].legs.append(depositLeg)
+            } else {
+                depositGroups.append((txHash: depositLeg.txHash, legs: [depositLeg]))
+            }
+        }
+
+        let depositLegs = depositGroups.compactMap { group -> Leg? in
+            guard let first = group.legs.first else {
+                return nil
             }
 
-            return Leg(title: title, status: leg.status, url: explorerUrl(chainId: leg.chainId, hash: leg.txHash))
+            return Leg(
+                title: "swap_info.deposit".localized(swap.tokenIn.coin.code),
+                status: group.legs.first(where: { $0.status != .completed })?.status ?? .completed,
+                url: group.txHash.isEmpty ? nil : explorerUrl(chainId: first.chainId, hash: group.txHash)
+            )
         }
+
+        let outputLegs = outputs.flatMap { output in
+            output.legs.filter { !isDeposit($0) }.map { leg(leg: $0, fromAsset: fromAsset, toAsset: toAsset, recipientNumber: output.index + 1) }
+        }
+
+        return depositLegs + outputLegs
+    }
+
+    private func leg(leg: Swap.Leg, fromAsset: String, toAsset: String, recipientNumber: Int? = nil) -> Leg {
+        var title = "swap_info.unknown".localized
+
+        if leg.type == USwapMultiSwapProvider.legTypeNativeSend {
+            if leg.fromAsset == fromAsset {
+                title = "swap_info.deposit".localized(swap.tokenIn.coin.code)
+            } else if leg.toAsset == toAsset {
+                let code = recipientNumber.map { "\(swap.tokenOut.coin.code) \($0)" } ?? swap.tokenOut.coin.code
+                title = "swap_info.receive".localized(code)
+            }
+        } else if leg.type == USwapMultiSwapProvider.legTypeSwap {
+            title = recipientNumber.map { "\("swap_info.swap".localized) \($0)" } ?? "swap_info.swap".localized
+        }
+
+        return Leg(
+            title: title,
+            status: leg.status,
+            url: leg.txHash.isEmpty ? nil : explorerUrl(chainId: leg.chainId, hash: leg.txHash)
+        )
     }
 
     private func actionRequiredLegs(existingLegs: [Swap.Leg]) -> [Leg] {
@@ -180,7 +316,7 @@ class SwapInfoViewModel: ObservableObject {
         default: ()
         }
 
-        guard let blockchainType = USwapMultiSwapProvider.blockchainTypeMap[chainId] else {
+        guard let blockchainType = USwapAssetRepository.blockchainTypeMap[chainId] else {
             return nil
         }
 

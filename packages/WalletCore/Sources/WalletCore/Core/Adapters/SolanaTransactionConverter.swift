@@ -3,6 +3,20 @@ import MarketKit
 import SolanaKit
 
 class SolanaTransactionConverter {
+    // Display labels for the swap programs SolanaKit recognizes (`Transaction.programIds`).
+    // Mirrors the EVM flow, where the exchange contract address maps to a label ("1inch v5").
+    private static let swapProgramLabels: [(program: String, label: String)] = [
+        (KnownPrograms.oneInchFusion, "1inch"),
+        (KnownPrograms.jupiterV6, "Jupiter"),
+        (KnownPrograms.lifi, "LI.FI"),
+        (KnownPrograms.dflow, "DFlow"),
+    ]
+
+    // ≈ one account's rent: classic ATA (165 bytes) ~0.00204 SOL, Token-2022 with extensions
+    // 0.00207–0.00220 (mainnet 0.00210888 for a Pump.fun ATA). Applied to the NET SOL change, so a
+    // real payment bundled with a create pushes past the bound and stays visible.
+    private static let maxSolRent = Decimal(string: "0.0023")!
+
     private let userAddress: String
     private let source: TransactionSource
     private let baseToken: Token
@@ -13,6 +27,34 @@ class SolanaTransactionConverter {
         self.source = source
         self.baseToken = baseToken
         self.coinManager = coinManager
+    }
+
+    // Aggregator priority, independent of instruction order (Fusion can execute via Jupiter).
+    static func swapExchangeName(programIds: String?) -> String? {
+        guard let programIds else { return nil }
+        let invokedPrograms = Set(programIds.split(separator: " ").map(String.init))
+        return swapProgramLabels.first { invokedPrograms.contains($0.program) }?.label
+    }
+
+    // The swap-relevant leg of one side: the SPL transfer when a native-SOL leg rides along
+    // (token-account rent), otherwise the single/first leg (a genuinely-SOL swap side).
+    private func primaryTransfer(among transfers: [SolanaTransactionRecord.Transfer]) -> SolanaTransactionRecord.Transfer? {
+        transfers.first { $0.value.token != baseToken } ?? transfers.first
+    }
+
+    // A side that is exactly one token leg plus small SOL legs (each ≤ maxSolRent) is one logical
+    // transfer plus token-account rent — reduce it to the token leg. createdTokenAccount decides:
+    // true → rent, false → real SOL transfer (kept), nil (row synced before the flag) → treat as rent.
+    private func collapseTokenWithSolRent(_ transfers: [SolanaTransactionRecord.Transfer], createdTokenAccount: Bool?) -> [SolanaTransactionRecord.Transfer] {
+        guard transfers.count > 1 else { return transfers }
+
+        let solLegs = transfers.filter { $0.value.token == baseToken }
+        let tokenLegs = transfers.filter { $0.value.token != baseToken }
+
+        guard tokenLegs.count == 1, !solLegs.isEmpty else { return transfers }
+        guard solLegs.allSatisfy({ abs($0.value.value) <= Self.maxSolRent }) else { return transfers }
+
+        return (createdTokenAccount ?? true) ? tokenLegs : transfers
     }
 
     private func convertAmount(rawAmount: Decimal, decimals: Int, sign: FloatingPointSign) -> Decimal {
@@ -70,9 +112,33 @@ class SolanaTransactionConverter {
             }
         }
 
+        // A recognized DEX interaction (via SolanaKit KnownPrograms) renders as a swap — we key purely
+        // on the invoked program. Same-chain swaps (Jupiter) carry legs on both sides; a CROSS-CHAIN
+        // LI.FI swap FROM Solana carries only the OUTGOING side (the bought asset lands on another
+        // chain); a pending swap carries no legs yet (the kit stores no balance changes until
+        // confirmation) — all are swaps. A side can carry a spurious SOL leg next to the real SPL one
+        // (tx fee / token-account rent), so each side prefers its non-SOL leg via `primaryTransfer`
+        // (`valueIn`/`valueOut` are nil when that side has no leg).
+        if let exchangeName = Self.swapExchangeName(programIds: transaction.programIds) {
+            return SolanaSwapTransactionRecord(
+                transaction: transaction,
+                baseToken: baseToken,
+                source: source,
+                exchangeName: exchangeName,
+                valueIn: primaryTransfer(among: outgoingTransfers)?.value,
+                valueOut: primaryTransfer(among: incomingTransfers)?.value
+            )
+        }
+
+        // A plain SPL send/receive also moves a little SOL for token-account rent (when the
+        // recipient's account has to be created) — without the collapse such sends fall through
+        // to "Unknown Transaction".
+        let effectiveIncoming = collapseTokenWithSolRent(incomingTransfers, createdTokenAccount: transaction.createdTokenAccount)
+        let effectiveOutgoing = collapseTokenWithSolRent(outgoingTransfers, createdTokenAccount: transaction.createdTokenAccount)
+
         // Classify the transaction
-        if incomingTransfers.count == 1, outgoingTransfers.isEmpty {
-            let transfer = incomingTransfers[0]
+        if effectiveIncoming.count == 1, effectiveOutgoing.isEmpty {
+            let transfer = effectiveIncoming[0]
             return SolanaIncomingTransactionRecord(
                 transaction: transaction,
                 baseToken: baseToken,
@@ -80,8 +146,8 @@ class SolanaTransactionConverter {
                 from: transfer.address,
                 value: transfer.value
             )
-        } else if incomingTransfers.isEmpty, outgoingTransfers.count == 1 {
-            let transfer = outgoingTransfers[0]
+        } else if effectiveIncoming.isEmpty, effectiveOutgoing.count == 1 {
+            let transfer = effectiveOutgoing[0]
             return SolanaOutgoingTransactionRecord(
                 transaction: transaction,
                 baseToken: baseToken,

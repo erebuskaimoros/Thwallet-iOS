@@ -1,20 +1,18 @@
-import BigInt
 import Combine
-import Eip20Kit
-import EvmKit
 import Foundation
 import MarketKit
-import SolanaKit
-import ZanoKit
 
-class MultiSwapSendHandler {
+class MultiSwapSendHandler: SendHandler {
+    override class func instance(sendData: WalletCore.SendData) -> ISendHandler? {
+        guard case let .swap(tokenIn, tokenOut, amountIn, provider, multiSwapQuote, recipientHolder) = sendData else { return nil }
+        return instance(tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, provider: provider, multiSwapQuote: multiSwapQuote, recipientHolder: recipientHolder)
+    }
+
     private let currencyManager = Core.shared.currencyManager
     private let marketKit = Core.shared.marketKit
     private let accountManager = Core.shared.accountManager
     private let walletManager = Core.shared.walletManager
-    private let evmBlockchainManager = Core.shared.evmBlockchainManager
-    private let adapterManager = Core.shared.adapterManager
-    private let tronKitManager = Core.shared.tronAccountManager.tronKitManager
+    private let restoreSettingsManager = Core.shared.restoreSettingsManager
     private let swapHistoryManager = Core.shared.swapHistoryManager
     private let mevProtectionHelper = MevProtectionHelper()
 
@@ -29,17 +27,40 @@ class MultiSwapSendHandler {
     let multiSwapQuote: MultiSwapQuote
 
     private var slippage = MultiSwapSlippage.default
-    private var recipient: String?
+
+    // Shared with the swap screen: an edit here must be visible to the pre-confirmation
+    // recipient page, which pre-fills from the same box when the user returns to it.
+    private let recipientHolder: SwapExternalRecipientHolder
+    private var recipient: String? {
+        get { recipientHolder.address }
+        set { recipientHolder.address = newValue }
+    }
+
+    // tokenOut the account can't hold — the recipient was entered before confirmation,
+    // is mandatory and must not be cleared (there is no own-wallet address to fall back to)
+    private var recipientRequired: Bool {
+        guard let accountType = accountManager.activeAccount?.type else {
+            return false
+        }
+
+        return !accountType.supports(token: tokenOut)
+    }
+
+    // resolved once per confirmation: the mechanism is fixed by (chain, account)
+    private lazy var broadcaster: ISwapBroadcaster? = accountManager.activeAccount.flatMap {
+        try? SwapBroadcasterFactory.broadcaster(blockchainType: tokenIn.blockchainType, account: $0)
+    }
 
     private let refreshSubject = PassthroughSubject<Void, Never>()
 
-    init(baseToken: Token, tokenIn: Token, tokenOut: Token, amountIn: Decimal, provider: IMultiSwapProvider, multiSwapQuote: MultiSwapQuote) {
+    init(baseToken: Token, tokenIn: Token, tokenOut: Token, amountIn: Decimal, provider: IMultiSwapProvider, multiSwapQuote: MultiSwapQuote, recipientHolder: SwapExternalRecipientHolder) {
         self.baseToken = baseToken
         self.tokenIn = tokenIn
         self.tokenOut = tokenOut
         self.amountIn = amountIn
         self.provider = provider
         self.multiSwapQuote = multiSwapQuote
+        self.recipientHolder = recipientHolder
     }
 }
 
@@ -66,14 +87,13 @@ extension MultiSwapSendHandler: ISendHandler {
     }
 
     var expirationDuration: Int? {
-        15
+        broadcaster?.expirationDuration ?? 15
     }
 
-    // The swap confirm screen holds a committed provider quote (USwap's /v2/swap, and the
-    // equivalent commit call on every other provider). Don't auto re-request it on expiry —
-    // surface a "Refresh" button and let the user pull a fresh quote on demand.
+    // The confirmation quote has no side effects (USwap previews; the order is created by
+    // `provider.commit(finalQuote:)` when the user slides), so it is silently re-requested on expiry.
     var autoRefreshEnabled: Bool {
-        false
+        true
     }
 
     var menuItems: [SendMenuItem] {
@@ -102,10 +122,27 @@ extension MultiSwapSendHandler: ISendHandler {
                     return
                 }
 
+                // Only vault-settled providers (per their /v3/providers executionType) deliver ZEC to
+                // shielded/unified receivers, and only when the sell chain's memo can name one (an
+                // OP_RETURN cannot) — every other route needs a transparent recipient (CEX routes
+                // reject shielded ones at order creation), matching the restriction on the
+                // pre-confirmation recipient page.
+                let deliversShielded = Core.shared.swapProviderManager.deliversShieldedZcash(providerId: provider.id, tokenIn: tokenIn)
+                let parserFilter: AddressParserFactory.ParserFilter? = tokenOut.blockchainType == .zcash && !deliversShielded ? .zCashTransparentOnly : nil
+
                 Coordinator.shared.present { _ in
-                    MultiSwapRecipientView(address: self.recipient, token: self.tokenOut) { [weak self] recipient in
-                        self?.recipient = recipient
-                        self?.refreshSubject.send()
+                    MultiSwapRecipientView(address: self.recipient, token: self.tokenOut, allowRemoval: !self.recipientRequired, parserFilter: parserFilter) { [weak self] recipient in
+                        guard let self else {
+                            return
+                        }
+
+                        // a mandatory external recipient can be changed but never cleared
+                        if recipient == nil, recipientRequired {
+                            return
+                        }
+
+                        self.recipient = recipient
+                        refreshSubject.send()
                     }
                 }
             }
@@ -119,6 +156,14 @@ extension MultiSwapSendHandler: ISendHandler {
     }
 
     func sendData(transactionSettings: TransactionSettings?) async throws -> ISendData {
+        guard let account = accountManager.activeAccount else {
+            throw SendError.noActiveAccount
+        }
+
+        guard !account.watchAccount else {
+            throw SwapBroadcasterError.noBroadcaster
+        }
+
         let quote = try await provider.confirmationQuote(
             multiSwapQuote: multiSwapQuote,
             tokenIn: tokenIn,
@@ -128,10 +173,18 @@ extension MultiSwapSendHandler: ISendHandler {
             recipient: recipient,
             transactionSettings: transactionSettings
         )
+        quote.preciseEstimateTime = provider.preciseEstimateTime
 
-        let otherSections = provider.mevProtectionAllowed(tokenIn: tokenIn, tokenOut: tokenOut) ? [mevProtectionHelper.section()] : []
+        guard let broadcaster else {
+            throw SwapBroadcasterError.noBroadcaster
+        }
 
-        return SendData(tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, quote: quote, otherSections: otherSections)
+        // MEV eligibility rides on the quote (set by the provider when it builds the quote); the toggle itself
+        // is read live at submit-time by the broadcaster (routing flag, not tx content)
+        let otherSections = quote.mevProtectionAllowed ? [mevProtectionHelper.section()] : []
+
+        // the executable is built at send time: commit may rebuild the quote (transfer providers)
+        return SendData(tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, quote: quote, broadcaster: broadcaster, otherSections: otherSections)
     }
 
     func send(data: ISendData) async throws {
@@ -139,156 +192,102 @@ extension MultiSwapSendHandler: ISendHandler {
             throw SendError.invalidData
         }
 
-        var txHash: String?
-
-        if let quote = data.quote as? EvmSwapFinalQuote {
-            guard let transactionData = quote.transactionData else {
-                throw SendError.invalidTransactionData
-            }
-
-            guard let gasLimit = quote.evmFeeData?.surchargedGasLimit else {
-                throw SendError.noGasLimit
-            }
-
-            guard let gasPrice = quote.gasPrice else {
-                throw SendError.noGasPrice
-            }
-
-            guard let evmKitWrapper = try evmBlockchainManager.evmKitManager(blockchainType: tokenIn.blockchainType).evmKitWrapper else {
-                throw SendError.noEvmKitWrapper
-            }
-
-            let fullTransaction = try await evmKitWrapper.send(
-                transactionData: transactionData,
-                gasPrice: gasPrice,
-                gasLimit: gasLimit,
-                privateSend: provider.mevProtectionAllowed(tokenIn: tokenIn, tokenOut: tokenOut) && mevProtectionHelper.isActive,
-                nonce: quote.nonce
-            )
-
-            txHash = fullTransaction.transaction.hash.hs.hexString
-        } else if let quote = data.quote as? UtxoSwapFinalQuote {
-            guard let adapter = adapterManager.adapter(for: tokenIn) as? BitcoinBaseAdapter else {
-                throw SendError.noBitcoinAdapter
-            }
-
-            guard let sendParameters = quote.sendParameters else {
-                throw SendError.noSendParameters
-            }
-
-            let fullTransaction = try adapter.send(params: sendParameters)
-
-            txHash = fullTransaction.header.dataHash.hs.reversedHex
-        } else if let quote = data.quote as? ZcashSwapFinalQuote {
-            guard let adapter = adapterManager.adapter(for: tokenIn) as? ZcashAdapter else {
-                throw SendError.noZcashAdapter
-            }
-
-            guard let proposal = quote.proposal else {
-                throw SendError.noProposal
-            }
-
-            let hash = try await adapter.send(proposal: proposal)
-
-            txHash = hash
-        } else if let quote = data.quote as? TonSwapFinalQuote {
-            guard let account = Core.shared.accountManager.activeAccount else {
-                throw SendError.noTonAdapter
-            }
-
-            let (publicKey, secretKey) = try TonKitManager.keyPair(accountType: account.type)
-            let contract = TonKitManager.contract(publicKey: publicKey)
-
-            let transferData = try TonSendHelper.transferData(
-                param: quote.transactionParam,
-                contract: contract
-            )
-
-            _ = try await TonSendHelper.send(
-                transferData: transferData,
-                contract: contract,
-                secretKey: secretKey
-            )
-        } else if let quote = data.quote as? TronSwapFinalQuote {
-            guard let tronKitWrapper = tronKitManager.tronKitWrapper else {
-                throw SendError.noTronKitWrapper
-            }
-
-            _ = try await tronKitWrapper.send(createdTranaction: quote.createdTransaction)
-        } else if let quote = data.quote as? StellarSwapFinalQuote {
-            guard let account = accountManager.activeAccount else {
-                throw SendError.noActiveAccount
-            }
-
-            let keyPair = try StellarKitManager.keyPair(accountType: account.type)
-            try await StellarSendHelper.send(
-                transactionData: quote.transactionData,
-                token: tokenIn,
-                adjustNativeBalance: false,
-                keyPair: keyPair
-            )
-        } else if let quote = data.quote as? MoneroSwapFinalQuote {
-            guard let adapter = adapterManager.adapter(for: tokenIn) as? MoneroAdapter else {
-                throw SendError.noMoneroAdapter
-            }
-
-            try adapter.send(
-                to: quote.address,
-                amount: quote.amount,
-                priority: quote.priority,
-                memo: quote.memo
-            )
-        } else if let quote = data.quote as? ZanoSwapFinalQuote {
-            guard let adapter = adapterManager.adapter(for: tokenIn) as? ZanoAdapter else {
-                throw SendError.noZanoAdapter
-            }
-
-            try adapter.send(to: quote.address, amount: quote.amount, memo: quote.memo)
-        } else if let quote = data.quote as? SolanaSwapFinalQuote {
-            guard let account = accountManager.activeAccount else {
-                throw SendError.noActiveAccount
-            }
-
-            let signer = try SolanaKitManager.signer(accountType: account.type)
-
-            guard let adapter = adapterManager.adapter(for: tokenIn) as? ISendSolanaAdapter else {
-                throw SendError.noSolanaAdapter
-            }
-
-            let fullTransaction = try await adapter.sendRawTransaction(rawTransaction: quote.rawTransaction, signer: signer)
-            txHash = fullTransaction.transaction.hash
+        // Creates the order. On failure the token is never reused: the reason is toasted and a fresh
+        // preview is requested, so the screen simply shows the new quote (no error sheet).
+        let commitment: SwapCommitment
+        do {
+            commitment = try await provider.commit(finalQuote: data.quote)
+        } catch {
+            let message = Self.commitFailureMessage(error)
+            await MainActor.run { HudHelper.instance.show(banner: .error(string: message)) }
+            refreshSubject.send()
+            throw CommitFailedError(underlying: error)
         }
 
-        if let account = accountManager.activeAccount {
-            let swap = Swap(
-                uid: UUID().uuidString,
-                txHash: txHash,
-                accountId: account.id,
-                providerId: provider.id,
-                status: .pending,
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                amountIn: amountIn,
-                amountOut: data.quote.amountOut,
-                recipient: data.quote.recipient,
-                toAddress: data.quote.recipient ?? data.quote.toAddress,
-                depositAddress: data.quote.depositAddress,
-                providerSwapId: data.quote.providerSwapId,
-                sourceAddress: nil,
-                refundAddress: data.quote.refundAddress,
-                date: Date(),
-                fromAsset: nil,
-                toAsset: nil,
-                legs: nil,
-                pauseReason: nil
-            )
-
-            swapHistoryManager.save(swap: swap)
+        let result: BroadcastResult
+        do {
+            let executable = commitment.quote.executable(tokenIn: tokenIn)
+            let prepared = try await data.broadcaster.prepare(executable)
+            result = try await data.broadcaster.submit(prepared)
+        } catch {
+            // The order exists and the preview is consumed: re-preview so a retry never reuses
+            // the committed quote (the unfunded order expires server-side).
+            refreshSubject.send()
+            throw error
         }
 
-        if !walletManager.activeWallets.contains(where: { $0.token == tokenOut }), let activeAccount = accountManager.activeAccount {
+        saveSwap(commitment: commitment, txHash: result.txHash, trackingHandle: result.trackingHandle)
+
+        // Best-effort and off the critical path: funds have moved, so the screen must not wait on
+        // the report. The track call carries the hash as a fallback.
+        if let providerSwapId = commitment.providerSwapId, let txHash = result.txHash {
+            Task { [provider] in
+                do {
+                    try await provider.reportInboundTxHash(providerSwapId: providerSwapId, txHash: txHash)
+                } catch {
+                    Core.instance?.logError(message: "swap signed report failed: \(error)", save: false)
+                }
+            }
+        }
+
+        // externally-delivered swaps must not auto-enable a wallet the account can't hold
+        if !walletManager.activeWallets.contains(where: { $0.token == tokenOut }),
+           let activeAccount = accountManager.activeAccount,
+           activeAccount.type.supports(token: tokenOut)
+        {
+            restoreSettingsManager.saveDefaultSettingsIfNeeded(account: activeAccount, blockchainType: tokenOut.blockchainType)
+
             let wallet = Wallet(token: tokenOut, account: activeAccount)
             walletManager.save(wallets: [wallet])
+        }
+    }
+
+    /// Persist the pending swap record after a successful broadcast, keyed by the submitted
+    /// transaction hash and/or the broadcaster's tracking handle. No-op without an active account.
+    private func saveSwap(commitment: SwapCommitment, txHash: String?, trackingHandle: String?) {
+        guard let account = accountManager.activeAccount else {
+            return
+        }
+
+        let quote = commitment.quote
+        let swap = Swap(
+            uid: UUID().uuidString,
+            txHash: txHash,
+            trackingHandle: trackingHandle,
+            accountId: account.id,
+            providerId: provider.id,
+            status: .pending,
+            tokenIn: tokenIn,
+            tokenOut: tokenOut,
+            amountIn: amountIn,
+            amountOut: quote.amountOut,
+            recipient: quote.recipient,
+            toAddress: quote.recipient ?? quote.toAddress,
+            depositAddress: quote.depositAddress,
+            providerSwapId: commitment.providerSwapId,
+            sourceAddress: nil,
+            refundAddress: quote.refundAddress,
+            estimatedTime: quote.estimatedTime,
+            date: Date(),
+            fromAsset: nil,
+            toAsset: nil,
+            legs: nil,
+            pauseReason: nil
+        )
+
+        swapHistoryManager.save(swap: swap)
+    }
+
+    // What the toast says when the order could not be created: the server's discriminator when it
+    // names one, a generic line otherwise (server-supplied text is never shown verbatim).
+    static func commitFailureMessage(_ error: Error) -> String {
+        switch (error as? USwapMultiSwapApi.CommitError)?.status {
+        case "rate_changed":
+            "swap.confirmation.commit.rate_changed".localized
+        case "refresh_required":
+            "swap.confirmation.commit.refresh_required".localized
+        default:
+            "swap.confirmation.commit.failed".localized
         }
     }
 }
@@ -299,13 +298,15 @@ extension MultiSwapSendHandler {
         let tokenOut: Token
         let amountIn: Decimal
         let quote: SwapFinalQuote
+        let broadcaster: ISwapBroadcaster
         let otherSections: [SendDataSection]
 
-        init(tokenIn: Token, tokenOut: Token, amountIn: Decimal, quote: SwapFinalQuote, otherSections: [SendDataSection]) {
+        init(tokenIn: Token, tokenOut: Token, amountIn: Decimal, quote: SwapFinalQuote, broadcaster: ISwapBroadcaster, otherSections: [SendDataSection]) {
             self.tokenIn = tokenIn
             self.tokenOut = tokenOut
             self.amountIn = amountIn
             self.quote = quote
+            self.broadcaster = broadcaster
             self.otherSections = otherSections
         }
 
@@ -413,6 +414,8 @@ extension MultiSwapSendHandler {
                 baseTokenRate: rates[baseToken.coin.uid]
             ))
 
+            fields.append(contentsOf: quote.feeFields(baseToken: baseToken, currency: currency, baseTokenRate: rates[baseToken.coin.uid]))
+
             return [
                 flowSection(baseToken: baseToken, currency: currency, rates: rates),
                 .init(fields, isMain: false),
@@ -420,22 +423,27 @@ extension MultiSwapSendHandler {
         }
     }
 
+    // The order could not be created; the handler already toasted the reason and re-previewed.
+    struct CommitFailedError: IHandledSendError {
+        let underlying: Error
+    }
+
     enum SendError: Error {
         case invalidData
         case invalidTransactionData
         case noGasLimit
         case noGasPrice
-        case noEvmKitWrapper
-        case noTronKitWrapper
         case noBitcoinAdapter
         case noSendParameters
         case noZcashAdapter
         case noMoneroAdapter
         case noZanoAdapter
         case noProposal
-        case noTonAdapter
         case noActiveAccount
         case noSolanaAdapter
+        case noXrpAdapter
+        case noTonAdapter
+        case noNearAdapter
 
         case unsupportedTokenIn
         case unsupportedTokenOut
@@ -448,22 +456,22 @@ extension MultiSwapSendHandler {
 }
 
 extension MultiSwapSendHandler {
-    static func instance(tokenIn: Token, tokenOut: Token, amountIn: Decimal, provider: IMultiSwapProvider, multiSwapQuote: MultiSwapQuote) -> MultiSwapSendHandler? {
-        let baseToken: Token?
-
-        switch tokenIn.type {
-        case .native, .derived, .addressType:
-            baseToken = tokenIn
-        case .eip20, .spl, .jetton, .stellar, .zanoAsset:
-            baseToken = try? Core.shared.marketKit.token(query: TokenQuery(blockchainType: tokenIn.blockchainType, tokenType: .native))
-        case .unsupported:
-            baseToken = nil
-        }
-
-        guard let baseToken else {
+    static func instance(tokenIn: Token, tokenOut: Token, amountIn: Decimal, provider: IMultiSwapProvider, multiSwapQuote: MultiSwapQuote, recipientHolder: SwapExternalRecipientHolder) -> MultiSwapSendHandler? {
+        guard let baseToken = baseToken(tokenIn: tokenIn) else {
             return nil
         }
 
-        return MultiSwapSendHandler(baseToken: baseToken, tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, provider: provider, multiSwapQuote: multiSwapQuote)
+        return MultiSwapSendHandler(baseToken: baseToken, tokenIn: tokenIn, tokenOut: tokenOut, amountIn: amountIn, provider: provider, multiSwapQuote: multiSwapQuote, recipientHolder: recipientHolder)
+    }
+
+    static func baseToken(tokenIn: Token) -> Token? {
+        switch tokenIn.type {
+        case .native, .derived, .addressType:
+            return tokenIn
+        case .eip20, .spl, .jetton, .stellar, .zanoAsset, .thorChainAsset, .xrpAsset, .nep141:
+            return try? Core.shared.marketKit.token(query: TokenQuery(blockchainType: tokenIn.blockchainType, tokenType: .native))
+        case .unsupported:
+            return nil
+        }
     }
 }

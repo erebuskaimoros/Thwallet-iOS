@@ -3,7 +3,12 @@ import Foundation
 import MarketKit
 import RxSwift
 
-class ZcashPreSendHandler {
+class ZcashPreSendHandler: PreSendHandler {
+    override class func instance(wallet: Wallet, address _: ResolvedAddress?) -> IPreSendHandler? {
+        guard let adapter = Core.shared.adapterManager.adapter(for: wallet) as? ZcashAdapter else { return nil }
+        return ZcashPreSendHandler(token: wallet.token, adapter: adapter)
+    }
+
     private let token: Token
     private let adapter: ZcashAdapter
 
@@ -15,6 +20,8 @@ class ZcashPreSendHandler {
     init(token: Token, adapter: ZcashAdapter) {
         self.token = token
         self.adapter = adapter
+
+        super.init()
 
         adapter.balanceStateUpdatedObservable
             .observeOn(ConcurrentDispatchQueueScheduler(qos: .userInitiated))
@@ -63,12 +70,16 @@ extension ZcashPreSendHandler: IPreSendHandler {
         balanceSubject.eraseToAnyPublisher()
     }
 
-    func hasMemo(address: String?) -> Bool {
+    // The one chain whose answer varies by address, so it narrows BlockchainType.memoType rather
+    // than reading it: a shielded address encrypts the memo on-chain, a transparent one carries no
+    // memo at all. Both are narrower than the chain-level .onChainPrivate and neither delivers, so
+    // the table stays conclusive for refusals.
+    func memoType(address: String?) -> MemoType {
         guard let address, let addressType = try? adapter.validate(address: address, checkSendToSelf: true) else {
-            return false
+            return .none
         }
 
-        return addressType == .shielded
+        return addressType == .shielded ? .onChainPrivate : .none
     }
 
     func sendData(amount: Decimal, address: String, memo: String?) -> SendDataResult {

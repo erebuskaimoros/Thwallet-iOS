@@ -25,6 +25,8 @@ class MarketAdvancedSearchViewModel: ObservableObject {
         .unsupported(uid: "tomochain"),
         .unsupported(uid: "xdai"),
         .zkSync,
+        .robinhood,
+        .arc,
     ]
     private let allTimeDeltaPercent: Decimal = 10
 

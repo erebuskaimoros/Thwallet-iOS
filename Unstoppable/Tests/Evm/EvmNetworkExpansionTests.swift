@@ -11,7 +11,6 @@ struct EvmNetworkExpansionTests {
         ("mantle", 5_000, "mantle", "MNT"),
         ("sei-network", 1_329, "sei-network", "SEI"),
         ("hyperevm", 999, "hyperliquid", "HYPE"),
-        ("robinhood", 4_663, "ethereum", "ETH"),
     ]
 
     @Test
@@ -89,9 +88,6 @@ struct EvmNetworkExpansionTests {
             case let (.etherscanV2, .etherscan(apiBaseUrl, _, apiKeys)):
                 #expect(apiBaseUrl == "https://api.etherscan.io/v2")
                 #expect(apiKeys == ["test-key"])
-            case let (.blockscout, .etherscan(apiBaseUrl, _, _)):
-                #expect(network.blockchainType == .robinhood)
-                #expect(apiBaseUrl == "https://robinhoodchain.blockscout.com")
             default:
                 Issue.record("History source mismatch for \(network.blockchainType.uid)")
             }
@@ -123,7 +119,7 @@ struct EvmNetworkExpansionTests {
             // EvmAdapter clears the shared EvmKit database family by wallet id. Membership in
             // this manager is therefore the lifecycle/cleanup gate for every EVM network.
             #expect(EvmBlockchainManager.blockchainTypes.contains(network.blockchainType))
-            #expect(USwapMultiSwapProvider.blockchainTypeMap[network.chainId.description] == network.blockchainType)
+            #expect(USwapAssetRepository.blockchainTypeMap[network.chainId.description] == network.blockchainType)
             #expect(expectedChainIds[network.chainId.description] == network.blockchainType.uid)
         }
     }

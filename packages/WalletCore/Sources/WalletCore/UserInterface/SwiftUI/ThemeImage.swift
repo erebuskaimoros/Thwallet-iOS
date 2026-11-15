@@ -1,16 +1,17 @@
 import Kingfisher
+import MarketKit
 import SwiftUI
 
-struct ThemeImage: View {
+public struct ThemeImage: View {
     private let image: ImageType
     private let size: CGSize?
     private let colorStyle: ColorStyle
 
-    init(_ name: CustomStringConvertible, size: CGFloat? = nil, colorStyle: ColorStyle? = nil) {
+    public init(_ name: CustomStringConvertible, size: CGFloat? = nil, colorStyle: ColorStyle? = nil) {
         self.init(name, size: size.map { CGSize(width: $0, height: $0) }, colorStyle: colorStyle)
     }
 
-    init(_ name: CustomStringConvertible, size: CGSize? = nil, colorStyle: ColorStyle? = nil) {
+    public init(_ name: CustomStringConvertible, size: CGSize? = nil, colorStyle: ColorStyle? = nil) {
         if let componentImage = name as? ComponentImage {
             switch componentImage {
             case let .icon(name, localSize, localColorStyle):
@@ -25,6 +26,10 @@ struct ThemeImage: View {
                 image = .remote(url: url, placeholder: placeholder)
                 self.size = localSize ?? size
                 self.colorStyle = .primary
+            case let .coin(coin, placeholder, localSize):
+                image = .coin(coin: coin, placeholder: placeholder)
+                self.size = localSize ?? size
+                self.colorStyle = .primary
             }
         } else {
             image = .icon(name: name.description)
@@ -33,7 +38,7 @@ struct ThemeImage: View {
         }
     }
 
-    var body: some View {
+    public var body: some View {
         switch image {
         case let .icon(name):
             Image(name)
@@ -62,6 +67,8 @@ struct ThemeImage: View {
                     }
                 }
                 .applyFrame(size: size)
+        case let .coin(coin, placeholder):
+            CoinIconView(coin: coin, placeholderImage: placeholder, size: size?.width ?? .iconSize32)
         }
     }
 }
@@ -71,6 +78,7 @@ extension ThemeImage {
         case icon(name: String)
         case image(name: String, contentMode: SwiftUICore.ContentMode)
         case remote(url: String, placeholder: String?)
+        case coin(coin: Coin, placeholder: String?)
     }
 }
 

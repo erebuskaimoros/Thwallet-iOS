@@ -84,13 +84,11 @@ class TransactionInfoViewController: ThemeViewController {
     private func openResend(type: ResendTransactionType) {
         do {
             if let evmAdapter = adapter as? BaseEvmAdapter {
-                let viewController = try SendEvmConfirmationModule.resendViewController(adapter: adapter, type: type, transactionHash: viewModel.transactionHash)
-                present(ThemeNavigationController(rootViewController: viewController), animated: true)
+                try EvmResendModule.present(adapter: adapter, type: type, transactionHash: viewModel.transactionHash)
 
                 stat(page: .transactionInfo, event: .openResend(chainUid: evmAdapter.evmKitWrapper.blockchainType.uid, type: type.rawValue))
-            } else if let btcAdapter = adapter as? BitcoinBaseAdapter, let transactionRecord = viewModel.transactionRecord as? BitcoinTransactionRecord {
-                let viewController = try ResendBitcoinModule.resendViewController(adapter: adapter, type: type, transactionRecord: transactionRecord)
-                present(ThemeNavigationController(rootViewController: viewController), animated: true)
+            } else if let btcAdapter = adapter as? BitcoinBaseAdapter, let transactionRecord = viewModel.transactionRecord as? BitcoinOutgoingTransactionRecord {
+                try ResendBitcoinModule.present(adapter: btcAdapter, type: type, transactionRecord: transactionRecord)
 
                 stat(page: .transactionInfo, event: .openResend(chainUid: btcAdapter.token.blockchainType.uid, type: type.rawValue))
             }
@@ -121,7 +119,7 @@ class TransactionInfoViewController: ThemeViewController {
         present(ThemeNavigationController(rootViewController: module), animated: true)
     }
 
-    private func statusRow(rowInfo: RowInfo, status: TransactionStatus) -> RowProtocol {
+    private func statusRow(rowInfo: RowInfo, status: TransactionStatus, notProcessed: Bool) -> RowProtocol {
         let hash: String
         var value: String
         var icon: UIImage?
@@ -141,9 +139,9 @@ class TransactionInfoViewController: ThemeViewController {
             value = "transactions.completed".localized
             icon = UIImage(named: "check_1_20")?.withTintColor(.themeRemus)
         case .failed:
-            hash = "failed"
-            value = "transactions.failed".localized
-            icon = UIImage(named: "warning_2_20")?.withTintColor(.themeLucian)
+            hash = notProcessed ? "not-processed" : "failed"
+            value = notProcessed ? "transactions.not_processed".localized : "transactions.failed".localized
+            icon = UIImage(named: "warning_2_20")?.withTintColor(notProcessed ? .themeGray : .themeLucian)
         }
 
         return CellBuilderNew.row(
@@ -531,8 +529,8 @@ class TransactionInfoViewController: ThemeViewController {
             }
 
             return CellComponent.nftAmountRow(tableView: tableView, rowInfo: rowInfo, iconUrl: iconUrl, iconPlaceholderImageName: iconPlaceholderImageName, nftAmount: nftAmount, type: type, onTapOpenNft: onTapOpenNft)
-        case let .status(status):
-            return statusRow(rowInfo: rowInfo, status: status)
+        case let .status(status, notProcessed):
+            return statusRow(rowInfo: rowInfo, status: status, notProcessed: notProcessed)
         case let .option(option):
             return optionRow(rowInfo: rowInfo, option: option)
         case let .date(date):

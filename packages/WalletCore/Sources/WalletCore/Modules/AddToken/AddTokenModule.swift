@@ -8,9 +8,16 @@ enum AddTokenModule {
             return nil
         }
 
+        let accountItems = items(account: account)
+
+        guard !accountItems.isEmpty else { return nil }
+        return (account, accountItems)
+    }
+
+    static func items(account: Account) -> [Item] {
         var items = [Item]()
 
-        for blockchain in Core.shared.evmBlockchainManager.allBlockchains {
+        for blockchain in Core.shared.evmBlockchainManager.allBlockchains where blockchain.type.supports(accountType: account.type) {
             if let service: IAddTokenBlockchainService = AddEvmTokenBlockchainService(
                 blockchain: blockchain,
                 networkManager: Core.shared.networkManager,
@@ -47,8 +54,32 @@ enum AddTokenModule {
             items.append(item)
         }
 
-        guard !items.isEmpty else { return nil }
-        return (account, items)
+        if let blockchain = try? Core.shared.marketKit.blockchain(uid: BlockchainType.xrp.uid), blockchain.type.supports(accountType: account.type) {
+            let service: IAddTokenBlockchainService = AddXrpTokenBlockchainService(blockchain: blockchain)
+            let item = Item(blockchain: blockchain, service: service)
+            items.append(item)
+        }
+
+        if let blockchain = try? Core.shared.marketKit.blockchain(uid: BlockchainType.near.uid), blockchain.type.supports(accountType: account.type) {
+            let service: IAddTokenBlockchainService = AddNearTokenBlockchainService(
+                blockchain: blockchain,
+                rpcUrls: Core.shared.nearNodeManager.rpcUrls(network: Core.shared.nearKitManager.network)
+            )
+            let item = Item(blockchain: blockchain, service: service)
+            items.append(item)
+        }
+
+        if let blockchain = try? Core.shared.marketKit.blockchain(uid: BlockchainType.zano.uid), blockchain.type.supports(accountType: account.type) {
+            let service: IAddTokenBlockchainService = AddZanoTokenBlockchainService(
+                blockchain: blockchain,
+                networkManager: Core.shared.networkManager,
+                zanoNodeManager: Core.shared.zanoNodeManager
+            )
+            let item = Item(blockchain: blockchain, service: service)
+            items.append(item)
+        }
+
+        return items
     }
 
     // static func viewController() -> UIViewController? {

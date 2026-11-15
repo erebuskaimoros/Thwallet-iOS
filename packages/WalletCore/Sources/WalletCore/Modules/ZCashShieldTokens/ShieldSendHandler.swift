@@ -1,8 +1,13 @@
 import Foundation
 import MarketKit
-import ZcashLightClientKit
+import ZODLSwiftWalletSDK
 
-class ShieldSendHandler {
+class ShieldSendHandler: SendHandler {
+    override class func instance(sendData: WalletCore.SendData) -> ISendHandler? {
+        guard case let .zcashShield(amount, recipient, memo) = sendData else { return nil }
+        return instance(amount: amount, recipient: recipient, memo: memo)
+    }
+
     private let token: Token
     private let amount: Decimal
     private let recipient: Recipient?
@@ -58,7 +63,10 @@ extension ShieldSendHandler: ISendHandler {
             throw SendError.invalidData
         }
 
-        try await adapter.send(proposal: data.proposal, zip317MarginalFee: data.zip317MarginalFee)
+        // the forms waiting on the shielding see it as in flight before the transaction pool has its record
+        if let transactionHash = try await adapter.send(proposal: data.proposal, zip317MarginalFee: data.zip317MarginalFee) {
+            adapter.noteShieldingSent(transactionHash: transactionHash)
+        }
     }
 }
 
@@ -93,6 +101,10 @@ extension ShieldSendHandler {
             .zcash(fee: proposal.totalFeeRequired().decimalValue.decimalValue)
         }
 
+        var customSendButtonTitle: String? {
+            "send.confirmation.slide_to_shield".localized
+        }
+
         var canSend: Bool {
             transactionError == nil
         }
@@ -120,7 +132,7 @@ extension ShieldSendHandler {
             ))
             if let recipient {
                 flowFields.append(
-                    .selfAddress(value: recipient.stringEncoded)
+                    .selfAddress(value: recipient.stringEncoded, title: "send.confirmation.send_to_shielded".localized)
                 )
             }
 

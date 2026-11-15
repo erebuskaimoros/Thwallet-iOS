@@ -5,6 +5,7 @@
 "button.confirm" = "Подтвердить";
 "button.continue" = "Продолжить";
 "button.done" = "Готово";
+"button.back" = "Назад";
 "button.reset" = "Сбросить";
 "button.import" = "Импорт";
 "button.next" = "Далее";
@@ -25,6 +26,7 @@
 "button.reject" = "Отклонить";
 "button.connect" = "Подключиться";
 "button.save" = "Сохранить";
+"button.create" = "Создать";
 "button.send" = "Отправить";
 "button.sign" = "Подписать";
 "button.i_understand" = "Я понимаю";
@@ -75,6 +77,7 @@
 "alert.revoking" = "Отмена";
 "alert.revoked" = "Отменен";
 "alert.cant_recognize" = "Не удалось распознать";
+"alert.change_wallet" = "Смените кошелёк";
 "alert.not_founded" = "Не найдено.";
 
 "alert.fee_too_low" = "Комиссия слишком низкая";
@@ -132,7 +135,7 @@
 
 // Access Camera
 
-"access_camera.message" = "%@ требуется доступ к вашей камере для сканирования QR-кода.\n\nПерейдите в \"Настройки\" - > %@ и разрешите доступ к камере.";
+"access_camera.message" = "Доступ приложения к камере запрещён. Разрешить его можно в настройках.";
 "access_camera.not_supported" = "Ваше устройство не поддерживает сканирование кода с предмета. Пожалуйста, используйте устройство с камерой.";
 "access_camera.settings" = "Настройки";
 
@@ -187,13 +190,29 @@
 "restore.cloud.password.placeholder" = "Пароль резервной копии";
 "restore.cloud.password.description" = "Введите пароль для этого файла резервной копии, чтобы восстановить данные.";
 
+"restore.near_account.title" = "Аккаунт NEAR";
+"restore.near_account.description" = "Эта фраза восстановления управляет несколькими аккаунтами NEAR. Выберите, какой использовать в этом кошельке.";
+"restore.near_account.search_failed" = "Не удалось найти аккаунты, связанные с этой фразой восстановления. Повторите попытку, введите имя аккаунта или используйте аккаунт по умолчанию.";
+"restore.near_account.default_account" = "Аккаунт по умолчанию";
+"restore.near_account.use_default" = "Использовать аккаунт по умолчанию";
+"restore.near_account.enter_name" = "Ввести имя аккаунта";
+"restore.near_account.other_keys_warning" = "У этого аккаунта есть и другие ключи с полным доступом. Их владельцы могут вывести средства или отключить доступ вашей фразы восстановления.";
+"restore.near_account.contract_warning" = "На этом аккаунте развёрнут смарт-контракт. В зависимости от кода он может выводить средства аккаунта. Продолжайте, только если знаете, что он делает.";
+"restore.near_account.access_lost" = "У этой фразы восстановления больше нет доступа к этому аккаунту. Возможно, его удалили в другом кошельке.";
+"restore.near_account_name.title" = "Имя аккаунта";
+"restore.near_account_name.description" = "Введите аккаунт NEAR, которым управляет эта фраза восстановления, например alice.near.";
+"restore.near_account_name.invalid" = "Недопустимое имя аккаунта NEAR";
+"restore.near_account_name.not_found" = "Такого аккаунта не существует";
+"restore.near_account_name.no_access" = "У этой фразы восстановления нет полного доступа к этому аккаунту";
+"restore.near_account_name.check_failed" = "Не удалось проверить аккаунт. Повторите попытку.";
+
 // Coin Settings
 
 "coin_settings.title" = "Настройки блокчейна";
 "coin_settings.bitcoin_cash_coin_type.title.type0" = "Legacy";
 "coin_settings.bitcoin_cash_coin_type.title.type145" = "CashAddress";
 "sync_mode.hybrid" = "Гибрид";
-"sync_mode.from_blockchain" = "Из блокчейна";
+"sync_mode.from_blockchain" = "Блокчейн %@";
 "blockchain_settings.description" = "Выберите формат адреса для токена.";
 "blockchain_settings.footer" = "Следуйте рекомендованному варианту, если не уверены. Правильный формат должен быть выбран при восстановлении существующего кошелька.";
 
@@ -263,13 +282,13 @@
 
 // Backup Prompt
 
-"backup_prompt.backup_recovery_phrase" = "Резервная копия";
-"backup_prompt.backup_required" = "Необходима резервная копия";
-"backup_prompt.warning" = "Создайте резервную копию вашей фразы восстановления и пароля, которые позволят вам восстановить ваш кошелек, если телефон потерян, украден, сломал и т.д.";
-"backup_prompt.backup" = "Резервная копия";
+"backup_prompt.title" = "Создайте резервную копию кошелька";
+"backup_prompt.description" = "Без резервной копии потеря телефона означает безвозвратную потерю ваших средств. Восстановить их невозможно.";
 "backup_prompt.backup_manual" = "Ручное резервное копирование";
+"backup_prompt.backup_manual.description" = "Запишите вашу фразу восстановления";
 "backup_prompt.backup_cloud" = "Резерв. копирование в iCloud";
-"backup_prompt.later" = "Позже";
+"backup_prompt.backup_cloud.description" = "Зашифровано, синхронизировано между устройствами";
+"backup_prompt.remind_later" = "Напомнить позже";
 
 // Backup to iCloud
 
@@ -310,6 +329,7 @@
 "balance.hide_coin" = "Скрыть";
 "balance.rate_per_coin" = "%@ за %@";
 "balance.syncing" = "Идет синхронизация...";
+"balance.confirming" = "Подтверждение";
 "balance.searching" = "Поиск транзакций...";
 "balance.connecting" = "Подключение...";
 "balance.stopped" = "Остановлено";
@@ -339,6 +359,9 @@
 "balance.token.locked" = "Заблокировано";
 "balance.token.locked.stellar.description" = "Сеть Stellar блокирует 1 XLM для активации кошелька и 0,5 XLM в качестве резерва для каждого активированного в кошельке токена.";
 "balance.token.locked.stellar.description.wallet_activation" = "Активация кошелька:";
+"balance.token.locked.xrp.description" = "XRP Ledger блокирует 1 XRP для активации кошелька и 0,2 XRP в качестве резерва для каждой доверительной линии или другого объекта, принадлежащего вашему кошельку. Резерв освобождается при удалении объекта.";
+"balance.token.locked.xrp.other_objects" = "Другие объекты (%@)";
+"balance.token.xrp.account_not_activated" = "Этот счёт ещё не активирован. Первый депозит должен быть не менее 1 XRP; сеть отклоняет меньшие платежи.";
 "balance.token.locked.info.title" = "TimeLock";
 "balance.token.locked.info.description" = "Отправитель отправил эти средства с временной блокировкой, которая истекает в указанную дату.\n\nНе волнуйтесь, полученные биткоины уже принадлежат вам, но до истечения срока блокировки вы не сможете потратить их в сети Bitcoin.";
 "balance.token.not_relayed" = "Трансляция";
@@ -354,11 +377,16 @@
 "transactions.migrate" = "Мигрировать";
 "transactions.migrate.to_ironwood" = "в Ironwood";
 "balance.token.migration.detected.title" = "Миграция пула ZEC";
-"balance.token.migration.detected.description" = "Zcash обновлён до нового защищённого пула. Ваш баланс в старом пуле необходимо мигрировать, чтобы он оставался полностью доступным в Unstoppable.";
+"balance.token.migration.detected.description" = "Zcash has upgraded to a new shielded pool. Your shielded balance must be migrated to that new pool to remain fully anonymous in future transactions.
+\n\nPlease note that migration transactions aren’t fully anonymous and expose the amounts involved.
+\n\nTo maintain high level of privacy you may consider using VPN or TOR when making migration transactions.";
 "balance.token.migrate" = "Мигрировать";
 "error.zcash.migration_failed" = "Миграцию не удалось завершить. Средства не были потеряны — вы можете попробовать позже.";
+"error.zcash.sync_stalled" = "Синхронизация остановилась. Потяните вниз, чтобы повторить.";
+"error.zcash.sync_required" = "Дождитесь окончания синхронизации кошелька и попробуйте снова.";
 "zcash.migration.warning.title" = "Публично видимая сумма";
 "zcash.migration.warning" = "Перемещение средств между пулами требует, чтобы мигрируемая сумма была публично видна в блокчейне. Отправитель, получатель и ваши адреса остаются конфиденциальными.";
+"zcash.shielding" = "Shielding ZEC";
 
 "balance.token.receive_address" = "Адрес получателя";
 "balance.token.account.inactive.description" = "Транзакции появятся после активации";
@@ -408,6 +436,7 @@
 "deposit.not_active.view_address" = "Посмотреть мой адрес";
 "deposit.stellar.inactive_asset.title" = "Активировать токен";
 "deposit.stellar.inactive_asset.description" = "Чтобы получить %@, необходимо активировать токен. Сеть Stellar требует установить доверительную линию (trustline) для каждого токена. Без этого ваш кошелёк не сможет принять %@ — транзакция будет отклонена, и средства не будут доставлены.";
+"deposit.xrp.inactive_asset.description" = "Чтобы получить %@, необходимо активировать токен. XRP Ledger требует доверительную линию для каждого токена, которая блокирует 0,2 XRP вашего баланса, пока она существует. Без неё ваш кошелёк не сможет получить %@ – транзакция будет отклонена и средства не будут доставлены.";
 
 "deposit.used_addresses.title" = "Использованные адреса";
 "deposit.used_addresses.description" = "%@ адресов изменены для повышения конфиденциальности и безопасности. Ниже приведен список использованных адресов в этом кошельке.";
@@ -439,11 +468,13 @@
 // Send
 
 "send.title" = "Отправить %@";
-"send.title.shield" = "Shield %@";
 "send.send" = "Отправить";
+"send.tab.standard" = "Обычная";
+"send.tab.private" = "Приватная";
+"send.tab.cross_pay" = "Cross Pay";
 "send.no_assets" = "У вас нет активов для отправки.";
 "send.amount_placeholder" = "Сумма";
-"send.address_placeholder" = "Адрес";
+"send.address_placeholder" = "На адрес";
 "send.address_or_domain_placeholder" = "Адрес или домен";
 "send.fee" = "Комиссия";
 "send.network_fee" = "Комиссия";
@@ -467,7 +498,7 @@
 "send.hodler_locktime_off" = "Выкл.";
 "send.hodler_error.unsupported_address" = "TimeLock работает только при отправке на платёжные адреса, начинающиеся с 1... (также известных как BIP44 адреса)";
 "send.fee_info.title" = "Комиссия";
-"send.fee_info.description" = "Блокчейны требуют от пользователей уплачивать сетевые комиссии при отправке транзакций. Комиссии выше, когда в сети происходит больше транзакций.\n\nКошелек %@ оценивает комиссию на основе текущей активности блокчейна и рекомендует оптимальное значение, чтобы транзакция была обработана в разумное время.\n\nРекомендуемая ставка комиссии показана как количество сатоши, которое пользователь должен заплатить за один байт транзакции. Таким образом, общая комиссия зависит от общего размера транзакции, который измеряется в байтах.\n\nПользователи могут использовать предоставленные элементы управления для увеличения или уменьшения значения ставки комиссии. Изменение ставки комиссии влияет на общую комиссию за транзакцию, которую пользователь заплатит.\n\nУстановка ставки комиссии ниже рекомендуемого значения может привести к тому, что транзакция будет ожидать обработки в течение часов или будет отклонена. Чем ниже значение, тем дольше будет проходить подтверждение транзакции. Для транзакций, где важен приоритет, рекомендуется установить более высокую ставку комиссии.";
+"send.fee_info.description" = "При отправке транзакции нужно заплатить сетевую комиссию. Чем загруженнее сеть, тем выше комиссия.\n\n%@ предлагает оптимальную комиссию, чтобы транзакция подтвердилась за разумное время. Это значение можно увеличить или уменьшить.\n\nСлишком низкая комиссия может привести к тому, что транзакция надолго останется в ожидании или будет отклонена. Для более быстрого подтверждения укажите комиссию выше.";
 "send.transaction_inputs_outputs_info.title" = "Вводы / выводы транзакций";
 "send.transaction_inputs_outputs_info.description" = "Большинство транзакций Bitcoin, а также транзакций в подобных криптовалютах, включая Bitcoin Cash, Dash и Litecoin, создают два выхода. Один выход - это сумма, которая идет получателю, а другой - это выход сдачи, который возвращается отправителю. Способ, которым большинство кошельков строят транзакции, делает легким понимание третьей стороной, какой из выходов отправляется получателю, а какой - сдача, возвращаемая отправителю. Поскольку выход, возвращаемый отправителю, затем используется в будущих транзакциях, становится явным соединение между этими двумя транзакциями.\n\nКошелек %@ реализует меры для усиления защиты от попыток установить, какой выход идет куда.\n\nДля пользователей %@ доступны два варианта:";
 "send.transaction_inputs_outputs_info.shuffle.title" = "1. Перемешать";
@@ -476,15 +507,38 @@
 "send.transaction_inputs_outputs_info.deterministic.description" = "Существует широко признанный стандарт для упорядочивания выходов транзакции, известный как BIP69. В открытых кошельках этот стандарт обеспечивает, чтобы пользователи кошелька не должны были полагаться на то, как разработчики приложения реализуют упорядочивание выходов. Поскольку этот стандарт относительно новый, не многие кошельки его уже реализовали. В результате, на блокчейне в некоторых случаях можно узнать, отправлена ли транзакция из кошелька, который использует этот стандарт или нет.";
 "send.select_all" = "Выбрать все";
 "send.unselect_all" = "Снять выделение";
+"send.balance.available" = "Доступно: %@";
+"send.balance.clear" = "Очистить";
 
 "send.confirmation.title" = "Подтвердить отправку";
 "send.confirmation.you_send" = "Вы отправляете";
 "send.confirmation.transfer" = "Перевод";
 "send.confirmation.to" = "Кому";
+"send.confirmation.from" = "От";
 "send.confirmation.own" = "Свой";
 "send.confirmation.contact_name" = "Имя контакта";
 "send.confirmation.memo" = "Мемо";
 "send.confirmation.memo_placeholder" = "Мемо";
+"send.memo.public_warning" = "Это примечание будет публичным в блокчейне.";
+"send.memo.private_warning" = "Эта заметка будет опубликована в блокчейне в зашифрованном виде.";
+"send.memo.local_warning" = "Это примечание будет сохранено только на вашем телефоне.";
+"send.memo.too_long" = "Заметка слишком длинная";
+"send.xrp.destination_tag" = "Тег назначения";
+"send.xrp.destination_tag.title" = "Тег назначения";
+"send.xrp.destination_tag.info" = "Биржи и некоторые сервисы требуют тег назначения для зачисления вашего депозита. Тег является открытым в реестре.";
+"send.xrp.destination_tag.required" = "Этот адрес требует тег назначения. Платежи без тега отклоняются.";
+"send.xrp.destination_tag.invalid" = "Тег назначения должен быть целым числом от 0 до 4294967295.";
+"send.xrp.destination_tag.conflict" = "Тег назначения не совпадает с тегом в адресе.";
+"send.xrp.address_error.network_mismatch" = "Неверная сеть: этот адрес относится к другой сети XRP.";
+"send.xrp.activation.reserve_note" = "Активация блокирует %@ в качестве резерва в вашем кошельке. Резерв освобождается, если доверительная линия удаляется позже.";
+"send.xrp.activation.insufficient_balance" = "У вас недостаточно доступного XRP для покрытия резерва доверительной линии и комиссии сети.";
+"send.near.receiver_registration" = "Регистрация получателя";
+"send.near.receiver_registration.info" = "Контракт токена взимает разовый депозит за регистрацию получателя, у которого ещё не было этого токена.";
+"send.near.storage_deposit_too_high" = "Этот токен требует необычно большой депозит для регистрации получателя и может быть мошенническим.";
+"send.near.storage_deposit_changed" = "Комиссия за регистрацию получателя изменилась. Проверьте новую комиссию и отправьте снова.";
+"send.near.not_full_access_key" = "У этой фразы восстановления только ограниченный доступ к этому аккаунту, отправлять средства она не может.";
+"send.near.previous_transaction_pending" = "Предыдущая транзакция ещё в ожидании. Проверьте историю транзакций, прежде чем отправлять снова.";
+"send.near.rejected" = "Сеть отклонила эту транзакцию. Ничего не отправлено.";
 "send.confirmation.fee" = "Комиссия";
 "send.confirmation.fee_sponsored" = "Спонсировано";
 "send.confirmation.fee_paid_in" = "Оплачено в %@";
@@ -502,6 +556,7 @@
 "send.confirmation.status" = "Статус";
 "send.confirmation.status.failed" = "Не удалось";
 "send.confirmation.send_to_own" = "Транзакция будет отправлена на собственный адрес";
+"send.confirmation.send_to_shielded" = "На ваш shielded адрес";
 "send.confirmation.operation" = "Операция";
 "send.confirmation.transaction_xdr" = "Транзакция XDR";
 
@@ -512,6 +567,8 @@
 "send.confirmation.refresh" = "Обновить";
 "send.confirmation.refreshing" = "Перезагрузка";
 "send.confirmation.slide_to_send" = "Проведите для отправки";
+"send.confirmation.shield_title" = "Подтвердить shielding";
+"send.confirmation.slide_to_shield" = "Проведите для shielding";
 "send.confirmation.sending" = "Отправка";
 "send.confirmation.unexpected_error" = "Непредвиденная ошибка";
 "send.confirmation.unexpected_error.text" = "При отправке транзакции произошла ошибка. Пожалуйста, попробуйте ещё раз или скопируйте код ошибки и обратитесь в службу поддержки.";
@@ -547,6 +604,7 @@
 "send.fee_settings.fee_rate_unavailable" = "Ставка комиссии недоступна. Пожалуйста, проверьте ставки комиссии вручную";
 
 "send.unspent_outputs" = "UTxOs";
+"send.unspent_outputs.auto" = "Авто";
 "send.unspent_outputs.description" = "Вручную выберите, какие монеты потратить в транзакции.";
 "send.unspent_outputs.send_to" = "Отправить";
 "send.unspent_outputs.change" = "Изменить";
@@ -560,6 +618,7 @@
 "send.token_syncing" = "Синхронизация токенов";
 "send.token_not_synced" = "Токен не синхронизирован";
 "send.insufficient_balance" = "Недостаточный баланс";
+"send.shield_coin" = "Shield %@ для отправки";
 "send.continue_anyway" = "Всё равно продолжить";
 
 "send.address.enter_address" = "Введите адрес";
@@ -588,6 +647,35 @@
 "send.address.blacklist.caution.title" = "Адрес в черном списке!";
 "send.address.blacklist.caution.description" = "Введенный вами адрес помечен как находящийся в черном списке. Транзакции на этот адрес могут привести к потерям или другим рискам. Пожалуйста, проверьте данные получателя перед продолжением.";
 
+// Private Send
+
+"private_send.tab.caution.title" = "Приватная отправка";
+"private_send.tab.caution.text" = "Приватная отправка скрывает прямую связь в блокчейне между вашим адресом и получателем с помощью конфиденциального посредника.";
+"private_send.amount_caption" = "Сумма, которую получит получатель";
+"private_send.unavailable" = "Приватная отправка недоступна";
+"private_send.memo_unavailable" = "Memo недоступен при включённой Приватной отправке";
+
+"private_send.fee" = "Комиссия за приватную отправку";
+"private_send.fee.info" = "Эта комиссия покрывает стоимость приватной обработки вашей транзакции. Она взимается в дополнение к сетевой комиссии и зависит от суммы отправки.";
+"private_send.reserved_amount" = "Зарезервированная сумма";
+"private_send.reserved_amount.info" = "Дополнительная сумма временно резервируется для покрытия возможных изменений цены во время обработки вашей транзакции. Неиспользованная часть возвращается на ваш кошелёк отдельной транзакцией после завершения отправки.";
+"private_send.estimated_time" = "Расчётное время получения";
+
+"private_send.commit_failed" = "Не удалось настроить приватную отправку. Попробуйте снова.";
+
+"private_send.caution.title" = "Приватная отправка";
+"private_send.caution.below_minimum %@" = "Для приватной отправки получатель должен получить не менее %@.";
+"private_send.caution.above_maximum %@" = "Приватная отправка поддерживает не более %@.";
+"private_send.caution.insufficient_balance %@" = "Для этой приватной отправки необходимо %@ в вашем кошельке, включая комиссии.";
+"private_send.caution.no_route" = "В данный момент нет доступного приватного маршрута для этого токена и суммы.";
+"private_send.caution.exact_output_unsupported" = "Этот маршрут не может гарантировать точную сумму получения.";
+"private_send.caution.provider_suspended" = "Провайдер приватной отправки временно недоступен.";
+"private_send.caution.network_error" = "Не удалось связаться с провайдером приватной отправки. Проверьте подключение и попробуйте снова.";
+"private_send.caution.token_unsupported" = "Приватная отправка больше не доступна для этого токена.";
+"private_send.caution.attachment_unsupported" = "Этот приватный маршрут требует тег транзакции, который этот кошелёк не может прикрепить. Приватная отправка недоступна для этого токена.";
+"private_send.caution.amount_adjusted" = "Сумма была скорректирована для покрытия комиссий и больше не соответствует котировке приватной отправки. Уменьшите сумму и попробуйте снова.";
+"private_send.caution.buffer_unknown" = "Указанная комиссия — это верхняя оценка; итоговая стоимость может быть ниже.";
+
 // Donate
 
 "donate.list.title" = "Пожертвовать с помощью";
@@ -604,6 +692,22 @@
 // Swap
 
 "swap.title" = "Обмен";
+"swap.tab.standard" = "Обычный";
+"swap.tab.private" = "Приватный";
+"swap.private.caution.title" = "Приватный обмен";
+"swap.private.caution.text" = "Приватный обмен распределяет полученную сумму между несколькими адресами, что затрудняет отслеживание движения средств.";
+"swap.private.recipients.title" = "Получатели";
+"swap.private.recipients.description" = "Добавьте адреса получателей и выберите, как полученная сумма будет распределена между ними.";
+"swap.private.duplicate_addresses.title" = "Повторяющиеся адреса";
+"swap.private.duplicate_addresses.text" = "Использование одного и того же адреса снижает конфиденциальность разделения.";
+"swap.private.invalid_split.title" = "Недопустимое разделение";
+"swap.private.invalid_split.text" = "Провайдер не поддерживает такое соотношение разделения. Измените разделение, чтобы продолжить.";
+"swap.private.address" = "Адрес %d";
+"swap.private.enter_addresses" = "Введите адреса";
+"swap.token_select.popular_tokens" = "Популярные токены";
+"swap.token_select.your_tokens" = "Ваши токены";
+"swap.token_select.top_tokens" = "Топ токены";
+"swap.token_select.recent" = "Недавний поиск";
 "swap.you_pay" = "Вы платите";
 "swap.estimated" = "приблизительно";
 "swap.balance" = "Баланс";
@@ -617,8 +721,6 @@
 "swap.approving_button" = "Разрешение...";
 "swap.revoking_button" = "Отмена...";
 "swap.not_available_button" = "Баланс n/a";
-"swap.trade_error.not_found" = "Невозможно обменять эти токены";
-"swap.trade_error.wrap_unwrap_not_allowed" = "Эта служба не позволяет wrapping/unwrapping. Пожалуйста, попробуйте другой сервис обмена. Рекомендуется 1inch";
 "swap.button_error.insufficient_balance" = "Недостаточный баланс";
 "swap.switch_provider.title" = "Сервис обмена";
 "swap.amount_type.coin" = "Токен";
@@ -628,15 +730,24 @@
 
 "swap.rate_not_available" = "Цена недоступна";
 "swap.route" = "Маршрут";
-"swap.select" = "Выбрать";
+"token_selector.select" = "Выбрать";
 "swap.quoting" = "Котировка";
 "swap.select_token_in" = "Выберите токен для обмена";
 "swap.select_token_out" = "Выберите токен для получения";
 "swap.no_providers" = "Нет маршрутов";
+"swap.suggested_path.no_quotes_available" = "Нет доступных предложений";
+"swap.suggested_path.text" = "Вы можете сначала %@, а затем %@ на %@.";
+"swap.suggested_path.text.part" = "обменять %@ на %@";
 "swap.enter_amount" = "Введите сумму";
 "swap.no_quotes" = "Нет предложений";
+"swap.error.no_memo" = "Этот маршрут не может быть подтверждён прямо сейчас. Пожалуйста, обновите котировку или выберите другого провайдера.";
+"swap.deposit_address" = "Адрес для депозита";
+"swap.deposit_memo" = "Мемо для депозита";
+"swap.error.invalid_swap_memo" = "В мемо свопа отсутствует действительный получатель.";
+"swap.error.memo_recipient_mismatch" = "Получатель в мемо свопа не совпадает с выбранным получателем.";
 "swap.token_not_enabled" = "Токен не включен";
-"swap.token_syncing" = "Синхронизация токенов";
+"swap.enable_coin" = "Включить %@";
+"swap.shield_coin" = "Shield %@ для обмена";
 "swap.token_not_synced" = "Токен не синхронизирован";
 "swap.insufficient_balance" = "Недостаточный баланс";
 
@@ -648,6 +759,9 @@
 
 "swap.quotes.providers.risk_levels.title" = "Оценка маршрута";
 "swap.quotes.providers.risk_levels.description" = "Эти оценки показывают, как каждый маршрут обрабатывает свопы и проверки транзакций.";
+"swap.quotes.providers.risk_levels.excellent" = "Отличный";
+"swap.quotes.providers.risk_levels.good" = "Хороший";
+"swap.quotes.providers.risk_levels.fair" = "Приемлемый";
 "swap.quotes.providers.risk_levels.excellent.description" = "Прямое исполнение в блокчейне. Без проверок и заморозок. Автоматический возврат средств при неудачном свопе.";
 "swap.quotes.providers.risk_levels.good.description" = "Транзакции автоматически проверяются перед завершением. При обнаружении проблемы своп отклоняется, а средства возвращаются.";
 "swap.quotes.providers.risk_levels.fair.description" = "Некоторые транзакции могут потребовать дополнительной верификации. При обнаружении проблемы средства, как правило, возвращаются автоматически.";
@@ -661,6 +775,7 @@
 "swap.pending_allowance" = "Ожидающие разрешения";
 "swap.approve" = "Разрешить";
 "swap.approving" = "Разрешение";
+"swap.activate_asset" = "Активировать %@ в сети Stellar";
 "swap.allowance_error" = "Ошибка разрешения";
 "swap.revoke" = "Отменить";
 "swap.revoking" = "Отмена";
@@ -674,9 +789,12 @@
 "swap.price_impact.info" = "Ожидаемое отклонение цены от отображаемой. Обычно увеличивается с ростом суммы обмена.";
 "swap.high_price_impact" = "Высокое отклонение цены";
 "swap.recipient" = "Получатель";
+"swap.recipient.error.transparent_zcash_required" = "Выбранный провайдер может доставить только на прозрачный (t-) адрес Zcash";
+"swap.recipient.error.shielded_zcash_required" = "Здесь можно использовать только защищённый (u- или zs-) адрес Zcash";
+"swap.external_recipient.description" = "Кошелёк, который получит обменянные средства.";
 "swap.slippage" = "Отклонение от курса";
-"swap.swapped_time" = "Время";
-"swap.swapped_time.info" = "Примерное время получения средств. Обработка обмена и подтверждение транзакции могут занять некоторое время в зависимости от сети и провайдера.";
+"swap.swapped_time" = "Время свопа";
+"swap.swapped_time.info" = "Это расчётное время, необходимое для завершения свопа и получения ваших средств. Фактическое время может быть короче или длиннее в зависимости от состояния сети, подтверждений транзакций и выбранного маршрута свопа.";
 
 "swap.affiliate_fee" = "Партнерская плата";
 "swap.liquidity_fee" = "Плата за ликвидность";
@@ -726,11 +844,6 @@
 "swap.advanced_settings.error.invalid_slippage" = "Недействительное отклонение";
 "swap.advanced_settings.error.invalid_deadline" = "Недействительный срок выполнения";
 
-"swap.one_inch.error.cannot_estimate" = "Ошибка оценки";
-"swap.one_inch.error.cannot_estimate.info" = "Проверьте баланс, чтобы убедиться, что у вас достаточно %@ для покрытия комиссии. Или попробуйте увеличить сумму допустимого проскальзывания и повторите попытку. Автоматическая попытка через 3 секунды...";
-"swap.one_inch.error.insufficient_liquidity" = "Недостаточная ликвидность";
-"swap.one_inch.error.insufficient_liquidity.info" = "Вероятно, нет достаточной ликвидности для выполнения этой сделки. Попробуйте уменьшить сумму.";
-
 "swap.service" = "Сервис";
 "swap.service.title" = "Сервис";
 
@@ -753,8 +866,11 @@
 "swap.confirmation.slide_to_swap" = "Проведите для обмена";
 "swap.confirmation.swapping" = "Обмен";
 "swap.confirmation.refresh" = "Обновить";
+"swap.confirmation.commit.rate_changed" = "Цена изменилась. Проверьте обновлённую котировку и попробуйте снова.";
+"swap.confirmation.commit.refresh_required" = "Котировка истекла. Загружена новая котировка.";
+"swap.confirmation.commit.failed" = "Не удалось начать обмен. Загружена новая котировка.";
 "swap.confirmation.impact_high" = "При этом обмене вы потеряете значительную часть (%@) своих средств.";
-"swap.confirmation.impact_too_high" = "%@ отключил действие обмена для этой сделки, потому что вы получаете крайне невыгодную цену. Это связано с крайне низкой ликвидностью.Если вы все равно хотите выполнить обмен, используйте вместо этого веб-сайт %@.";
+"swap.confirmation.impact_too_high" = "Этот обмен приведёт к большим потерям (%@) из-за очень низкой ликвидности.";
 "swap.confirmation.impact_warning" = "Важно! Вы получаете крайне невыгодную цену из-за низкой ликвидности.";
 
 "swap.confirmation.minimum_received" = "Гарантировано";
@@ -766,13 +882,13 @@
 "swap.dex_info.header_price_impact" = "Отклонение от рын. цены";
 "swap.dex_info.content_price_impact" = "Ожидаемое отклонение цены от указанной цены, обычно увеличивается при увеличении суммы обмена.";
 
-"swap.maya.shielded_address.error" = "Не удалось получить shielded-адрес для Memo (Maya)";
-
 // Swap History
 
 "swap_history.title" = "История свопов";
 "swap_history.all" = "Все";
 "swap_history.empty" = "У вас пока нет ожидающих или завершённых свопов.";
+"swap_history.status.depositing" = "Пополнение…";
+"swap_history.status.swapping" = "Обмен…";
 
 // Swap Info
 
@@ -784,7 +900,7 @@
 "swap_info.view" = "Просмотр";
 "swap_info.deposit" = "Депозит %@";
 "swap_info.swap" = "Своп";
-"swap_info.send" = "Отправить %@";
+"swap_info.receive" = "Получение %@";
 "swap_info.refund" = "Возврат %@";
 "swap_info.unknown" = "Неизвестно";
 "swap_info.request_refund" = "Запросить возврат";
@@ -804,6 +920,8 @@
 "swap_info.status.unknown" = "Неизвестно";
 "swap_info.status.failed" = "Ошибка";
 "swap_info.status.action_required" = "Требуется действие";
+"swap_info.status.signed" = "Подписан";
+"swap_info.status.expired" = "Истёк";
 
 // Market
 
@@ -892,7 +1010,7 @@
 "market.top.floor_price" = "Цена";
 "market.top.top_market_pairs" = "Лучшие рыночные пары";
 "market.top.top_platforms" = "Топ платформы";
-"market.top.protocols" = "Протоколы";
+"market.top.protocols" = "Протоколы: %@";
 
 "market.pairs.volume" = "Объем";
 "top_pairs.title" = "Лучшие рыночные пары";
@@ -1022,8 +1140,8 @@
 "market.global.defi_cap.title" = "Капитализация DeFi";
 "market.global.defi_cap.description" = "Общая рыночная стоимость проектов DeFi";
 
-"market.etf.title" = "Общий чистый приток";
-"market.etf.description" = "Чистый приток (net inflow) ETF равен разнице между поступлениями и оттоками наличных средств.";
+"market.etf.title" = "ETF на %@";
+"market.etf.description" = "Чистый приток во все ETF на %@, включая спотовые и фьючерсные фонды.";
 "market.etf.total_net_assets" = "Общие активы";
 "market.etf.sort_by.highest_assets" = "Наивысшие активы";
 "market.etf.sort_by.lowest_assets" = "Наименьшие активы";
@@ -1090,6 +1208,8 @@
 "coin_page.overview" = "Цена";
 "coin_page.analytics" = "Аналитика";
 "coin_page.markets" = "Рынки";
+"coin_page.buy" = "Купить";
+"coin_page.sell" = "Продать";
 "coin_page.tweets" = "Твиты";
 
 // Coin Page -> Overview
@@ -1152,8 +1272,8 @@
 "technical_advice.stable.rsi" = " При этом RSI = %@, что тоже говорит об развороте тренда (RSI пересек границу в 70%)";
 "technical_advice.stable.advice" = "Цена возвращается к нейтральным показателям, однако есть еще потенциал движения вверх. Учитывайте, что RSI = 50 и середина Bollinger Bands являются довольно сильными сопротивлениями и возможными точками разворота тренда. Не забывайте про риск менеджмент.";
 
-"technical_advice.neutral.rsi" = "RSI = $@ также подверждает отсутствие сильного тренда.";
-"technical_advice.neutral.indicators" = "Актив находился в зоне перекупленности/перепроданности, однако в текущий момент цена вернулась в канал Bollinger Band в нейтральную зону. (RSI)? RSI = $@ также подверждает отсутствие сильного тренда, поэтому в целом цена актива стремится к усреднению и дальнейшее движение возможно в любую сторону.";
+"technical_advice.neutral.rsi" = "RSI = %@ также подтверждает отсутствие сильного тренда.";
+"technical_advice.neutral.indicators" = "Актив находился в зоне перекупленности/перепроданности, однако в текущий момент цена вернулась в канал Bollinger Band в нейтральную зону. RSI = %@ также подтверждает отсутствие сильного тренда, поэтому в целом цена актива стремится к усреднению и дальнейшее движение возможно в любую сторону.";
 "technical_advice.neutral.advice" = " В целом цена актива стремится к усреднению и дальнейшее движение возможно в любую сторону.";
 
 "technical_advice.other.title" = "Пожалуйста, обратите внимание:";
@@ -1378,6 +1498,7 @@
 "transactions.processing" = "В процессе";
 "transactions.completed" = "Завершено";
 "transactions.failed" = "Не удалось";
+"transactions.not_processed" = "Не обработано";
 
 "transactions.receive" = "Получено";
 "transactions.send" = "Отправлено";
@@ -1416,7 +1537,10 @@
 "transactions.unknown_transaction.description" = "Транзакция не может быть обработана";
 
 "transactions.ton_transaction.title" = "Ton транзакция";
-"transactions.stellar_transaction.title" = "Спонсор: %@";
+"transactions.stellar_transaction.title" = "Транзакция Stellar";
+"transactions.xrp_transaction.title" = "Транзакция XRP Ledger";
+"transactions.trust_set" = "Доверительная линия";
+"tx_info.operation_type" = "Тип операции";
 "transactions.contract" = "Контракт";
 
 // Transaction Info
@@ -1941,8 +2065,12 @@
 "add_token.contract_address_not_found" = "Адрес контракта не найден в %@ блокчейне";
 "add_token.jetton_master_not_found" = "Jetton Master не найден в блокчейне %@";
 "add_token.input_placeholder.contract_address" = "Адрес контракта";
+"add_token.input_placeholder.asset_id" = "ID актива";
+"add_token.invalid_asset_id" = "Недопустимый ID актива";
 "add_token.input_placeholder.jetton_master_address" = "Jetton Master адрес";
 "add_token.input_placeholder.mint_address" = "Mint-адрес токена";
+"add_token.input_placeholder.xrp_currency" = "Код валюты.Эмитент";
+"add_token.invalid_xrp_currency" = "Неверная ссылка на токен XRP Ledger";
 "add_token.invalid_mint_address" = "Недействительный адрес Solana";
 "add_token.mint_address_not_found" = "Токен не найден в блокчейне %@";
 "add_token.coin_name" = "Название токена";
@@ -1953,6 +2081,7 @@
 
 "wallet_connect.title" = "WalletConnect";
 "wallet_connect.error.invalid_url" = "Неверный URL-адрес";
+"wallet_connect.error.expired_url" = "Ссылка подключения истекла, сгенерируйте новую в dApp";
 "wallet_connect.active_account" = "Активный кошелек";
 "wallet_connect.network" = "Сеть";
 "wallet_connect.list.pending_requests" = "Ожидающие запросы";
@@ -1963,6 +2092,7 @@
 "wallet_connect.main.premium_alert.subtitle.risky" = "Сайт не проверен. Подключение может привести к фишингу и потере средств.";
 "wallet_connect.main.premium_alert.subtitle.not_available" = "Проверка защиты от скамов не удалась. Подключение разрешено, но домен может быть небезопасен.";
 "wallet_connect.scam_protection" = "Scam-защита";
+"wallet_connect.dapp_check" = "Проверка dApp";
 "wallet_connect.scam_protection.deactivated" = "Отключено";
 "wallet_connect.scam_protection.risky" = "Рискованно";
 "wallet_connect.scam_protection.secure" = "Безопасно";
@@ -1977,7 +2107,7 @@
 "wallet_connect.button_reconnect" = "Повторное подключение";
 "wallet_connect.button_disconnect" = "Отсоединить";
 "ethereum_transaction.error.title" = "Ошибка";
-"ethereum_transaction.error.insufficient_balance" = "Для отправки транзакции требуется %@.";
+"transaction.error.insufficient_balance" = "Для отправки транзакции требуется %@.";
 "ethereum_transaction.error.insufficient_balance_with_fee" = "Текущий баланс %@ ниже суммы, необходимой для обработки этой транзакции, включая комиссию за транзакцию.";
 "ethereum_transaction.error.lower_than_base_gas_limit" = "Выбранное значение комиссии слишком низкое и будет отклонено!";
 "ethereum_transaction.error.nonce_already_in_block" = "Транзакция уже в блоке!";
@@ -1987,10 +2117,129 @@
 "ethereum_transaction.error.reverted" = "Транзакция не может быть выполнена: %@";
 "wallet_connect.request_title" = "Вызов контракта";
 "wallet_connect.button.confirm" = "Подтвердить";
+"wallet_connect.button.expired" = "Истекло";
 "wallet_connect.sign.request_title" = "Запрос на подпись";
+"wallet_connect.transaction.title" = "Подтвердить транзакцию";
+"wallet_connect.sign_transaction.title" = "Подписать транзакцию";
+"wallet_connect.allowance.title" = "Разрешение на токены";
+"wallet_connect.allowance.description" = "%@ сможет перемещать эти токены от вашего имени.";
+"wallet_connect.allowance.amount" = "Сумма разрешения";
 "wallet_connect.sign.domain" = "Домен";
 "wallet_connect.sign.dapp_name" = "dApp";
-"wallet_connect.sign.message" = "Сообщение для подписи";
+"wallet_connect.sign.message" = "Сообщение";
+"wallet_connect.request.transactions" = "Транзакции";
+"wallet_connect.request.signer" = "Подписант";
+"wallet_connect.solana.method_transfer" = "Перевод";
+"wallet_connect.solana.value" = "Значение";
+"wallet_connect.stellar.payment" = "Платёж";
+"wallet_connect.stellar.create_account" = "Создать аккаунт";
+"wallet_connect.stellar.account_merge" = "Объединить аккаунт";
+"wallet_connect.stellar.path_payment_send" = "Платёж по маршруту (Strict Send)";
+"wallet_connect.stellar.path_payment_receive" = "Платёж по маршруту (Strict Receive)";
+"wallet_connect.stellar.change_trust" = "Изменить доверие";
+"wallet_connect.stellar.manage_buy_offer" = "Управление ордером на покупку";
+"wallet_connect.stellar.manage_sell_offer" = "Управление ордером на продажу";
+"wallet_connect.stellar.passive_sell_offer" = "Создать пассивный ордер на продажу";
+"wallet_connect.stellar.set_options" = "Настроить параметры аккаунта";
+"wallet_connect.stellar.source" = "От";
+"wallet_connect.stellar.amount" = "Сумма";
+"wallet_connect.stellar.issuer" = "Эмитент";
+"wallet_connect.stellar.send_amount" = "Сумма отправки";
+"wallet_connect.stellar.send_max" = "Максимальная сумма отправки";
+"wallet_connect.stellar.receive_min" = "Минимальная сумма получения";
+"wallet_connect.stellar.receive_amount" = "Сумма получения";
+"wallet_connect.stellar.send_issuer" = "Эмитент отправляемого актива";
+"wallet_connect.stellar.receive_issuer" = "Эмитент получаемого актива";
+"wallet_connect.stellar.asset" = "Актив";
+"wallet_connect.stellar.pool_share" = "Доля в пуле ликвидности";
+"wallet_connect.stellar.limit" = "Лимит Trustline";
+"wallet_connect.stellar.selling_asset" = "Продаваемый актив";
+"wallet_connect.stellar.buying_asset" = "Покупаемый актив";
+"wallet_connect.stellar.selling_issuer" = "Эмитент продаваемого актива";
+"wallet_connect.stellar.buying_issuer" = "Эмитент покупаемого актива";
+"wallet_connect.stellar.buy_amount" = "Сумма покупки";
+"wallet_connect.stellar.sell_amount" = "Сумма продажи";
+"wallet_connect.stellar.buy_price" = "Цена (Продажа за Покупку)";
+"wallet_connect.stellar.sell_price" = "Цена (Покупка за Продажу)";
+"wallet_connect.stellar.offer_id" = "ID ордера";
+"wallet_connect.stellar.master_weight" = "Вес мастер-ключа";
+"wallet_connect.stellar.low_threshold" = "Низкий порог";
+"wallet_connect.stellar.medium_threshold" = "Средний порог";
+"wallet_connect.stellar.high_threshold" = "Высокий порог";
+"wallet_connect.stellar.set_flags" = "Установить флаги";
+"wallet_connect.stellar.clear_flags" = "Очистить флаги";
+"wallet_connect.stellar.inflation_destination" = "Адрес инфляции";
+"wallet_connect.stellar.home_domain" = "Домашний домен";
+"wallet_connect.stellar.signer_type" = "Тип подписанта";
+"wallet_connect.stellar.signer" = "Подписант";
+"wallet_connect.stellar.signer_weight" = "Вес подписанта";
+"wallet_connect.stellar.signer_payload" = "Полезная нагрузка подписанта";
+"wallet_connect.stellar.memo_id" = "ID мемо";
+"wallet_connect.stellar.memo_hash" = "Хеш мемо";
+"wallet_connect.stellar.memo_return_hash" = "Хеш возврата мемо";
+"wallet_connect.stellar.permissions.title" = "Разрешения аккаунта";
+"wallet_connect.stellar.permissions.description" = "Эта транзакция изменяет настройки аккаунта или разрешения на подпись. Внимательно проверьте подписанта, веса и пороги.";
+"wallet_connect.stellar.unknown.title" = "Неизвестные операции";
+"wallet_connect.stellar.unknown.description" = "Некоторые операции не могут быть полностью отображены. Подписывайте только если доверяете запрашивающему приложению и понимаете транзакцию.";
+"wallet_connect.solana.unknown_lookup_address" = "Неизвестно (таблица поиска адресов)";
+"wallet_connect.solana.hidden_recipient.title" = "Скрытый получатель";
+"wallet_connect.solana.hidden_recipient.text" = "Эта транзакция переводит средства на адрес, загруженный из таблицы поиска. Получатель не может быть отображён. Подписывайте только если доверяете этому dApp.";
+"wallet_connect.solana.unknown_instructions.title" = "Неизвестные инструкции";
+"wallet_connect.solana.unknown_instructions.text" = "Эта транзакция содержит дополнительные инструкции, последствия которых не отображаются. Подписывайте только если доверяете этому dApp.";
+"wallet_connect.solana.unreadable_transaction.title" = "Нечитаемая транзакция";
+"wallet_connect.solana.unreadable_transaction.text" = "Детали этой транзакции не удалось декодировать, поэтому вы не можете увидеть, что она делает: получатель, сумма и программы скрыты. Продолжайте только если полностью доверяете этому приложению.";
+"wallet_connect.verdict.token_swap_native_value" = "Этот свop токенов также отправляет нативные монеты";
+"wallet_connect.verdict.swap_router_unsupported" = "1inch не поддерживается в %@";
+"wallet_connect.verdict.swap_not_canonical_router" = "Своп 1inch направлен не на официальный роутер";
+"wallet_connect.verdict.missing_signer" = "В запросе не указан адрес подписи";
+"wallet_connect.verdict.malformed_signer" = "Адрес подписи имеет неверный формат";
+"wallet_connect.verdict.signer_not_approved" = "Адрес подписи не одобрен для %@";
+"wallet_connect.verdict.chain_not_in_session" = "Сеть %@ не входит в одобренную сессию";
+"wallet_connect.verdict.origin_scam" = "Этот dApp отмечен как мошенничество";
+"wallet_connect.verdict.origin_invalid" = "Источник dApp не совпадает с подтверждённым доменом";
+"wallet_connect.verdict.typed_data_no_chain" = "Типизированные данные не содержат идентификатор сети, подпись может быть воспроизведена в других сетях";
+"wallet_connect.verdict.typed_data_chain_not_approved" = "Идентификатор сети %@ типизированных данных не одобрен";
+"wallet_connect.verdict.eth_sign_blind_hash" = "eth_sign по необработанному 32-байтному хешу является слепым подписанием";
+"wallet_connect.verdict.eth_sign_unreadable" = "Сообщение eth_sign не является читаемым текстом";
+"wallet_connect.verdict.solana_message_is_transaction" = "Это сообщение является замаскированной транзакцией, подписание авторизует её";
+"wallet_connect.verdict.solana_message_unreadable" = "Сообщение solana_signMessage не является читаемым текстом";
+"wallet_connect.verdict.permit_unlimited" = "Подписание позволяет %@ перемещать любое количество этого токена из вашего кошелька в любое время, пока разрешение не будет отозвано";
+"wallet_connect.sign_transaction.description" = "%@ получит подписанную транзакцию и сможет отправить её в сеть в любое время.";
+"wallet_connect.connect.title" = "Подключиться к %@";
+"wallet_connect.session.title" = "Подключено к %@";
+"wallet_connect.connect.wallet" = "Кошелёк";
+"wallet_connect.connect.description" = "Подключаясь, вы разрешаете этому приложению просматривать ваш публичный адрес.";
+"wallet_connect.connect.unsupported" = "Этот dApp требует сети или методы, которые этот кошелёк не поддерживает";
+"wallet_connect.defense.safe.title" = "Безопасно";
+"wallet_connect.defense.safe.text" = "Я проверил. Этот dApp безопасен для подключения.";
+"wallet_connect.defense.danger.title" = "Опасность!";
+"wallet_connect.defense.danger.text" = "Этот dApp не верифицирован. Подключение может подвергнуть ваши средства риску.";
+"wallet_connect.defense.scam.title" = "Известное мошенничество!";
+"wallet_connect.defense.scam.text" = "Этот сайт находится в списке известных вредоносных доменов. Подключение с большой вероятностью приведёт к потере средств.";
+"wallet_connect.defense.attention.title" = "Внимание!";
+"wallet_connect.defense.attention.text" = "Вы можете подключиться к поддельному сайту и потерять средства. Активируйте меня для защиты.";
+"wallet_connect.defense.activate" = "Активировать";
+"wallet_connect.defense.loading" = "Проверка этого dApp…";
+"wallet_connect.defense.not_available" = "Проверка dApp сейчас недоступна";
+"wallet_connect.sign.request_type" = "Тип запроса";
+"wallet_connect.sign.contract" = "Контракт";
+"wallet_connect.sign.network" = "Сеть";
+"wallet_connect.list.requests" = "Запросы";
+"wallet_connect.list.request.sign" = "Подписать";
+"wallet_connect.list.request.confirm" = "Подтвердить";
+"wallet_connect.list.request.approve" = "Одобрить";
+"wallet_connect.list.disconnect.title" = "Отключить %@";
+"wallet_connect.list.disconnect.description" = "Вы уверены, что хотите удалить это подключение?";
+"wallet_connect.error.invalid_url.title" = "Недействительный URL";
+"wallet_connect.error.invalid_url.description" = "Невозможно подключиться по этой ссылке. Проверьте её и попробуйте снова.";
+"wallet_connect.error.request_failed.title" = "Ошибка запроса";
+"wallet_connect.error.request_failed.description" = "Что-то пошло не так, и запрос не удалось выполнить";
+"wallet_connect.verify.mismatch.title" = "Обнаружена подмена!";
+"wallet_connect.verify.mismatch.text" = "Этот запрос исходит от %@, что не совпадает с заявленным сайтом. Это распространённый метод фишинга.";
+"wallet_connect.verify.mismatch.no_origin" = "Этот запрос исходит от другого сайта, чем заявленный. Это распространённый метод фишинга.";
+"wallet_connect.verify.unknown.title" = "Неподтверждённый сайт";
+"wallet_connect.verify.unknown.text" = "Личность этого сайта не удалось подтвердить. Внимательно проверьте адрес перед подключением.";
+"button.try_again" = "Повторить";
 
 "wallet_connect.send.transaction" = "Отправить транзакцию";
 
@@ -2134,6 +2383,16 @@
 "monero_network.added" = "Добавлен";
 "monero_network.add_new" = "Добавить новый";
 "monero_network.description" = "Выберите ноду, которую приложение Unstoppable будет использовать для синхронизации кошелька(ов).";
+"monero_network.auto_select" = "Автоматический выбор ноды";
+"monero_network.auto_select.description" = "Подключиться к самой быстрой актуальной ноде";
+"monero_network.unreachable" = "Недоступен";
+"add_monero_node.error.port_required" = "URL должен содержать порт";
+"monero.account" = "Аккаунт";
+"monero.accounts.title" = "Аккаунты";
+"monero.accounts.description" = "Аккаунты — это отдельные разделы внутри одного кошелька Monero. Отображаемые балансы, адреса и транзакции принадлежат активному аккаунту. Перевод средств между аккаунтами требует ончейн-транзакции.";
+"monero.accounts.new" = "Новый аккаунт";
+"monero.accounts.rename" = "Переименовать";
+"monero.accounts.name_placeholder" = "Имя (необязательно)";
 "monero_network.settings.title" = "Настройки узла";
 "monero_network.settings.description" = "Доверенная нода – При включении кошелёк доверяет выбранной ноде и принимает её данные без дополнительной проверки. \n\nВкл → Транзакции отображаются как ожидающие сразу после отправки (более быстрая синхронизация, но меньшая конфиденциальность и большая зависимость от ноды).\n\nВыкл → Транзакции отображаются только после подтверждений сети (медленнее, но безопаснее и конфиденциальнее).";
 "monero_network.settings.trust" = "Доверять узлу";
@@ -2162,6 +2421,11 @@
 "zcash_network.added" = "Добавлен";
 "zcash_network.add_new" = "Добавить новый";
 "zcash_network.description" = "Выберите сервер lightwallet, который приложение Unstoppable будет использовать для синхронизации кошелька(ов).";
+"zcash_network.auto_select" = "Автовыбор сервера";
+"zcash_network.auto_select.description" = "Подключиться к самому быстрому актуальному серверу";
+"zcash_network.unreachable" = "Недоступен";
+"xrp_network.description" = "Выберите ноду, которую приложение Unstoppable будет использовать для синхронизации кошелька(ов).";
+"near-protocol_network.description" = "Выберите ноду, которую приложение Unstoppable будет использовать для синхронизации кошелька(ов).";
 
 "add_zcash_node.title" = "Добавить сервер";
 "add_zcash_node.description" = "Введите адрес сервера lightwalletd (хост или хост:порт).";
@@ -2185,13 +2449,14 @@
 "fee_settings.inputs_outputs" = "Вводы/Выводы";
 "fee_settings.inputs_outputs.description" = "Изменяет структуру входов и выходов транзакции.";
 "fee_settings.transaction_settings" = "Настройки транзакций";
-"fee_settings.transaction_settings.description" = "Затрудните отслеживание Биткойн-транзакций, изменив их структурирование.";
+"fee_settings.transaction_settings.description" = "Затрудните отслеживание транзакции %@, изменив способ структурирования транзакций.";
 "fee_settings.replace_by_fee" = "Изменить комиссию";
 "fee_settings.replace_by_fee.description" = "Эта опция позволяет повторно отправить застрявшую транзакцию, увеличивая сумму комиссии.";
 "fee_settings.time_lock" = "TimeLock";
-"fee_settings.time_lock.description" = "TimeLock работает только для отправки на адреса BIP44 (начинающиеся с 1)";
+"fee_settings.time_lock.description" = "TimeLock работает только при отправке на адреса BIP44 (начинающиеся с 1).";
+"fee_settings.time_lock.not_applied" = "Не применяется к приватной отправке и Cross Pay.";
 
-"fee_settings.network_fee" = "Комиссия";
+"fee_settings.network_fee" = "Сетевая комиссия";
 "fee_settings.network_fee.info" = "Ориентировочная стоимость отправки данной транзакции по сети.";
 "fee_settings.zcash_marginal_fee" = "Предельная комиссия";
 "fee_settings.zcash_marginal_fee.info" = "Предельная комиссия — это сумма в затоши, уплачиваемая за каждый выход, используемый транзакцией.\n\nЕсли кошелёк использует много мелких выходов, общая сетевая комиссия будет выше.";
@@ -2394,7 +2659,6 @@
 "purchases.swap_protection.info" = "Защищает от ботов и front-running атак при обмене.";
 "purchases.robbery_protection" = "Защита при ограблении";
 "purchases.robbery_protection.description" = "Защищает ваши средства, если вас вынуждают разблокировать приложение.";
-"purchases.robbery_protection.info" = "Позволяет создать ложный кошелёк с отдельным PIN-кодом. Скрывает реальные активы в рискованных ситуациях.";
 
 // Advanced Controls
 "purchases.advanced_controls" = "Расширенные настройки";
@@ -2534,3 +2798,24 @@
 "open_crypto_pay.tx_info.proof_status.submitted" = "Отправлено";
 "open_crypto_pay.tx_info.proof_status.pending" = "В ожидании";
 "open_crypto_pay.tx_info.proof_status.reconciliation" = "Требуется сверка";
+
+"cross_pay.send_to" = "Отправить";
+"cross_pay.select_token" = "Выбрать токен";
+"cross_pay.you_pay" = "Вы платите";
+"cross_pay.you_pay.info" = "Сумма, внесённая для финансирования этого платежа, включая стоимость обмена провайдера и возвращаемый резерв на проскальзывание. Любая неиспользованная часть резерва возвращается в ваш кошелёк.";
+"cross_pay.caution.insufficient_balance %@" = "Для этого платежа необходимо %@ в вашем кошельке, включая комиссии.";
+"cross_pay.error.token_unsupported" = "Токен не поддерживается";
+"cross_pay.error.below_minimum %@" = "Минимальная сумма составляет %@";
+"cross_pay.error.above_maximum %@" = "Максимальная сумма составляет %@";
+"cross_pay.error.no_route" = "Маршрут недоступен";
+"cross_pay.error.provider_suspended" = "Поставщик услуг платежей временно недоступен. Пожалуйста, повторите попытку позже.";
+"cross_pay.error.network" = "Ошибка запроса котировки. Проверьте подключение.";
+"cross_pay.error.commit_failed" = "Не удалось настроить платеж. Пожалуйста, повторите попытку позже.";
+"cross_pay.unavailable" = "Оплата недоступна";
+"cross_pay.you_will_pay" = "Вы заплатите";
+"cross_pay.quoting" = "Расчёт...";
+"cross_pay.info.title" = "CrossPay";
+"cross_pay.info.text %@" = "CrossPay позволяет отправить один актив, оплачивая другим. Ваш %@ автоматически конвертируется в актив, который получает получатель.";
+
+"swap.amount_min" = "(мин.)";
+"swap.amount_max" = "(макс.)";

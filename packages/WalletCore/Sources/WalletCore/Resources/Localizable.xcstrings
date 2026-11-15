@@ -13,16 +13,6 @@
     "#%lld" : {
 
     },
-    "%@ - %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ - %2$@"
-          }
-        }
-      }
-    },
     "%@ %@" : {
       "localizations" : {
         "en" : {
@@ -46,6 +36,16 @@
         }
       }
     },
+    "%lld%% / %lld%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld%% / %2$lld%%"
+          }
+        }
+      }
+    },
     "•" : {
 
     },
@@ -61,10 +61,10 @@
     "Chainalysis.com" : {
 
     },
-    "coin_analytics.indicators.disclaimer" : {
+    "coin_overview.performance.assets" : {
 
     },
-    "coin_overview.performance.assets" : {
+    "Emulate EVM Swap Send" : {
 
     },
     "Emulate Purchase" : {
@@ -85,13 +85,7 @@
     "Invalid Pre Swap Step" : {
 
     },
-    "Maya Stagenet Enabled" : {
-
-    },
     "No Handler" : {
-
-    },
-    "Premium" : {
 
     },
     "purchase.lifetime.description" : {
@@ -6019,5 +6013,5 @@
       }
     }
   },
-  "version" : "1.0"
+  "version" : "1.1"
 }

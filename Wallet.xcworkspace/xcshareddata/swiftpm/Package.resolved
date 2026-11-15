@@ -1,13 +1,13 @@
 {
-  "originHash" : "30981f650659226e51802dcab076092c559f4567bea51183d5d0f872bc627b97",
+  "originHash" : "bf604704d3d43ec90788a524fed97c24d781d3316b76cdda433966a3ebdfb8b5",
   "pins" : [
     {
       "identity" : "alamofire",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Alamofire/Alamofire.git",
       "state" : {
-        "revision" : "7595cbcf59809f9977c5f6378500de2ad73b7ddb",
-        "version" : "5.12.0"
+        "revision" : "3f99050e75bbc6fe71fc323adabb039756680016",
+        "version" : "5.11.1"
       }
     },
     {
@@ -49,9 +49,10 @@
     {
       "identity" : "bitcoincore.swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/horizontalsystems/BitcoinCore.Swift.git",
+      "location" : "https://github.com/horizontalsystems/BitcoinCore.Swift",
       "state" : {
-        "revision" : "74331848b91ae39e90781872e2006665d3c4abf7"
+        "revision" : "5b49f424f495904cf06519b1a7b861ef37b45b50",
+        "version" : "3.2.0"
       }
     },
     {
@@ -84,10 +85,10 @@
     {
       "identity" : "checkpoints",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/horizontalsystems/Checkpoints.git",
+      "location" : "https://github.com/horizontalsystems/Checkpoints",
       "state" : {
-        "revision" : "c0133cb7262f19d2b2f5b2bed2018cd10583bb85",
-        "version" : "1.0.29"
+        "revision" : "f882c7b3d2a095fe197c2dede8eea919d9ec2aa5",
+        "version" : "1.0.33"
       }
     },
     {
@@ -104,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/krzyzanowskim/CryptoSwift",
       "state" : {
-        "revision" : "f2a627b84c1ff96f21ac2fcb623ab36142dd5512",
-        "version" : "1.10.0"
+        "revision" : "e45a26384239e028ec87fbcc788f513b67e10d8f",
+        "version" : "1.9.0"
       }
     },
     {
@@ -127,14 +128,6 @@
       }
     },
     {
-      "identity" : "dogecoinkit.swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/erebuskaimoros/DogecoinKit.Swift.git",
-      "state" : {
-        "revision" : "367559c58f9d2c5e4c8cd649a9bcb61e5bc751bc"
-      }
-    },
-    {
       "identity" : "down",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/johnxnguyen/Down",
@@ -148,8 +141,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/ECashKit.Swift.git",
       "state" : {
-        "revision" : "86af5b240b430f10a2b6f5373a97ade4169a862a",
-        "version" : "3.0.2"
+        "revision" : "b928449275093b4c115f239752a20c2abb2a4855",
+        "version" : "3.0.3"
       }
     },
     {
@@ -157,16 +150,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/Eip20Kit.Swift",
       "state" : {
-        "revision" : "9aa81cd46de677bc9ad5e0db1b6e3b45afc677e4",
-        "version" : "2.0.4"
+        "revision" : "9dcf5c4bd6fd1cfebacfc99d3f9ca6d96b4db571",
+        "version" : "2.1.2"
       }
     },
     {
       "identity" : "evmkit.swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/horizontalsystems/EvmKit.Swift.git",
+      "location" : "https://github.com/horizontalsystems/EvmKit.Swift",
       "state" : {
-        "revision" : "8da42a8a67a2a9d6e00079bc0aafe7cce9ca9161"
+        "revision" : "481a2161710f713098c6831749e58b3db1f242e0",
+        "version" : "2.7.0"
       }
     },
     {
@@ -192,8 +186,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/grpc/grpc-swift.git",
       "state" : {
-        "revision" : "6a8927df5a91710b414caba4f8a088dead4633db",
-        "version" : "1.27.5"
+        "revision" : "65d0084f6d7db34b0dfcb1c956b8dd8da8ef9d23",
+        "version" : "1.27.6"
       }
     },
     {
@@ -208,10 +202,10 @@
     {
       "identity" : "hdwalletkit.swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/horizontalsystems/HdWalletKit.Swift.git",
+      "location" : "https://github.com/horizontalsystems/HdWalletKit.Swift",
       "state" : {
-        "revision" : "2fc0dbfc089f78a9804baafe8e1bc4aab69cbad1",
-        "version" : "1.3.1"
+        "revision" : "f01afdc9a3c444261b0ad0c1cad14cc09257e2cb",
+        "version" : "1.3.2"
       }
     },
     {
@@ -226,7 +220,7 @@
     {
       "identity" : "hscryptokit.swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/horizontalsystems/HsCryptoKit.Swift.git",
+      "location" : "https://github.com/horizontalsystems/HsCryptoKit.Swift",
       "state" : {
         "revision" : "7c11ad0e690cbb178a70f3b9d1116d0a37a51a41",
         "version" : "1.3.2"
@@ -237,8 +231,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/HsExtensions.Swift.git",
       "state" : {
-        "revision" : "558b3baf4a29c3987f07158494a554915df826c1",
-        "version" : "1.0.7"
+        "revision" : "0012014f98ae81ffb89b0d3a2e9c204559e1c278",
+        "version" : "1.0.6"
       }
     },
     {
@@ -246,8 +240,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/HsToolKit.Swift.git",
       "state" : {
-        "revision" : "8d56708a2186f809872f4d9e776cb91c8c8f39b5",
-        "version" : "2.0.5"
+        "revision" : "a6a4b12c3cfe57de8e3deb89bdb787ca96b99f28",
+        "version" : "2.0.7"
       }
     },
     {
@@ -264,8 +258,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/onevcat/Kingfisher.git",
       "state" : {
-        "revision" : "410984bf301f4fa224fe56277b3f8672cc465c79",
-        "version" : "8.11.0"
+        "revision" : "cf8be20d07654570554c8a8a4952bc8a5766a8b0",
+        "version" : "8.9.0"
       }
     },
     {
@@ -282,7 +276,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/MarketKit.Swift",
       "state" : {
-        "revision" : "612b3457dc01e484d6fe808db8c5f12e88bf98c2"
+        "revision" : "866bfa19d6eb3b675e068efafa163d2892b70eeb",
+        "version" : "3.6.22"
       }
     },
     {
@@ -290,8 +285,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/MoneroKit.Swift",
       "state" : {
-        "revision" : "7999ce801980e8176da32398120a508d8c0896f6",
-        "version" : "0.2.9"
+        "revision" : "217193af3e96388da4f92d615aa38d9578738a60",
+        "version" : "0.2.13"
+      }
+    },
+    {
+      "identity" : "nearkit.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/horizontalsystems/NearKit.Swift.git",
+      "state" : {
+        "revision" : "4dfcb8a7ade12f5069577ed538b3ccea75605117",
+        "version" : "1.1.0"
       }
     },
     {
@@ -306,7 +310,7 @@
     {
       "identity" : "objectmapper",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/tristanhimmelman/ObjectMapper.git",
+      "location" : "https://github.com/tristanhimmelman/ObjectMapper",
       "state" : {
         "revision" : "0b96a734de3ea1c87374ae677064f86adb0716ec",
         "version" : "4.2.0"
@@ -317,8 +321,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/OneInchKit.Swift",
       "state" : {
-        "revision" : "f08b950f4ef0dad6b1de66501c14ff9a39de11ee",
-        "version" : "3.0.4"
+        "revision" : "d3ee1a015b8a725e4a603bcd790d9fd250243a8e",
+        "version" : "3.1.0"
       }
     },
     {
@@ -380,8 +384,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/solana-kit-ios.git",
       "state" : {
-        "revision" : "bc27c486be80746a4e86312ca49964d4f68cdea3",
-        "version" : "1.0.2"
+        "revision" : "7f16b52f56d26b01cff967124e2326e91639e56f",
+        "version" : "1.1.0"
       }
     },
     {
@@ -389,8 +393,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/stephencelis/SQLite.swift.git",
       "state" : {
-        "revision" : "964c300fb0736699ce945c9edb56ecd62eba27a3",
-        "version" : "0.16.0"
+        "revision" : "4114679379eeb4538638f49ec14e1854dd9cf73c",
+        "version" : "0.17.0"
       }
     },
     {
@@ -407,8 +411,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Soneso/stellar-ios-mac-sdk.git",
       "state" : {
-        "revision" : "2cde213d93884c60bb1b111becbd879e5b44c424",
-        "version" : "3.9.0"
+        "revision" : "653490f0260010b14ded4fbab6f86c02f9e1e13e",
+        "version" : "3.4.2"
       }
     },
     {
@@ -416,8 +420,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/StellarKit.Swift",
       "state" : {
-        "revision" : "a9f02b0cdd8e8eb3c627111774e068c6e32a1f7d",
-        "version" : "1.2.0"
+        "revision" : "6153bbcb0ffefdc8104bf5939edd8ca3c4d777f0",
+        "version" : "1.2.1"
       }
     },
     {
@@ -434,8 +438,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-atomics.git",
       "state" : {
-        "revision" : "0442cb5a3f98ab802acb777929fdb446bda11a34",
-        "version" : "1.3.1"
+        "revision" : "b601256eab081c0f92f059e12818ac1d4f178ff7",
+        "version" : "1.3.0"
       }
     },
     {
@@ -443,8 +447,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections.git",
       "state" : {
-        "revision" : "a0cb0954ecb21e4e31b0070e6ed5674e8556685a",
-        "version" : "1.6.0"
+        "revision" : "7b847a3b7008b2dc2f47ca3110d8c782fb2e5c7e",
+        "version" : "1.3.0"
       }
     },
     {
@@ -470,8 +474,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-http-types",
       "state" : {
-        "revision" : "db774a277f60063a32d854f2980299caf06da041",
-        "version" : "1.6.0"
+        "revision" : "45eb0224913ea070ec4fba17291b9e7ecf4749ca",
+        "version" : "1.5.1"
       }
     },
     {
@@ -479,8 +483,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log.git",
       "state" : {
-        "revision" : "3ffafb9722d5d918c614feb496c8789a3b59d222",
-        "version" : "1.15.0"
+        "revision" : "c9c6bb9d275ec0d95c3ad16391f3f045dc623104",
+        "version" : "1.16.2"
       }
     },
     {
@@ -488,8 +492,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio.git",
       "state" : {
-        "revision" : "0b18836bd8b0162e7e17a995a3fbee20ed8f3b2b",
-        "version" : "2.101.3"
+        "revision" : "5e72fc102906ebe75a3487595a653e6f43725552",
+        "version" : "2.94.0"
       }
     },
     {
@@ -506,8 +510,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-http2.git",
       "state" : {
-        "revision" : "45bdf670248be5f16ec0340e125dca285536f0fb",
-        "version" : "1.45.0"
+        "revision" : "0f3e54e29c944c2e835ad52159da7d9e1c94ac69",
+        "version" : "1.46.0"
       }
     },
     {
@@ -515,8 +519,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-nio-ssl.git",
       "state" : {
-        "revision" : "d930168b86f46ca51a4bc09c5ca45c1833db8067",
-        "version" : "2.37.2"
+        "revision" : "173cc69a058623525a58ae6710e2f5727c663793",
+        "version" : "2.36.0"
       }
     },
     {
@@ -551,8 +555,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-protobuf.git",
       "state" : {
-        "revision" : "55d7a1cc5666b85c13464aea1c4b4a90feccb4c8",
-        "version" : "1.38.1"
+        "revision" : "c169a5744230951031770e27e475ff6eefe51f9d",
+        "version" : "1.33.3"
       }
     },
     {
@@ -587,8 +591,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-system.git",
       "state" : {
-        "revision" : "869129b7bf4ecc57b97d0193ad29690ca2134750",
-        "version" : "1.8.1"
+        "revision" : "7c6ad0fc39d0763e0b699210e4124afd5041c5df",
+        "version" : "1.6.4"
       }
     },
     {
@@ -598,6 +602,15 @@
       "state" : {
         "revision" : "5596407d1cf61b953b8e658fa8636a471df3c509",
         "version" : "1.1.6"
+      }
+    },
+    {
+      "identity" : "thorchainkit.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/horizontalsystems/ThorChainKit.Swift",
+      "state" : {
+        "revision" : "64db60004004b5b3552916ca3d6d3e483214e07b",
+        "version" : "1.2.2"
       }
     },
     {
@@ -641,8 +654,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/TronKit.Swift.git",
       "state" : {
-        "revision" : "f8ce0c00d788a4e06ddfe07ce2a5d6be783dcce4",
-        "version" : "1.5.1"
+        "revision" : "aa691bcd8c79d57a554d72a4996bec4d7e1afce5",
+        "version" : "1.5.2"
       }
     },
     {
@@ -668,8 +681,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/horizontalsystems/UniswapKit.Swift",
       "state" : {
-        "revision" : "0bf93c2fa5b1b03b99aad7e364580c5e439d511f",
-        "version" : "3.2.0"
+        "revision" : "e62b1ac37303c87a95f0e74dc721e895985fa2bc",
+        "version" : "3.3.0"
       }
     },
     {
@@ -682,6 +695,15 @@
       }
     },
     {
+      "identity" : "xrpkit.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/horizontalsystems/XrpKit.Swift",
+      "state" : {
+        "revision" : "1d23162b5d7db175e0b317756daa3fb9ef89b0da",
+        "version" : "1.0.1"
+      }
+    },
+    {
       "identity" : "yttrium",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/reown-com/yttrium",
@@ -691,12 +713,12 @@
       }
     },
     {
-      "identity" : "zcashlightclientkit",
+      "identity" : "zodl-swift-wallet-sdk",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/horizontalsystems/ZcashLightClientKit",
+      "location" : "https://github.com/horizontalsystems/zodl-swift-wallet-sdk",
       "state" : {
-        "revision" : "3bb411e921a9b8d50c7a07014ab0af590a0f04a1",
-        "version" : "2.7.0-rc.2-hs.1"
+        "revision" : "0dc7e58aada76f0d43a19f39df585c81499303b1",
+        "version" : "7.0.0-hs.2"
       }
     }
   ],

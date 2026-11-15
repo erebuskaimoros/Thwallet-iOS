@@ -23,7 +23,6 @@ class RestoreCoinsViewModel: ObservableObject {
     private var restoreSettingsMap: [Token: RestoreSettings] = [:]
 
     private var pendingTokenRequest: TokenRequest?
-    private var birthdayEntered = false
 
     init(
         accountName: String,
@@ -86,8 +85,12 @@ extension RestoreCoinsViewModel {
                 currentlyEnabled: tokens.filter(\.type.isDefault),
                 allowEmpty: false
             )
-        } else if !blockchain.type.restoreSettingTypes.isEmpty {
-            requestRestoreSettings(token: firstToken)
+        } else if let handler = RestoreSettingsHandlerFactory.handler(blockchainType: blockchain.type, accountType: accountType) {
+            handler.request(token: firstToken, statPage: nil, onEnter: { [weak self] settings in
+                self?.handleRestoreSettingsEntered(token: firstToken, settings: settings)
+            }, onCancel: { [weak self] in
+                self?.syncItems() // revert toggle in UI
+            })
         } else {
             handleApprove(blockchain: blockchain, tokens: [firstToken])
         }
@@ -155,32 +158,11 @@ extension RestoreCoinsViewModel {
         syncCanRestore()
     }
 
-    private func requestRestoreSettings(token: Token) {
-        guard let provider = BirthdayInputProviderFactory.provider(blockchainType: token.blockchainType) else {
-            return
+    private func handleRestoreSettingsEntered(token: Token, settings: RestoreSettings) {
+        if !settings.isEmpty {
+            restoreSettingsMap[token] = settings
         }
-
-        birthdayEntered = false
-        Coordinator.shared.present { [weak self] _ in
-            BirthdayInputView(blockchain: token.blockchain, provider: provider) { height in
-                self?.handleBirthdayEntered(token: token, height: height)
-            }
-        } onDismiss: { [weak self] in
-            guard let self else { return }
-            if !birthdayEntered {
-                syncItems() // revert toggle in UI
-            }
-        }
-    }
-
-    private func handleBirthdayEntered(token: Token, height: Int) {
-        birthdayEntered = true
-        var settings = RestoreSettings()
-        settings[.birthdayHeight] = String(height)
-        restoreSettingsMap[token] = settings
-        enabledTokens.insert(token)
-        syncItems()
-        syncCanRestore()
+        handleApprove(blockchain: token.blockchain, tokens: [token])
     }
 
     private func requestTokenSelection(

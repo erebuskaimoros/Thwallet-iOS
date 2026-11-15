@@ -1,8 +1,10 @@
 import Foundation
 import RxSwift
-import ZcashLightClientKit
+import ZODLSwiftWalletSDK
 
 class ZcashTransactionPool {
+    // internal lock: pool is mutated from serialized history operations and read from Rx threads
+    private let stateQueue = DispatchQueue(label: "\(AppConfig.label).zcash-transaction-pool", qos: .userInitiated)
     private var confirmedTransactions = Set<ZcashTransactionWrapper>()
     private var pendingTransactions = Set<ZcashTransactionWrapper>()
 
@@ -17,8 +19,11 @@ class ZcashTransactionPool {
     }
 
     private func transactions(filter: TransactionTypeFilter, address: String?) -> [ZcashTransactionWrapper] {
-        var confirmedTransactions = confirmedTransactions
-        var pendingTransactions = pendingTransactions
+        let snapshot: (confirmed: Set<ZcashTransactionWrapper>, pending: Set<ZcashTransactionWrapper>) = stateQueue.sync {
+            (confirmed: self.confirmedTransactions, pending: self.pendingTransactions)
+        }
+        var confirmedTransactions = snapshot.confirmed
+        var pendingTransactions = snapshot.pending
         switch filter {
         case .all: ()
         case .incoming:
@@ -43,24 +48,24 @@ class ZcashTransactionPool {
     }
 
     private func zcashTransactions(_ transactions: [ZcashTransaction.Overview], lastBlockHeight: Int) async -> [ZcashTransactionWrapper] {
+        // One batched read for all transactions instead of two per transaction: the SDK's getMemos
+        // and getRecipients are both just a read of the same outputs (MOB-1953)
+        let outputsByRawID = await synchronizer.getTransactionOutputs(for: transactions)
+
         var wrapped = [ZcashTransactionWrapper]()
         for tx in transactions {
-            if let tx = try? await transactionWithAdditional(tx: tx, lastBlockHeight: lastBlockHeight) {
+            let outputs = outputsByRawID[tx.rawID] ?? []
+            let firstMemo = outputs
+                .compactMap(\.memo)
+                .compactMap { $0.toString() }
+                .first
+            let recipients = outputs.map(\.recipient)
+
+            if let tx = ZcashTransactionWrapper(accountId: accountId, tx: tx, memo: firstMemo, recipients: recipients, lastBlockHeight: lastBlockHeight) {
                 wrapped.append(tx)
             }
         }
         return wrapped
-    }
-
-    private func transactionWithAdditional(tx: ZcashTransaction.Overview, lastBlockHeight: Int) async throws -> ZcashTransactionWrapper? {
-        let memos: [Memo] = await (try? synchronizer.getMemos(for: tx)) ?? []
-        let firstMemo = memos
-            .compactMap { $0.toString() }
-            .first
-
-        let recipients = await synchronizer.getRecipients(for: tx)
-
-        return ZcashTransactionWrapper(accountId: accountId, tx: tx, memo: firstMemo, recipients: recipients, lastBlockHeight: lastBlockHeight)
     }
 
     private func sync(own: inout Set<ZcashTransactionWrapper>, incoming: [ZcashTransactionWrapper]) {
@@ -72,18 +77,54 @@ class ZcashTransactionPool {
 //        let pending = await synchronizer.pendingTransactions
 
 //        pendingTransactions = await Set(zcashTransactions(pending, lastBlockHeight: 0))
-        confirmedTransactions = await Set(zcashTransactions(overviews, lastBlockHeight: 0))
+        let confirmed = await Set(zcashTransactions(overviews, lastBlockHeight: 0))
+        stateQueue.sync { confirmedTransactions = confirmed }
     }
 
     func sync(transactions: [ZcashTransaction.Overview], lastBlockHeight: Int) async -> [ZcashTransactionWrapper] {
         let txs = await zcashTransactions(transactions, lastBlockHeight: lastBlockHeight)
         // TODO: sync pending and confirmed but How?
-        sync(own: &confirmedTransactions, incoming: txs)
+        stateQueue.sync { sync(own: &confirmedTransactions, incoming: txs) }
         return txs
     }
 
     func transaction(by hash: String) -> ZcashTransactionWrapper? {
         transactions(filter: .all, address: nil).first { $0.transactionHash == hash }
+    }
+
+    func contains(hash: String) -> Bool {
+        stateQueue.sync {
+            confirmedTransactions.contains { $0.transactionHash == hash } || pendingTransactions.contains { $0.transactionHash == hash }
+        }
+    }
+
+    // The newest by mined height, unmined ones newest of all; expired unmined and failed ones do not count. Not
+    // by timestamp: an unmined wrapper's timestamp is the wrap time, renewed on every resync.
+    private func latest(lastBlockHeight: Int, where isIncluded: (ZcashTransactionWrapper) -> Bool) -> ZcashTransactionWrapper? {
+        let snapshot = stateQueue.sync { confirmedTransactions.union(pendingTransactions) }
+
+        return snapshot
+            .filter { transaction in
+                guard isIncluded(transaction), !transaction.failed else {
+                    return false
+                }
+                if transaction.minedHeight == nil, let expiryHeight = transaction.expiryHeight, expiryHeight > 0, expiryHeight <= lastBlockHeight {
+                    return false
+                }
+                return true
+            }
+            .max { lhs, rhs in
+                (lhs.minedHeight ?? Int.max, lhs.expiryHeight ?? 0, lhs.timestamp) < (rhs.minedHeight ?? Int.max, rhs.expiryHeight ?? 0, rhs.timestamp)
+            }
+    }
+
+    /// The wallet's newest own transaction: a send, a shielding or an internal transfer; incoming ones do not count.
+    func latestOwnTransaction(lastBlockHeight: Int) -> ZcashTransactionWrapper? {
+        latest(lastBlockHeight: lastBlockHeight) { $0.isSentTransaction || $0.shieldDirection != nil }
+    }
+
+    func latestShielding(lastBlockHeight: Int) -> ZcashTransactionWrapper? {
+        latest(lastBlockHeight: lastBlockHeight) { $0.shieldDirection == .shield }
     }
 }
 

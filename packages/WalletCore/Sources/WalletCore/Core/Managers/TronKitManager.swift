@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import HdWalletKit
 import MarketKit
@@ -6,6 +7,8 @@ import RxSwift
 import TronKit
 
 public class TronKitManager {
+    public var gaslessAccountProvider: IGaslessAccountProvider = TronKitManager.unstoppableGaslessAccountProvider
+
     private let disposeBag = DisposeBag()
     private let testNetManager: TestNetManager
     private let evmSyncSourceManager: EvmSyncSourceManager
@@ -13,6 +16,7 @@ public class TronKitManager {
     private weak var _tronKitWrapper: TronKitWrapper?
 
     private let tronKitCreatedRelay = PublishRelay<Void>()
+    private let tronKitCreatedSubject = PassthroughSubject<Void, Never>()
     private let tronKitUpdatedRelay = PublishRelay<Void>()
     private var currentAccount: Account?
 
@@ -78,7 +82,7 @@ public class TronKitManager {
             throw AdapterError.unsupportedAccount
         }
         let syncSource = evmSyncSourceManager.syncSource(blockchainType: .tron)
-        let gaslessAccount = SmartAccountManager.isGasTokenPayment(account.type)
+        let gaslessAccount = gaslessAccountProvider.gasless(account: account)
         let tronKit = try TronKit.Kit.instance(
             address: address,
             network: network,
@@ -101,12 +105,17 @@ public class TronKitManager {
         currentAccount = account
 
         tronKitCreatedRelay.accept(())
+        tronKitCreatedSubject.send()
 
         return wrapper
     }
 }
 
 extension TronKitManager {
+    public var tronKitCreatedPublisher: AnyPublisher<Void, Never> {
+        tronKitCreatedSubject.eraseToAnyPublisher()
+    }
+
     var tronKitCreatedObservable: Observable<Void> {
         tronKitCreatedRelay.asObservable()
     }
@@ -115,7 +124,7 @@ extension TronKitManager {
         tronKitUpdatedRelay.asObservable()
     }
 
-    var tronKitWrapper: TronKitWrapper? {
+    public var tronKitWrapper: TronKitWrapper? {
         queue.sync {
             _tronKitWrapper
         }
@@ -128,12 +137,12 @@ extension TronKitManager {
     }
 }
 
-class TronKitWrapper {
-    let tronKit: TronKit.Kit
+public class TronKitWrapper {
+    public let tronKit: TronKit.Kit
     let signer: Signer?
-    /// True when this wrapper serves a gas-token-payment account (currently passkey-AA / GasFree).
-    /// UI uses it to bypass on-chain `accountActive == false` cosmetic ("not activated") for accounts
-    /// whose wallet is a CREATE2 BeaconProxy not yet deployed on chain.
+    // True when this wrapper serves an account that pays network fees in tokens. UI uses it to bypass
+    // the on-chain `accountActive == false` cosmetic ("not activated") for accounts whose wallet
+    // contract is not yet deployed on chain.
     let gasTokenPayment: Bool
 
     init(tronKit: TronKit.Kit, signer: Signer?, gasTokenPayment: Bool) {
@@ -169,5 +178,19 @@ extension TronKitManager {
 extension TronKitWrapper {
     enum SignerError: Error {
         case signerNotSupported
+    }
+}
+
+public protocol IGaslessAccountProvider {
+    func gasless(account: Account) -> Bool
+}
+
+public extension TronKitManager {
+    static var unstoppableGaslessAccountProvider: IGaslessAccountProvider = UnstoppableGaslessAccountProvider()
+}
+
+class UnstoppableGaslessAccountProvider: IGaslessAccountProvider {
+    func gasless(account _: Account) -> Bool {
+        false
     }
 }

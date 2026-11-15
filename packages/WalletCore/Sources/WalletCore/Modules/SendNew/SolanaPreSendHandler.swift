@@ -4,7 +4,12 @@ import MarketKit
 import RxSwift
 import SolanaKit
 
-class SolanaPreSendHandler {
+class SolanaPreSendHandler: PreSendHandler {
+    override class func instance(wallet: Wallet, address _: ResolvedAddress?) -> IPreSendHandler? {
+        guard let adapter = Core.shared.adapterManager.adapter(for: wallet) as? ISendSolanaAdapter & IBalanceAdapter else { return nil }
+        return SolanaPreSendHandler(token: wallet.token, adapter: adapter)
+    }
+
     private let token: Token
     private let adapter: ISendSolanaAdapter & IBalanceAdapter
 
@@ -16,6 +21,8 @@ class SolanaPreSendHandler {
     init(token: Token, adapter: ISendSolanaAdapter & IBalanceAdapter) {
         self.token = token
         self.adapter = adapter
+
+        super.init()
 
         adapter.balanceStateUpdatedObservable
             .observeOn(ConcurrentDispatchQueueScheduler(qos: .userInitiated))
@@ -50,8 +57,10 @@ extension SolanaPreSendHandler: IPreSendHandler {
         balanceSubject.eraseToAnyPublisher()
     }
 
-    func hasMemo(address _: String?) -> Bool {
-        false
+    // Chain-constant, so it reads the one table rather than restating it: nothing on this path
+    // carries the memo to the chain (.none).
+    func memoType(address _: String?) -> MemoType {
+        token.blockchainType.memoType
     }
 
     func sendData(amount: Decimal, address: String, memo: String?) -> SendDataResult {

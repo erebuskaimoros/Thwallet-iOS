@@ -62,6 +62,8 @@ class TransactionInfoService {
         case let tx as TronExternalContractCallTransactionRecord:
             tokens.append(contentsOf: tx.incomingEvents.map(\.value.token))
             tokens.append(contentsOf: tx.outgoingEvents.map(\.value.token))
+        case let tx as ThorChainIncomingTransactionRecord: tokens.append(tx.value.token)
+        case let tx as ThorChainOutgoingTransactionRecord: tokens.append(tx.value.token)
         case let tx as BitcoinIncomingTransactionRecord: tokens.append(tx.value.token)
         case let tx as BitcoinOutgoingTransactionRecord:
             tx.fee.flatMap { tokens.append($0.token) }
@@ -79,20 +81,36 @@ class TransactionInfoService {
                 }
             }
             tokens.append(tx.fee?.token)
+        case let tx as XrpTransactionRecord:
+            tokens.append(tx.mainValue?.token)
+            tokens.append(tx.fee?.token)
+        case let tx as NearTransactionRecord:
+            tokens.append(tx.mainValue?.token)
+            tokens.append(tx.fee?.token)
+            if case let .contractCall(_, _, incoming, outgoing) = tx.type {
+                tokens.append(contentsOf: (incoming + outgoing).map(\.value.token))
+            }
         case let tx as StellarTransactionRecord:
-            switch tx.type {
-            case let .accountCreated(startingBalance, _): tokens.append(startingBalance.token)
-            case let .accountFunded(startingBalance, _): tokens.append(startingBalance.token)
-            case let .sendPayment(value, _, _): tokens.append(value.token)
-            case let .receivePayment(value, _): tokens.append(value.token)
-            case let .changeTrust(value, _, _, _): tokens.append(value.token)
-            default: ()
+            for action in [tx.type] + tx.additionalActions {
+                switch action {
+                case let .accountCreated(startingBalance, _): tokens.append(startingBalance.token)
+                case let .accountFunded(startingBalance, _): tokens.append(startingBalance.token)
+                case let .sendPayment(value, _, _): tokens.append(value.token)
+                case let .receivePayment(value, _): tokens.append(value.token)
+                case let .changeTrust(value, _, _, _): tokens.append(value.token)
+                case let .swap(valueIn, valueOut): tokens.append(contentsOf: [valueIn.token, valueOut.token])
+                default: ()
+                }
             }
             tokens.append(tx.fee?.token)
         case let tx as SolanaIncomingTransactionRecord: tokens.append(tx.value.token)
         case let tx as SolanaOutgoingTransactionRecord:
             tokens.append(tx.fee?.token)
             tokens.append(tx.value.token)
+        case let tx as SolanaSwapTransactionRecord:
+            tokens.append(tx.fee?.token)
+            if let valueIn = tx.valueIn { tokens.append(valueIn.token) }
+            if let valueOut = tx.valueOut { tokens.append(valueOut.token) }
         case let tx as SolanaUnknownTransactionRecord:
             tokens.append(contentsOf: tx.incomingTransfers.map(\.value.token))
             tokens.append(contentsOf: tx.outgoingTransfers.map(\.value.token))
@@ -105,6 +123,10 @@ class TransactionInfoService {
         }
 
         if let tronTransaction = transactionRecord as? TronTransactionRecord, tronTransaction.ownTransaction, let fee = tronTransaction.fee {
+            tokens.append(fee.token)
+        }
+
+        if let thorChainTransaction = transactionRecord as? ThorChainTransactionRecord, let fee = thorChainTransaction.fee {
             tokens.append(fee.token)
         }
 

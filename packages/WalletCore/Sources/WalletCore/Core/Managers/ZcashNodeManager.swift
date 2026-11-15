@@ -1,15 +1,16 @@
+import Combine
 import Foundation
 import MarketKit
-import RxRelay
-import RxSwift
+import ZODLSwiftWalletSDK
 
 public class ZcashNodeManager {
     private let testNetManager: TestNetManager
     private let blockchainSettingsStorage: BlockchainSettingsStorage
     private let zcashNodeStorage: ZcashNodeStorage
 
-    private let nodeRelay = PublishRelay<BlockchainType>()
-    private let nodeUpdatedRelay = PublishRelay<BlockchainType>()
+    // senders are user/restore flows — effectively serialized, honoring the send() contract
+    private let nodeUpdatedSubject = PassthroughSubject<BlockchainType, Never>()
+    private let nodesUpdatedSubject = PassthroughSubject<BlockchainType, Never>()
 
     public init(testNetManager: TestNetManager, blockchainSettingsStorage: BlockchainSettingsStorage, zcashNodeStorage: ZcashNodeStorage) {
         self.testNetManager = testNetManager
@@ -19,7 +20,7 @@ public class ZcashNodeManager {
 
     private func saveCurrent(nodeUrl: URL, blockchainType: BlockchainType) {
         blockchainSettingsStorage.save(zcashNodeUrl: nodeUrl.absoluteString, blockchainType: blockchainType)
-        nodeRelay.accept(blockchainType)
+        nodeUpdatedSubject.send(blockchainType)
     }
 
     private func defaultNodes(blockchainType: BlockchainType) -> [ZcashNode] {
@@ -33,12 +34,12 @@ public class ZcashNodeManager {
 }
 
 extension ZcashNodeManager {
-    var nodeObservable: Observable<BlockchainType> {
-        nodeRelay.asObservable()
+    var nodeUpdatedPublisher: AnyPublisher<BlockchainType, Never> {
+        nodeUpdatedSubject.eraseToAnyPublisher()
     }
 
-    var nodesUpdatedObservable: Observable<BlockchainType> {
-        nodeUpdatedRelay.asObservable()
+    var nodesUpdatedPublisher: AnyPublisher<BlockchainType, Never> {
+        nodesUpdatedSubject.eraseToAnyPublisher()
     }
 
     func customNodes(blockchainType: BlockchainType) -> [ZcashNode] {
@@ -111,7 +112,7 @@ extension ZcashNodeManager {
         let record = ZcashNodeRecord(blockchainTypeUid: blockchainType.uid, url: url.absoluteString)
         try zcashNodeStorage.save(record: record)
 
-        nodeUpdatedRelay.accept(blockchainType)
+        nodesUpdatedSubject.send(blockchainType)
     }
 
     func delete(node: ZcashNode, blockchainType: BlockchainType) throws {
@@ -119,14 +120,69 @@ extension ZcashNodeManager {
         try zcashNodeStorage.delete(blockchainTypeUid: blockchainType.uid, url: node.url.absoluteString)
 
         if isCurrent {
-            nodeRelay.accept(blockchainType)
+            nodeUpdatedSubject.send(blockchainType)
         }
 
-        nodeUpdatedRelay.accept(blockchainType)
+        nodesUpdatedSubject.send(blockchainType)
     }
 }
 
 extension ZcashNodeManager {
+    // Self-reported estimate this far above served blocks = still catching up; Android-parity
+    // 10 blocks at 75s, kept in seconds since NU7 shortens blocks to 25s. SDK's evaluateBestOf
+    // allows 6h — raise if probes filter everyone out.
+    private static let syncedThresholdSeconds: TimeInterval = 750
+
+    var autoSelectEnabled: Bool {
+        get { blockchainSettingsStorage.endpointAutoSelectEnabled(blockchainType: .zcash) }
+        set { blockchainSettingsStorage.save(endpointAutoSelectEnabled: newValue, blockchainType: .zcash) }
+    }
+
+    // Persist without firing nodeUpdatedSubject: the auto-select engine has already switched the
+    // live adapter itself, so the subject's adapter-switch path must not run a second time.
+    func persistCurrent(node: ZcashNode, blockchainType: BlockchainType) {
+        blockchainSettingsStorage.save(zcashNodeUrl: node.url.absoluteString, blockchainType: blockchainType)
+    }
+
+    // One probe serves both consumers: settings-screen badges and the auto-select policy.
+    // nil responseTime = unreachable or failed chain validation — the selector skips those.
+    func pingNodes(blockchainType: BlockchainType) async -> [NodeAutoSelector.PingResult] {
+        let nodes = allNodes(blockchainType: blockchainType)
+        let validated = await validatedProbe(nodes: nodes)
+
+        return nodes.map { node in
+            let probe = validated.first { $0.node == node }
+            return NodeAutoSelector.PingResult(
+                id: node.url.absoluteString,
+                responseTime: probe?.responseTime,
+                height: probe.map { UInt64(max(0, $0.height)) } ?? 0
+            )
+        }
+    }
+
+    private func validatedProbe(nodes: [ZcashNode]) async -> [(node: ZcashNode, responseTime: TimeInterval, height: BlockHeight)] {
+        let network = ZcashNetworkBuilder.network(for: testNetManager.testNetEnabled ? .testnet : .mainnet)
+        let expectedChainName = network.networkType == .mainnet ? "main" : "test"
+        let expectedSaplingActivation = network.constants.saplingActivationHeight
+        let spacing = TargetBlockSpacing(network: network)
+
+        let results = await SDKSynchronizer.pingEndpoints(nodes.map { ZcashAdapter.endpoint(url: $0.url) })
+
+        return results.compactMap { result in
+            guard result.chainName == expectedChainName else { return nil }
+            guard result.saplingActivationHeight == expectedSaplingActivation else { return nil }
+            guard let remoteBranchID = ConsensusBranchID.fromString(result.consensusBranchID),
+                  remoteBranchID == SDKSynchronizer.consensusBranchID(at: result.blockHeight, networkType: network.networkType)
+            else { return nil }
+            guard spacing.seconds(from: result.blockHeight, to: result.estimatedHeight) < Self.syncedThresholdSeconds else { return nil }
+            guard let node = nodes.first(where: { node in
+                node.url.host == result.endpoint.host && (node.url.port ?? 443) == result.endpoint.port
+            }) else { return nil }
+
+            return (node: node, responseTime: result.responseTime, height: result.blockHeight)
+        }
+    }
+
     var customNodeRecords: [ZcashNodeRecord] {
         (try? zcashNodeStorage.getAll()) ?? []
     }
@@ -157,6 +213,13 @@ extension ZcashNodeManager {
 }
 
 extension ZcashNodeManager {
+    func restore(selected: [SelectedNode], custom: [ZcashNodeRecord], autoSelect: Bool?) {
+        if let autoSelect {
+            autoSelectEnabled = autoSelect
+        }
+        restore(selected: selected, custom: custom)
+    }
+
     func restore(selected: [SelectedNode], custom: [ZcashNodeRecord]) {
         var blockchainTypes = Set<BlockchainType>()
         for node in custom {
@@ -174,7 +237,7 @@ extension ZcashNodeManager {
         }
 
         for blockchainType in blockchainTypes {
-            nodeRelay.accept(blockchainType)
+            nodeUpdatedSubject.send(blockchainType)
         }
     }
 }
@@ -203,5 +266,13 @@ extension ZcashNodeManager {
     struct NodeBackup: Codable {
         let selected: [SelectedNode]
         let custom: [CustomNode]
+        // nullable: a backup made before the field existed must not override the device setting
+        let autoSelect: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case selected
+            case custom
+            case autoSelect = "auto_select"
+        }
     }
 }

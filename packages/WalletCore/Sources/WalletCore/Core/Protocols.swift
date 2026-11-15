@@ -6,6 +6,7 @@ import EvmKit
 import GRDB
 import HsToolKit
 import MarketKit
+import NearKit
 import RxSwift
 import SolanaKit
 import TonKit
@@ -13,7 +14,8 @@ import TonSwift
 import TronKit
 import UIKit
 import UniswapKit
-import ZcashLightClientKit
+import XrpKit
+import ZODLSwiftWalletSDK
 
 public protocol IWidgetRefresher {
     func refreshAll()
@@ -24,7 +26,7 @@ public protocol IBaseAdapter: AnyObject {
     var isMainNet: Bool { get }
 }
 
-protocol IAdapter: AnyObject {
+public protocol IAdapter: AnyObject {
     func start()
     func stop()
     func refresh()
@@ -43,7 +45,7 @@ public protocol IBalanceAdapter: IBaseAdapter {
     var cautionUpdatedObservable: Observable<CautionNew?> { get }
 }
 
-extension IBalanceAdapter {
+public extension IBalanceAdapter {
     var caution: CautionNew? {
         nil
     }
@@ -81,7 +83,7 @@ protocol IHDDepositAdapter: IDepositAdapter {
     func usedAddresses(change: Bool) -> [UsedAddress]
 }
 
-extension IDepositAdapter {
+public extension IDepositAdapter {
     var receiveAddressStatus: DataStatus<DepositAddress> {
         .completed(receiveAddress)
     }
@@ -93,7 +95,7 @@ extension IDepositAdapter {
     func usedAddresses(change _: Bool) -> [UsedAddress] { [] }
 }
 
-protocol ITransactionsAdapter {
+public protocol ITransactionsAdapter {
     var syncing: Bool { get }
     var syncingObservable: Observable<Void> { get }
     var lastBlockInfo: LastBlockInfo? { get }
@@ -135,7 +137,7 @@ protocol ISendEthereumAdapter {
     func transactionData(amount: BigUInt, address: EvmKit.Address) -> TransactionData
 }
 
-protocol ISendTronAdapter {
+public protocol ISendTronAdapter {
     var tronKitWrapper: TronKitWrapper { get }
     var balanceData: BalanceData { get }
     func contract(amount: BigUInt, address: TronKit.Address, memo: String?) -> TronKit.Contract
@@ -144,6 +146,40 @@ protocol ISendTronAdapter {
 
 protocol ISendTonAdapter {
     func transferData(recipient: FriendlyAddress, amount: TonAdapter.SendAmount, comment: String?) throws -> TransferData
+}
+
+protocol ISendXrpAdapter {
+    /// The wallet's own classic address; a payment to it is refused by the ledger.
+    var address: String { get }
+    /// Network fee in XRP, sampled at adapter start (default 0.000012); the kit re-reads it at send time.
+    var fee: Decimal { get }
+    var baseReserve: Decimal { get }
+    /// XRP locked by each owned object; a TrustSet locks one increment while the line exists.
+    var ownerReserve: Decimal { get }
+    var availableXrpBalance: Decimal { get }
+    func doesAccountExist(address: String) async throws -> Bool
+    func requiresDestinationTag(address: String) async throws -> Bool
+    /// Whether `address` can receive this adapter's token: always true for XRP, a trust line for an issued token.
+    func canReceive(address: String) async throws -> Bool
+    func send(amount: Decimal, address: String, destinationTag: UInt32?, signer: XrpKit.Signer) async throws -> String
+    func setTrustLine(currency: String, issuer: String, limit: Decimal, signer: XrpKit.Signer) async throws -> String
+}
+
+protocol ISendNearAdapter {
+    var address: String { get }
+    var fee: Decimal { get }
+    var availableNear: Decimal { get }
+    var pendingTransactionHashes: Set<String> { get }
+    func estimate(address: String, amount: Decimal, memo: String?) async throws -> NearSendEstimate
+    func send(amount: Decimal, address: String, memo: String?, estimate: NearSendEstimate, signer: NearKit.Signer) async throws -> String
+}
+
+// requiredNear: the NEAR balance the network needs to accept the send, well above the fee because gas is bought up front
+struct NearSendEstimate {
+    let fee: Decimal
+    let storageDeposit: Decimal?
+    let requiredNear: Decimal
+    let ftTransferEstimate: FtTransferEstimate?
 }
 
 protocol ISendSolanaAdapter {
@@ -204,17 +240,6 @@ protocol IFeeRateProvider {
 protocol IAppManager {
     var didBecomeActiveObservable: Observable<Void> { get }
     var willEnterForegroundObservable: Observable<Void> { get }
-}
-
-protocol IPresentDelegate: AnyObject {
-    func present(viewController: UIViewController)
-    func push(viewController: UIViewController)
-}
-
-extension IPresentDelegate {
-    func push(viewController _: UIViewController) {
-        // might be implemented by delegate
-    }
 }
 
 protocol Warning {

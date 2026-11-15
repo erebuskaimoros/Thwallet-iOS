@@ -48,12 +48,12 @@ struct BitcoinSendSettingsView: View {
                                 }
                             )
 
-                            if viewModel.lockTimeIntervalState != .inactive {
+                            if viewModel.lockTimeSupported {
                                 row(
                                     title: "fee_settings.time_lock".localized,
-                                    subtitle: "fee_settings.time_lock.description".localized,
+                                    subtitle: timeLockSubtitle,
                                     value: viewModel.lockTimeIntervalTitle,
-                                    action: viewModel.lockTimeIntervalState == .enabled ? {
+                                    action: {
                                         Coordinator.shared.present(type: .alert) { isPresented in
                                             OptionAlertView(
                                                 title: "fee_settings.time_lock".localized,
@@ -70,7 +70,7 @@ struct BitcoinSendSettingsView: View {
                                                 isPresented: isPresented
                                             )
                                         }
-                                    } : nil
+                                    }
                                 )
                             }
 
@@ -116,7 +116,15 @@ struct BitcoinSendSettingsView: View {
         }
     }
 
-    @ViewBuilder private func row(title: String, subtitle: String, value: String, action: (() -> Void)?) -> some View {
+    private var timeLockSubtitle: AttibutedComponentText {
+        let description = AttributedString("fee_settings.time_lock.description".localized + " ")
+        var warning = AttributedString("fee_settings.time_lock.not_applied".localized)
+        warning.foregroundColor = Color.themeJacob
+
+        return AttibutedComponentText(text: description + warning)
+    }
+
+    @ViewBuilder private func row(title: String, subtitle: CustomStringConvertible, value: String, action: (() -> Void)?) -> some View {
         let enabled = action != nil
 
         Cell(

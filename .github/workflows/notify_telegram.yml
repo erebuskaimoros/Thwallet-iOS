@@ -4,20 +4,21 @@ on:
   pull_request:
     branches: [ version/* ]
 
+permissions: {}
+
 jobs:
   notify:
-    if: ${{ github.repository == 'horizontalsystems/unstoppable-wallet-ios' && !startsWith(github.head_ref, 'l10n_version/') }}
+    if: ${{ github.repository == 'horizontalsystems/unstoppable-wallet-ios' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Send telegram message
-        uses: appleboy/telegram-action@master
+        uses: appleboy/telegram-action@214f06cfa3d3a588c1472116889437e7c6fd29b1 # v1.1.1
         with:
-          to: ${{secrets.TELEGRAM_TO}}
-          token: ${{secrets.TELEGRAM_TOKEN}}
-          args: |
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
             ${{ github.event.pull_request.html_url }}
 
-            Title   : ${{github.event.pull_request.title}}
-            Author  : @${{github.actor}}
-            Event   : ${{ github.event_name }}
+            Title: ${{ github.event.pull_request.title }}
+            Author: ${{ github.actor }}

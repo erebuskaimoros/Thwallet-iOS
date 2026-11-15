@@ -6,6 +6,7 @@ class SettingsBackup: Codable {
     var moneroNodes: MoneroNodeManager.NodeBackup
     var zanoNodes: ZanoNodeManager.NodeBackup
     var zcashEndpoints: ZcashNodeManager.NodeBackup
+    let thorChainEndpoint: ThorChainEndpointManager.EndpointBackup
     let btcModes: [BtcBlockchainManager.BtcRestoreModeBackup]
 
     let remoteContactsSync: Bool?
@@ -30,6 +31,8 @@ class SettingsBackup: Codable {
         case moneroNodes = "monero_nodes"
         case zanoNodes = "zano_nodes"
         case zcashEndpoints = "zcash_endpoints"
+        // Android's key and schema ({blockchain_type_id, name}) — see EndpointBackup
+        case thorChainEndpoint = "thorchain_sync_source"
         case btcModes = "btc_modes"
         case remoteContactsSync = "contacts_sync"
         case swapProviders = "swap_providers"
@@ -53,6 +56,7 @@ class SettingsBackup: Codable {
         moneroNodes: MoneroNodeManager.NodeBackup,
         zanoNodes: ZanoNodeManager.NodeBackup,
         zcashEndpoints: ZcashNodeManager.NodeBackup,
+        thorChainEndpoint: ThorChainEndpointManager.EndpointBackup,
         btcModes: [BtcBlockchainManager.BtcRestoreModeBackup],
         remoteContactsSync: Bool?,
         swapProviders: [DefaultProvider],
@@ -74,6 +78,7 @@ class SettingsBackup: Codable {
         self.moneroNodes = moneroNodes
         self.zanoNodes = zanoNodes
         self.zcashEndpoints = zcashEndpoints
+        self.thorChainEndpoint = thorChainEndpoint
         self.btcModes = btcModes
         self.remoteContactsSync = remoteContactsSync
         self.swapProviders = swapProviders
@@ -92,28 +97,33 @@ class SettingsBackup: Codable {
         self.appIcon = appIcon
     }
 
+    // Android's Gson omits null fields entirely and the two platforms' key sets are not
+    // identical, so a cross-platform restore must survive any missing key: optionals stay
+    // nil, everything else falls back to the app default instead of failing the whole
+    // FullBackup decode.
     required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        evmSyncSources = try container.decode(EvmSyncSourceManager.SyncSourceBackup.self, forKey: .evmSyncSources)
+        evmSyncSources = (try? container.decode(EvmSyncSourceManager.SyncSourceBackup.self, forKey: .evmSyncSources)) ?? .init(selected: [], custom: [])
         moneroNodes = (try? container.decode(MoneroNodeManager.NodeBackup.self, forKey: .moneroNodes)) ?? .init(selected: [], custom: [])
         zanoNodes = (try? container.decode(ZanoNodeManager.NodeBackup.self, forKey: .zanoNodes)) ?? .init(selected: [], custom: [])
-        zcashEndpoints = (try? container.decode(ZcashNodeManager.NodeBackup.self, forKey: .zcashEndpoints)) ?? .init(selected: [], custom: [])
-        btcModes = try container.decode([BtcBlockchainManager.BtcRestoreModeBackup].self, forKey: .btcModes)
+        zcashEndpoints = (try? container.decode(ZcashNodeManager.NodeBackup.self, forKey: .zcashEndpoints)) ?? .init(selected: [], custom: [], autoSelect: nil)
+        thorChainEndpoint = (try? container.decode(ThorChainEndpointManager.EndpointBackup.self, forKey: .thorChainEndpoint)) ?? .init(familyId: nil)
+        btcModes = (try? container.decode([BtcBlockchainManager.BtcRestoreModeBackup].self, forKey: .btcModes)) ?? []
         remoteContactsSync = try? container.decode(Bool.self, forKey: .remoteContactsSync)
         swapProviders = (try? container.decode([DefaultProvider].self, forKey: .swapProviders)) ?? []
-        chartIndicators = try container.decode(ChartIndicatorsRepository.BackupIndicators.self, forKey: .chartIndicators)
-        indicatorsShown = try container.decode(Bool.self, forKey: .indicatorsShown)
-        currentLanguage = try container.decode(String.self, forKey: .currentLanguage)
-        baseCurrency = try container.decode(String.self, forKey: .baseCurrency)
-        mode = try container.decode(ThemeMode.self, forKey: .mode)
-        showMarketTab = try container.decode(Bool.self, forKey: .showMarketTab)
+        chartIndicators = (try? container.decode(ChartIndicatorsRepository.BackupIndicators.self, forKey: .chartIndicators)) ?? .init(ma: [], rsi: [], macd: [])
+        indicatorsShown = (try? container.decode(Bool.self, forKey: .indicatorsShown)) ?? true
+        currentLanguage = (try? container.decode(String.self, forKey: .currentLanguage)) ?? "en"
+        baseCurrency = (try? container.decode(String.self, forKey: .baseCurrency)) ?? "USD"
+        mode = (try? container.decode(ThemeMode.self, forKey: .mode)) ?? .system
+        showMarketTab = (try? container.decode(Bool.self, forKey: .showMarketTab)) ?? true
         priceChangeMode = (try? container.decode(PriceChangeMode.self, forKey: .priceChangeMode)) ?? .hour24
-        launchScreen = try container.decode(LaunchScreen.self, forKey: .launchScreen)
-        conversionTokenQueryId = try container.decode(String?.self, forKey: .conversionTokenQueryId)
+        launchScreen = (try? container.decode(LaunchScreen.self, forKey: .launchScreen)) ?? .auto
+        conversionTokenQueryId = try container.decodeIfPresent(String.self, forKey: .conversionTokenQueryId)
         balanceHideButtons = (try? container.decode(Bool.self, forKey: .balanceHideButtons)) ?? false
-        balancePrimaryValue = try container.decode(BalancePrimaryValue.self, forKey: .balancePrimaryValue)
-        balanceAutoHide = try container.decode(Bool.self, forKey: .balanceAutoHide)
-        appIcon = try container.decode(String.self, forKey: .appIcon)
+        balancePrimaryValue = (try? container.decode(BalancePrimaryValue.self, forKey: .balancePrimaryValue)) ?? .coin
+        balanceAutoHide = (try? container.decode(Bool.self, forKey: .balanceAutoHide)) ?? false
+        appIcon = (try? container.decode(String.self, forKey: .appIcon)) ?? "Main"
     }
 
     func encode(to encoder: Encoder) throws {
@@ -122,6 +132,7 @@ class SettingsBackup: Codable {
         try container.encode(moneroNodes, forKey: .moneroNodes)
         try container.encode(zanoNodes, forKey: .zanoNodes)
         try container.encode(zcashEndpoints, forKey: .zcashEndpoints)
+        try container.encode(thorChainEndpoint, forKey: .thorChainEndpoint)
         try container.encode(btcModes, forKey: .btcModes)
         try container.encodeIfPresent(remoteContactsSync, forKey: .remoteContactsSync)
         try container.encode(swapProviders, forKey: .swapProviders)
@@ -155,6 +166,7 @@ class SettingsBackup: Codable {
             moneroNodes: moneroNodes,
             zanoNodes: zanoNodes,
             zcashEndpoints: zcashEndpoints,
+            thorChainEndpoint: thorChainEndpoint,
             btcModes: btcModes,
             remoteContactsSync: remoteContactsSync,
             swapProviders: swapProviders,

@@ -40,6 +40,7 @@ Config.xcconfig
 # SPM
 
 Package.resolved
+!Wallet.xcworkspace/xcshareddata/swiftpm/Package.resolved
 .swiftpm
 buildServer.json
 .sourcekit-lsp/
@@ -58,3 +59,4 @@ buildServer.json
 /.serena/
 /.venv-translate/
 /CLAUDE.md
+/.env

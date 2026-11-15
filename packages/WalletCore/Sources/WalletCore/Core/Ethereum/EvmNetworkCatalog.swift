@@ -8,7 +8,6 @@ extension BlockchainType {
     static let mantle = BlockchainType.unsupported(uid: "mantle")
     static let seiEvm = BlockchainType.unsupported(uid: "sei-network")
     static let hyperEvm = BlockchainType.unsupported(uid: "hyperevm")
-    static let robinhood = BlockchainType.unsupported(uid: "robinhood")
 }
 
 enum EvmNetworkFeeModel: Equatable {
@@ -20,7 +19,6 @@ enum EvmNetworkFeeModel: Equatable {
 enum EvmNetworkHistorySource: Equatable {
     case rpcOnly
     case etherscanV2
-    case blockscout
 }
 
 enum EvmNetworkCatalog {
@@ -134,22 +132,6 @@ enum EvmNetworkCatalog {
             order: 28,
             feeModel: .standard
         ),
-        Network(
-            blockchainType: .robinhood,
-            name: "Robinhood Chain",
-            chainId: 4_663,
-            nativeCoinUid: "ethereum",
-            nativeName: "Ethereum",
-            nativeCode: "ETH",
-            rpcName: "Robinhood Chain",
-            rpcUrls: [URL(string: "https://rpc.mainnet.chain.robinhood.com")!],
-            explorerBaseUrl: "https://robinhoodchain.blockscout.com",
-            historySource: .blockscout,
-            gasLimit: 10_000_000,
-            blockTime: 1,
-            order: 29,
-            feeModel: .standard
-        ),
     ]
 
     private static let networkByType = Dictionary(uniqueKeysWithValues: networks.map { ($0.blockchainType, $0) })
@@ -179,15 +161,6 @@ enum EvmNetworkCatalog {
                     apiBaseUrl: "https://api.etherscan.io/v2",
                     txBaseUrl: network.explorerBaseUrl,
                     apiKeys: etherscanKeys
-                )
-            )
-        case .blockscout:
-            return EvmKit.TransactionSource(
-                name: URL(string: network.explorerBaseUrl)?.host ?? network.name,
-                type: .etherscan(
-                    apiBaseUrl: network.explorerBaseUrl,
-                    txBaseUrl: network.explorerBaseUrl,
-                    apiKeys: [""]
                 )
             )
         }

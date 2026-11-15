@@ -1,8 +1,9 @@
 import Foundation
 import MarketKit
 import MoneroKit
+import NearKit
 import ZanoKit
-import ZcashLightClientKit
+import ZODLSwiftWalletSDK
 
 public class RestoreSettingsManager {
     private let storage: RestoreSettingsStorage
@@ -47,10 +48,28 @@ extension RestoreSettingsManager {
 
         storage.save(restoreSettingRecords: records)
     }
+
+    // Enabling a chain that needs restore settings without recording them leaves the adapter
+    // on its worst-case fallback (a restored account scans Zcash from Sapling activation).
+    // Flows that ask the user save their values before the wallet, so this only fills gaps
+    // with the "wallet is new" defaults.
+    func saveDefaultSettingsIfNeeded(account: Account, blockchainType: BlockchainType) {
+        let existingSettings = settings(accountId: account.id, blockchainType: blockchainType)
+        var defaultSettings = RestoreSettings()
+
+        for type in blockchainType.restoreSettingTypes where existingSettings[type] == nil {
+            defaultSettings[type] = type.createdAccountValue(blockchainType: blockchainType)
+        }
+
+        if !defaultSettings.isEmpty {
+            save(settings: defaultSettings, account: account, blockchainType: blockchainType)
+        }
+    }
 }
 
 enum RestoreSettingType: String {
     case birthdayHeight = "birthday_height"
+    case nearAccountId = "near_account_id"
 
     func createdAccountValue(blockchainType: BlockchainType) -> String? {
         switch self {
@@ -61,12 +80,16 @@ enum RestoreSettingType: String {
             case .zano: return "\(ZanoKit.RestoreHeight.getHeight(date: Date()))"
             default: return nil
             }
+        case .nearAccountId:
+            // a new phrase controls only its implicit account
+            return nil
         }
     }
 
     func title(coin: Coin) -> String {
         switch self {
         case .birthdayHeight: return "restore_setting.birthday_height".localized(coin.code)
+        case .nearAccountId: return coin.code
         }
     }
 }
@@ -75,6 +98,13 @@ typealias RestoreSettings = [RestoreSettingType: String]
 
 extension RestoreSettings {
     var birthdayHeight: Int? {
-        self[.birthdayHeight].flatMap { Int($0) }
+        // a negative value would trap in UInt64() when an adapter starts; treat it as absent
+        self[.birthdayHeight].flatMap { Int($0) }.flatMap { $0 >= 0 ? $0 : nil }
+    }
+
+    /// The NEAR account a restored phrase opens instead of its implicit one. An id that is not a NEAR
+    /// account (a hand-edited backup) is ignored, so the wallet still opens on the implicit account.
+    var nearAccountId: String? {
+        self[.nearAccountId].flatMap { NearKit.Kit.isValid(accountId: $0) ? $0 : nil }
     }
 }

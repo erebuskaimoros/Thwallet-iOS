@@ -5,7 +5,7 @@ class RestoreSettingsViewModel {
     private let service: RestoreSettingsService
     private var cancellables = Set<AnyCancellable>()
 
-    private let openBirthdayAlertSubject = PassthroughSubject<Token, Never>()
+    private let openRequestSubject = PassthroughSubject<RestoreSettingsService.Request, Never>()
 
     private var currentRequest: RestoreSettingsService.Request?
 
@@ -19,31 +19,24 @@ class RestoreSettingsViewModel {
 
     private func handle(request: RestoreSettingsService.Request) {
         currentRequest = request
-
-        switch request.type {
-        case .birthdayHeight:
-            openBirthdayAlertSubject.send(request.token)
-        }
+        openRequestSubject.send(request)
     }
 }
 
 extension RestoreSettingsViewModel {
-    var openBirthdayAlertPublisher: AnyPublisher<Token, Never> {
-        openBirthdayAlertSubject.eraseToAnyPublisher()
+    var openRequestPublisher: AnyPublisher<RestoreSettingsService.Request, Never> {
+        openRequestSubject.eraseToAnyPublisher()
     }
 
-    func onEnter(birthdayHeight: Int?) {
+    func onEnter(settings: RestoreSettings) {
         guard let request = currentRequest else {
             return
         }
 
-        switch request.type {
-        case .birthdayHeight:
-            service.enter(birthdayHeight: birthdayHeight, token: request.token)
-        }
+        service.enter(settings: settings, token: request.token)
     }
 
-    func onCancelEnterBirthdayHeight() {
+    func onCancel() {
         guard let request = currentRequest else {
             return
         }

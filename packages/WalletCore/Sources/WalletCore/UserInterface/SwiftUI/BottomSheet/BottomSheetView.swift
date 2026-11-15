@@ -11,16 +11,19 @@ enum BSModule {
         case let .title2(text):
             ThemeText(text, style: .body)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, .margin32)
                 .padding(.top, .margin16)
         case let .subtitle(text):
             ThemeText(text, style: .subhead)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, .margin32)
                 .padding(.bottom, .margin16)
         case let .subhead2(text):
             ThemeText(text, style: .subhead)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, .margin32)
                 .padding(.top, .margin16)
                 .padding(.bottom, .margin24)
@@ -28,11 +31,13 @@ enum BSModule {
             ThemeText(text, style: .body, colorStyle: .secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, alignment: .center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, .margin32)
                 .padding(.vertical, .margin16)
         case let .footer(text):
             ThemeText(text, style: .subhead)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, .margin32)
                 .padding(.top, .margin12)
                 .padding(.bottom, .margin24)
@@ -143,24 +148,18 @@ struct BottomSheetView: View {
 }
 
 public struct InfoDescription: Identifiable {
-    static var fee = InfoDescription(title: "fee_settings.network_fee".localized, description: "fee_settings.network_fee.info".localized)
+    public static var fee = InfoDescription(title: "fee_settings.network_fee".localized, description: "fee_settings.network_fee.info".localized)
+    public static var swapTime = InfoDescription(
+        title: "swap.swapped_time".localized,
+        description: "swap.swapped_time.info".localized,
+        icon: ComponentImage("clock", size: .iconSize72)
+    )
 
     let title: String
     let description: String
+    var icon: CustomStringConvertible = ThemeImage.book
 
     public var id: String {
         title + description
-    }
-}
-
-class BottomSheetWrapperView: UIHostingController<BottomSheetView> {
-    init(items: [BSModule.Item], id: String = "ID") {
-        let view = BottomSheetView(items: items, id: id)
-        super.init(rootView: view)
-    }
-
-    @available(*, unavailable)
-    @MainActor dynamic required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
     }
 }

@@ -24,10 +24,10 @@ class TransactionInfoViewItemFactory {
         extraProviderFactory.updatedPublisher
     }
 
-    private func amount(source: TransactionSource, title: String, subtitle: String?, appValue: AppValue, rate: CurrencyValue?, type: AmountType, balanceHidden: Bool) -> TransactionInfoModule.ViewItem {
+    private func amount(title: String, subtitle: String?, appValue: AppValue, rate: CurrencyValue?, type: AmountType, balanceHidden: Bool) -> TransactionInfoModule.ViewItem {
         let iconUrl = appValue.coin?.imageUrl
         let iconAlternativeUrl = appValue.coin?.image
-        let iconPlaceholderImageName = source.blockchainType.placeholderImageName(tokenProtocol: appValue.tokenProtocol)
+        let iconPlaceholderImageName = "placeholder_circle"
 
         let coin = appValue.token.flatMap { $0.isCustom ? nil : $0.coin }
 
@@ -140,7 +140,7 @@ class TransactionInfoViewItemFactory {
         switch appValue.kind {
         case let .token(token):
             return token.fullBadge
-        case let .eip20Token(tokenName, _, _):
+        case let .unknownToken(tokenName, _, _):
             return tokenName
         default:
             return nil
@@ -178,7 +178,6 @@ class TransactionInfoViewItemFactory {
 
             viewItems.append(
                 amount(
-                    source: source,
                     title: burn ? "transactions.burn".localized : "transactions.send".localized,
                     subtitle: fullBadge(appValue: appValue),
                     appValue: appValue,
@@ -247,7 +246,6 @@ class TransactionInfoViewItemFactory {
 
             viewItems.append(
                 amount(
-                    source: source,
                     title: mint ? "transactions.mint".localized : "transactions.receive".localized,
                     subtitle: fullBadge(appValue: appValue),
                     appValue: appValue,
@@ -354,7 +352,7 @@ class TransactionInfoViewItemFactory {
             let valueTitle = contactData.name == nil ? evmLabelManager.addressLabel(address: record.spender) : nil
 
             var viewItems: [TransactionInfoModule.ViewItem] = [
-                amount(source: record.source, title: "transactions.approve".localized, subtitle: fullBadge(appValue: appValue), appValue: appValue, rate: rate, type: .neutral, balanceHidden: balanceHidden),
+                amount(title: "transactions.approve".localized, subtitle: fullBadge(appValue: appValue), appValue: appValue, rate: rate, type: .neutral, balanceHidden: balanceHidden),
                 .spender(value: record.spender, valueTitle: valueTitle, contactAddress: contactData.contactAddress),
             ]
 
@@ -368,11 +366,11 @@ class TransactionInfoViewItemFactory {
 
         case let record as SwapTransactionRecord:
             var amountViewItems: [TransactionInfoModule.ViewItem] = [
-                amount(source: record.source, title: youPayString(status: status), subtitle: fullBadge(appValue: record.valueIn), appValue: record.valueIn, rate: _rate(record.valueIn.coin), type: type(appValue: record.valueIn, .outgoing), balanceHidden: balanceHidden),
+                amount(title: youPayString(status: status), subtitle: fullBadge(appValue: record.valueIn), appValue: record.valueIn, rate: _rate(record.valueIn.coin), type: type(appValue: record.valueIn, .outgoing), balanceHidden: balanceHidden),
             ]
 
             if let valueOut = record.valueOut {
-                amountViewItems.append(amount(source: record.source, title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, condition: record.recipient == nil, .incoming, .outgoing), balanceHidden: balanceHidden))
+                amountViewItems.append(amount(title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, condition: record.recipient == nil, .incoming, .outgoing), balanceHidden: balanceHidden))
             }
 
             sections.append(.init(amountViewItems))
@@ -412,13 +410,13 @@ class TransactionInfoViewItemFactory {
 
             if let valueIn = record.valueIn {
                 amountViewItems.append(
-                    amount(source: record.source, title: youPayString(status: status), subtitle: fullBadge(appValue: valueIn), appValue: valueIn, rate: _rate(valueIn.coin), type: type(appValue: valueIn, .outgoing), balanceHidden: balanceHidden)
+                    amount(title: youPayString(status: status), subtitle: fullBadge(appValue: valueIn), appValue: valueIn, rate: _rate(valueIn.coin), type: type(appValue: valueIn, .outgoing), balanceHidden: balanceHidden)
                 )
             }
 
             if let valueOut = record.valueOut {
                 amountViewItems.append(
-                    amount(source: record.source, title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, .incoming), balanceHidden: balanceHidden)
+                    amount(title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, .incoming), balanceHidden: balanceHidden)
                 )
             }
 
@@ -481,7 +479,7 @@ class TransactionInfoViewItemFactory {
             let valueTitle = contactData.name == nil ? evmLabelManager.addressLabel(address: record.spender) : nil
 
             var viewItems: [TransactionInfoModule.ViewItem] = [
-                amount(source: record.source, title: "transactions.approve".localized, subtitle: fullBadge(appValue: appValue), appValue: appValue, rate: rate, type: .neutral, balanceHidden: balanceHidden),
+                amount(title: "transactions.approve".localized, subtitle: fullBadge(appValue: appValue), appValue: appValue, rate: rate, type: .neutral, balanceHidden: balanceHidden),
                 .spender(value: record.spender, valueTitle: valueTitle, contactAddress: contactData.contactAddress),
             ]
 
@@ -519,6 +517,30 @@ class TransactionInfoViewItemFactory {
             sections.append(.init([
                 .actionTitle(iconName: record.source.blockchainType.iconPlain32, iconDimmed: false, title: record.transaction.contract?.label ?? "transactions.contract_call".localized, subTitle: ""),
             ]))
+
+        case let record as ThorChainIncomingTransactionRecord:
+            // No fee on the receiving side: the sender paid it.
+            sections.append(.init(receiveSection(source: record.source, appValue: record.value, from: record.from, rates: item.rates, balanceHidden: balanceHidden)))
+
+        case let record as ThorChainOutgoingTransactionRecord:
+            sections.append(.init(sendSection(source: record.source, appValue: record.value, to: record.to, rates: item.rates, sentToSelf: record.sentToSelf, balanceHidden: balanceHidden)))
+
+            if record.sentToSelf {
+                sections.append(.init([.sentToSelf]))
+            }
+
+            if let fee = record.fee {
+                feeViewItem = .fee(title: "tx_info.fee".localized, value: feeString(appValue: fee, rate: _rate(fee.coin)))
+            }
+
+        case let record as ThorChainTransactionRecord:
+            sections.append(.init([
+                .actionTitle(iconName: record.source.blockchainType.iconPlain32, iconDimmed: false, title: record.transaction.type.capitalized, subTitle: ""),
+            ]))
+
+            if let fee = record.fee {
+                feeViewItem = .fee(title: "tx_info.fee".localized, value: feeString(appValue: fee, rate: _rate(fee.coin)))
+            }
 
         case let record as BitcoinIncomingTransactionRecord:
             sections.append(.init(receiveSection(source: record.source, appValue: record.value, from: record.from, rates: item.rates, to: record.to, balanceHidden: balanceHidden)))
@@ -639,8 +661,8 @@ class TransactionInfoViewItemFactory {
 
                 case let .swap(routerName, routerAddress, valueIn, valueOut):
                     viewItems = [
-                        amount(source: record.source, title: youPayString(status: status), subtitle: fullBadge(appValue: valueIn), appValue: valueIn, rate: _rate(valueIn.coin), type: type(appValue: valueIn, .outgoing), balanceHidden: balanceHidden),
-                        amount(source: record.source, title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, .incoming), balanceHidden: balanceHidden),
+                        amount(title: youPayString(status: status), subtitle: fullBadge(appValue: valueIn), appValue: valueIn, rate: _rate(valueIn.coin), type: type(appValue: valueIn, .outgoing), balanceHidden: balanceHidden),
+                        amount(title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, .incoming), balanceHidden: balanceHidden),
                         .service(value: routerName ?? routerAddress.shortened),
                     ]
 
@@ -677,44 +699,143 @@ class TransactionInfoViewItemFactory {
             feeViewItem = record.fee.map { .fee(title: "tx_info.fee".localized, value: feeString(appValue: $0, rate: _rate($0.coin))) }
 
         case let record as StellarTransactionRecord:
+            // One section per action, primary first (the TON model): a swap tx that also
+            // carries e.g. its service-fee payment op shows the swap on top and the fee as a
+            // plain fund transfer below.
+            let actions = [record.type] + record.additionalActions
+
+            for (index, action) in actions.enumerated() {
+                var viewItems: [TransactionInfoModule.ViewItem]
+
+                switch action {
+                case let .accountCreated(startingBalance, funder):
+                    viewItems = receiveSection(source: record.source, appValue: startingBalance, from: funder, rates: item.rates, balanceHidden: balanceHidden)
+
+                case let .accountFunded(startingBalance, account):
+                    viewItems = sendSection(source: record.source, appValue: startingBalance, to: account, rates: item.rates, balanceHidden: balanceHidden)
+
+                case let .sendPayment(value, to, sentToSelf):
+                    viewItems = sendSection(source: record.source, appValue: value, to: to, rates: item.rates, sentToSelf: sentToSelf, balanceHidden: balanceHidden)
+
+                    if sentToSelf {
+                        viewItems.append(.sentToSelf)
+                    }
+
+                case let .receivePayment(value, from):
+                    viewItems = receiveSection(source: record.source, appValue: value, from: from, rates: item.rates, balanceHidden: balanceHidden)
+
+                case let .swap(valueIn, valueOut):
+                    viewItems = [
+                        amount(title: youPayString(status: status), subtitle: fullBadge(appValue: valueIn), appValue: valueIn, rate: _rate(valueIn.coin), type: type(appValue: valueIn, .outgoing), balanceHidden: balanceHidden),
+                        amount(title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, .incoming), balanceHidden: balanceHidden),
+                    ]
+
+                    if let priceString = priceString(valueIn: valueIn, valueOut: valueOut, coinPriceIn: _rate(valueIn.coin)) {
+                        viewItems.append(.price(price: priceString))
+                    }
+
+                case let .changeTrust(value, _, _, _):
+                    let rate = _rate(value.coin)
+
+                    viewItems = [
+                        amount(title: "Change Trust", subtitle: nil, appValue: value, rate: rate, type: .neutral, balanceHidden: balanceHidden),
+                    ]
+
+                    viewItems.append(.rate(value: rateString(currencyValue: rate, coinCode: value.coin?.code)))
+
+                case let .unsupported(type):
+                    viewItems = [.fee(title: "Operation", value: type)]
+                }
+
+                if index == 0, let memo = record.operation.memo {
+                    viewItems.append(.memo(text: memo))
+                }
+
+                sections.append(.init(viewItems))
+            }
+
+            feeViewItem = record.fee.map { .fee(title: "tx_info.fee".localized, value: feeString(appValue: $0, rate: _rate($0.coin))) }
+
+        case let record as XrpTransactionRecord:
             var viewItems: [TransactionInfoModule.ViewItem]
 
             switch record.type {
-            case let .accountCreated(startingBalance, funder):
-                viewItems = receiveSection(source: record.source, appValue: startingBalance, from: funder, rates: item.rates, balanceHidden: balanceHidden)
-
-            case let .accountFunded(startingBalance, account):
-                viewItems = sendSection(source: record.source, appValue: startingBalance, to: account, rates: item.rates, balanceHidden: balanceHidden)
-
-            case let .sendPayment(value, to, sentToSelf):
+            case let .send(value, to, sentToSelf):
                 viewItems = sendSection(source: record.source, appValue: value, to: to, rates: item.rates, sentToSelf: sentToSelf, balanceHidden: balanceHidden)
 
                 if sentToSelf {
                     viewItems.append(.sentToSelf)
                 }
 
-            case let .receivePayment(value, from):
+            case let .receive(value, from):
                 viewItems = receiveSection(source: record.source, appValue: value, from: from, rates: item.rates, balanceHidden: balanceHidden)
 
-            case let .changeTrust(value, _, _, _):
+            case let .trustSet(value, _):
                 let rate = _rate(value.coin)
 
                 viewItems = [
-                    amount(source: record.source, title: "Change Trust", subtitle: nil, appValue: value, rate: rate, type: .neutral, balanceHidden: balanceHidden),
+                    amount(title: "transactions.trust_set".localized, subtitle: nil, appValue: value, rate: rate, type: .neutral, balanceHidden: balanceHidden),
                 ]
 
                 viewItems.append(.rate(value: rateString(currencyValue: rate, coinCode: value.coin?.code)))
 
             case let .unsupported(type):
-                viewItems = [.fee(title: "Operation", value: type)]
+                viewItems = [.value(title: "tx_info.operation_type".localized, value: type)]
             }
 
-            if let memo = record.operation.memo {
+            // the tag is the counterparty's crediting id, shown next to the memo as on Android
+            if let destinationTag = record.destinationTag {
+                viewItems.append(.value(title: "send.xrp.destination_tag".localized, value: String(destinationTag)))
+            }
+
+            if let memo = record.memo {
                 viewItems.append(.memo(text: memo))
             }
 
             sections.append(.init(viewItems))
 
+            feeViewItem = record.fee.map { .fee(title: "tx_info.fee".localized, value: feeString(appValue: $0, rate: _rate($0.coin))) }
+
+        case let record as NearTransactionRecord:
+            switch record.type {
+            case let .send(value, to, sentToSelf, memo):
+                var viewItems = sendSection(source: record.source, appValue: value, to: to, rates: item.rates, sentToSelf: sentToSelf, balanceHidden: balanceHidden)
+
+                if sentToSelf {
+                    viewItems.append(.sentToSelf)
+                }
+
+                if let memo {
+                    viewItems.append(.memo(text: memo))
+                }
+
+                sections.append(.init(viewItems))
+
+            case let .receive(value, from, memo):
+                var viewItems = receiveSection(source: record.source, appValue: value, from: from, rates: item.rates, balanceHidden: balanceHidden)
+
+                if let memo {
+                    viewItems.append(.memo(text: memo))
+                }
+
+                sections.append(.init(viewItems))
+
+            case let .contractCall(contractId, method, incoming, outgoing):
+                sections.append(.init([
+                    .value(title: "tx_info.operation_type".localized, value: method ?? "transactions.contract_call".localized),
+                    .value(title: "transactions.contract".localized, value: contractId),
+                ]))
+
+                for event in outgoing {
+                    sections.append(.init(sendSection(source: record.source, appValue: event.value, to: event.address, rates: item.rates, balanceHidden: balanceHidden)))
+                }
+
+                for event in incoming {
+                    sections.append(.init(receiveSection(source: record.source, appValue: event.value, from: event.address, rates: item.rates, balanceHidden: balanceHidden)))
+                }
+            }
+
+            // only when the account signed it: someone else paid for a transaction that only touched it
             feeViewItem = record.fee.map { .fee(title: "tx_info.fee".localized, value: feeString(appValue: $0, rate: _rate($0.coin))) }
 
         case let record as ZcashShieldingTransactionRecord:
@@ -745,6 +866,41 @@ class TransactionInfoViewItemFactory {
                 feeViewItem = .fee(title: "tx_info.fee".localized, value: feeString(appValue: fee, rate: _rate(fee.coin)))
             }
 
+        case let record as SolanaSwapTransactionRecord:
+            var amountViewItems = [TransactionInfoModule.ViewItem]()
+
+            if let valueIn = record.valueIn {
+                amountViewItems.append(amount(title: youPayString(status: status), subtitle: fullBadge(appValue: valueIn), appValue: valueIn, rate: _rate(valueIn.coin), type: type(appValue: valueIn, .outgoing), balanceHidden: balanceHidden))
+            }
+
+            if let valueOut = record.valueOut {
+                amountViewItems.append(amount(title: youGetString(status: status), subtitle: fullBadge(appValue: valueOut), appValue: valueOut, rate: _rate(valueOut.coin), type: type(appValue: valueOut, .incoming), balanceHidden: balanceHidden))
+            }
+
+            if !amountViewItems.isEmpty {
+                sections.append(.init(amountViewItems))
+            }
+
+            var serviceViewItems: [TransactionInfoModule.ViewItem] = [
+                .service(value: record.exchangeName),
+            ]
+
+            if let valueIn = record.valueIn, let valueOut = record.valueOut {
+                switch status {
+                case .pending, .processing, .completed:
+                    if let priceString = priceString(valueIn: valueIn, valueOut: valueOut, coinPriceIn: _rate(valueIn.coin)) {
+                        serviceViewItems.append(.price(price: priceString))
+                    }
+                default: ()
+                }
+            }
+
+            sections.append(.init(serviceViewItems))
+
+            if let fee = record.fee {
+                feeViewItem = .fee(title: "tx_info.fee".localized, value: feeString(appValue: fee, rate: _rate(fee.coin)))
+            }
+
         case let record as SolanaUnknownTransactionRecord:
             for transfer in record.outgoingTransfers {
                 sections.append(.init(sendSection(source: record.source, appValue: transfer.value, to: transfer.address, rates: item.rates, nftMetadata: item.nftMetadata, balanceHidden: balanceHidden)))
@@ -757,9 +913,17 @@ class TransactionInfoViewItemFactory {
         default: ()
         }
 
+        if let thorChainRecord = record as? ThorChainTransactionRecord,
+           let memo = thorChainRecord.transaction.memo,
+           !memo.isEmpty
+        {
+            sections.append(.init([.memo(text: memo)]))
+        }
+
         var transactionViewItems: [TransactionInfoModule.ViewItem] = [
             .date(date: record.date),
-            .status(status: status),
+            // a NEAR transaction that expired before inclusion never reached the chain (Android `notProcessed`)
+            .status(status: status, notProcessed: (record as? NearTransactionRecord)?.expired == true),
         ]
 
         if let evmRecord = record as? EvmTransactionRecord, evmRecord.ownTransaction, let appValue = evmRecord.fee {

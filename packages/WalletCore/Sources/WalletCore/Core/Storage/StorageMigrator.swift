@@ -958,6 +958,50 @@ public enum StorageMigrator {
             }
         }
 
+        migrator.registerMigration("Add trackingHandle to SwapRecord") { db in
+            try db.alter(table: SwapRecord.databaseTableName) { t in
+                t.add(column: SwapRecord.Columns.trackingHandle.name, .text)
+            }
+        }
+
+        migrator.registerMigration("Add estimatedTime to SwapRecord") { db in
+            try db.alter(table: SwapRecord.databaseTableName) { t in
+                t.add(column: SwapRecord.Columns.estimatedTime.name, .double)
+            }
+        }
+
+        migrator.registerMigration("Create ConfidentialProviderRecord") { db in
+            try db.create(table: ConfidentialProviderRecord.databaseTableName) { t in
+                t.column(ConfidentialProviderRecord.Columns.providerId.name, .text).notNull().primaryKey(onConflict: .replace)
+                t.column(ConfidentialProviderRecord.Columns.executionType.name, .text).notNull()
+                t.column(ConfidentialProviderRecord.Columns.lastSyncTimestamp.name, .double).notNull()
+            }
+        }
+
+        migrator.registerMigration("Add operation to SwapRecord") { db in
+            try db.alter(table: SwapRecord.databaseTableName) { t in
+                t.add(column: SwapRecord.Columns.operation.name, .text).notNull().defaults(to: Swap.Operation.swap.rawValue)
+            }
+        }
+
+        migrator.registerMigration("Add outputs to SwapRecord") { db in
+            try db.alter(table: SwapRecord.databaseTableName) { t in
+                t.add(column: SwapRecord.Columns.outputs.name, .text)
+            }
+        }
+
+        migrator.registerMigration("Create SwapProviderRecord") { db in
+            try db.create(table: SwapProviderRecord.databaseTableName) { t in
+                t.column(SwapProviderRecord.Columns.providerId.name, .text).notNull().primaryKey(onConflict: .replace)
+                t.column(SwapProviderRecord.Columns.position.name, .integer).notNull()
+                t.column(SwapProviderRecord.Columns.executionType.name, .text)
+                t.column(SwapProviderRecord.Columns.amlPolicy.name, .text)
+                t.column(SwapProviderRecord.Columns.split.name, .boolean).notNull()
+                t.column(SwapProviderRecord.Columns.suspensions.name, .text)
+                t.column(SwapProviderRecord.Columns.lastSyncTimestamp.name, .double).notNull()
+            }
+        }
+
         try migrator.migrate(dbPool)
     }
 

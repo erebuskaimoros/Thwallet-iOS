@@ -15,6 +15,8 @@ public class EvmBlockchainManager {
         .fantom,
         .base,
         .zkSync,
+        .robinhood,
+        .arc,
     ] + EvmNetworkCatalog.blockchainTypes
 
     private let syncSourceManager: EvmSyncSourceManager
@@ -60,7 +62,7 @@ public class EvmBlockchainManager {
 }
 
 extension EvmBlockchainManager {
-    func blockchain(chainId: Int) -> Blockchain? {
+    public func blockchain(chainId: Int) -> Blockchain? {
         allBlockchains.first(where: { (try? chain(blockchainType: $0.type).id) == chainId })
     }
 
@@ -76,7 +78,7 @@ extension EvmBlockchainManager {
         blockchain(chainId: chainId).flatMap { try? chain(blockchainType: $0.type) }
     }
 
-    func chain(blockchainType: BlockchainType) throws -> Chain {
+    public func chain(blockchainType: BlockchainType) throws -> Chain {
         if let network = EvmNetworkCatalog.network(blockchainType: blockchainType) {
             return network.chain
         }
@@ -112,6 +114,8 @@ extension EvmBlockchainManager {
         case .fantom: return .fantom
         case .base: return .base
         case .zkSync: return .zkSync
+        case .robinhood: return .robinhood
+        case .arc: return .arc
         default: throw ChainError.unsupportedBlockchain
         }
     }
@@ -121,7 +125,7 @@ extension EvmBlockchainManager {
         return try? marketKit.token(query: query)
     }
 
-    func evmKitManager(blockchainType: BlockchainType) throws -> EvmKitManager {
+    public func evmKitManager(blockchainType: BlockchainType) throws -> EvmKitManager {
         try evmManagers(blockchainType: blockchainType).0
     }
 

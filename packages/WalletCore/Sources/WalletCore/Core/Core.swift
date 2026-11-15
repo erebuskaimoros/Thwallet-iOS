@@ -4,26 +4,66 @@ import HsToolKit
 import MarketKit
 
 public class Core {
-    static var instance: Core?
+    public static var instance: Core?
 
-    public static func initApp(widgetRefresher: IWidgetRefresher? = nil) throws {
-        let core = try Core(widgetRefresher: widgetRefresher)
+    public static func initApp(config: Config, widgetRefresher: IWidgetRefresher? = nil) throws {
+        let core = try Core(config: config, widgetRefresher: widgetRefresher)
         instance = core
+
+        SendHandlerFactory.unstoppableHandlers.forEach { SendHandlerFactory.register($0) }
+        SendHandlerFactory.unstoppablePreSendHandlers.forEach { SendHandlerFactory.register($0) }
+        NodeNetworkHandlerFactory.unstoppableHandlers.forEach { NodeNetworkHandlerFactory.register($0) }
+        TransactionServiceFactory.unstoppableTransactionServices.forEach { TransactionServiceFactory.register($0) }
+        SwapBroadcasterFactory.register(SwapBroadcasterFactory.unstoppableBroadcasters)
+        RestoreSettingsHandlerFactory.unstoppableHandlers.forEach { RestoreSettingsHandlerFactory.register($0) }
+        SpendStepHandlerFactory.unstoppableHandlers.forEach { SpendStepHandlerFactory.register($0) }
+        if let walletConnect = core.walletConnect {
+            WCSendHandlerProvider.registry = walletConnect.sendHandlerRegistry
+            SendHandlerFactory.register(WCSendHandlerProvider.self)
+            walletConnect.start()
+        }
+        // EvmKit syncers/decorators are registered by each app (no shared fallback): stable in StableCore, the
+        // unstoppable app in its own initCore (registers a provider over defaultSyncers/defaultDecorators).
+
+        // Event handlers attach post-init deliberately: the first event cannot arrive before the UI exists,
+        // and this keeps one attach point for both built-in and future app-registered handlers.
+        let appEventHandlerFactory = AppEventHandlerFactory(
+            marketKit: core.marketKit,
+            walletConnect: core.walletConnect,
+            cloudBackupManager: core.cloudBackupManager,
+            accountManager: core.accountManager,
+            lockManager: core.lockManager
+        )
+
+        for handler in appEventHandlerFactory.handlers() {
+            core.appEventHandler.append(handler: handler)
+        }
+
+        DeepLinkRouteFactory.assertCoherence(handlerKinds: AppEventHandlerFactory.resolved())
+        DeepLinkPresenterFactory.assertCoherence(handlerKinds: AppEventHandlerFactory.resolved())
     }
 
     public static var shared: Core {
         instance!
     }
 
-    let marketKit: MarketKit.Kit
+    // Set by each app, because the service needs a USwapMultiSwapApi the app configures. Left nil,
+    // private send is simply unavailable and nothing else changes.
+    public static var privateSendService: PrivateSendService?
+    public static var crossPayService: CrossPayService?
 
+    let config: Config
+
+    public let marketKit: MarketKit.Kit
+
+    public let databaseDirectoryURL: URL
     public let userDefaultsStorage: UserDefaultsStorage
     let localStorage: LocalStorage
     let keychainStorage: KeychainStorage
 
     public let coverManager: CoverManager
     let pasteboardManager: PasteboardManager
-    let reachabilityManager: ReachabilityManager
+    public let reachabilityManager: ReachabilityManager
     let appIconManager: AppIconManager
     let biometryManager: BiometryManager
     let passcodeManager: PasscodeManager
@@ -38,7 +78,7 @@ public class Core {
     let launchScreenManager: LaunchScreenManager
     let appSettingManager: AppSettingManager
     let securityManager: SecurityManager
-    let balanceHiddenManager: BalanceHiddenManager
+    public let balanceHiddenManager: BalanceHiddenManager
     let balanceConversionManager: BalanceConversionManager
     let walletButtonHiddenManager: WalletButtonHiddenManager
     let priceChangeModeManager: PriceChangeModeManager
@@ -50,39 +90,44 @@ public class Core {
     let logger: Logger
 
     let currencyManager: CurrencyManager
-    let networkManager: NetworkManager
+    public let networkManager: NetworkManager
     let termsManager: TermsManager
     let watchlistManager: WatchlistManager
     let contactManager: ContactBookManager
-    let subscriptionManager: SubscriptionManager
 
     public let accountManager: AccountManager
-    let smartAccountManager: SmartAccountManager
-    let smartAccountPasskeyManager: SmartAccountPasskeyManager
     let accountRestoreWarningManager: AccountRestoreWarningManager
     public let accountFactory: AccountFactory
     let backupManager: BackupManager
     let enabledWalletCacheManager: EnabledWalletCacheManager
     public let walletManager: WalletManager
-    let coinManager: CoinManager
+    public let coinManager: CoinManager
     let passcodeLockManager: PasscodeLockManager
     let amountRoundingManager: AmountRoundingManager
     let recentlySentManager: RecentlySentManager
 
     let btcBlockchainManager: BtcBlockchainManager
-    let evmSyncSourceManager: EvmSyncSourceManager
+    public let evmSyncSourceManager: EvmSyncSourceManager
     let moneroNodeManager: MoneroNodeManager
     let zanoNodeManager: ZanoNodeManager
     let zcashNodeManager: ZcashNodeManager
+    let xrpNodeManager: XrpNodeManager
+    let nearNodeManager: NearNodeManager
+    let zcashNodeAutoSelector: NodeAutoSelector
+    private let zcashNodeUpdateSignalProvider: ZcashNodeUpdateSignalProvider
+    let thorChainEndpointManager: ThorChainEndpointManager
+    let mayaChainEndpointManager: ThorChainEndpointManager
     let restoreStateManager: RestoreStateManager
-    let evmBlockchainManager: EvmBlockchainManager
+    public let evmBlockchainManager: EvmBlockchainManager
     let evmLabelManager: EvmLabelManager
-    let tronAccountManager: TronAccountManager
+    public let tronAccountManager: TronAccountManager
     let tonKitManager: TonKitManager
     let stellarKitManager: StellarKitManager
     let zanoKitManager: ZanoKitManager
     let solanaRpcSourceManager: SolanaRpcSourceManager
     let solanaKitManager: SolanaKitManager
+    let xrpKitManager: XrpKitManager
+    let nearKitManager: NearKitManager
 
     let restoreSettingsManager: RestoreSettingsManager
     let predefinedBlockchainService: PredefinedBlockchainService
@@ -94,13 +139,12 @@ public class Core {
     let nftAdapterManager: NftAdapterManager
     let nftMetadataSyncer: NftMetadataSyncer
 
-    let walletConnectRequestHandler: WalletConnectRequestChain
-    let walletConnectManager: WalletConnectManager
-    let walletConnectSessionManager: WalletConnectSessionManager
+    let walletConnect: WCManager?
 
     public let adapterManager: AdapterManager
-    let transactionAdapterManager: TransactionAdapterManager
+    public let transactionAdapterManager: TransactionAdapterManager
     let rateAppManager: RateAppManager
+    let backupPromptManager: BackupPromptManager
 
     let appBackupProvider: AppBackupProvider
     let cloudBackupManager: CloudBackupManager
@@ -134,15 +178,18 @@ public class Core {
 
     let valueFormatter: CurrencyValueFormatter
 
-    let swapAssetStorage: SwapAssetStorage
+    public let swapAssetStorage: SwapAssetStorage
+    public let confidentialProviderStorage: ConfidentialProviderStorage
     let swapProviderManager: MultiSwapProviderManager
-    let swapProviderInfoManager: SwapProviderInfoManager
-    let swapHistoryManager: SwapHistoryManager
+    public let swapProviderInfoManager: SwapProviderInfoManager
+    public let swapHistoryManager: SwapHistoryManager
 
-    public let smartAccountService: CreateSmartAccountService
+    public let createPasskeyAccountService: CreatePasskeyAccountService
 
-    init(widgetRefresher: IWidgetRefresher?) throws {
-        let databaseDirectoryURL = try FileManager.default
+    init(config: Config, widgetRefresher: IWidgetRefresher?) throws {
+        self.config = config
+
+        databaseDirectoryURL = try FileManager.default
             .url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         let databaseURL = databaseDirectoryURL.appendingPathComponent("bank.sqlite")
         let dbPool = try DatabasePool(path: databaseURL.path)
@@ -177,7 +224,7 @@ public class Core {
         themeManager = ThemeManager.shared
         systemInfoManager = SystemInfoManager()
         testNetManager = TestNetManager(userDefaultsStorage: userDefaultsStorage)
-        deepLinkManager = DeepLinkManager()
+        deepLinkManager = DeepLinkManager(matchers: DeepLinkRouteFactory.matchers())
         deeplinkStorage = DeeplinkStorage()
         launchScreenManager = LaunchScreenManager(userDefaultsStorage: userDefaultsStorage)
         appSettingManager = AppSettingManager(userDefaultsStorage: userDefaultsStorage)
@@ -198,14 +245,11 @@ public class Core {
         watchlistManager = WatchlistManager(widgetRefresher: widgetRefresher, storage: sharedLocalStorage, priceChangeModeManager: priceChangeModeManager)
 
         contactManager = ContactBookManager(localStorage: localStorage, ubiquityContainerIdentifier: AppConfig.privateCloudContainer, helper: ContactBookHelper(), logger: logger)
-        subscriptionManager = SubscriptionManager(userDefaultsStorage: userDefaultsStorage, marketKit: marketKit)
 
         let accountRecordStorage = AccountRecordStorage(dbPool: dbPool)
         let accountStorage = AccountStorage(keychainStorage: keychainStorage, storage: accountRecordStorage)
         let activeAccountStorage = ActiveAccountStorage(dbPool: dbPool)
         accountManager = AccountManager(passcodeManager: passcodeManager, accountStorage: accountStorage, activeAccountStorage: activeAccountStorage)
-        smartAccountManager = try SmartAccountManager(accountManager: accountManager, databaseDirectoryUrl: databaseDirectoryURL)
-        smartAccountPasskeyManager = SmartAccountPasskeyManager()
         accountRestoreWarningManager = AccountRestoreWarningManager(accountManager: accountManager, userDefaultsStorage: userDefaultsStorage)
         accountFactory = AccountFactory(accountManager: accountManager)
         backupManager = BackupManager(accountManager: accountManager)
@@ -237,6 +281,9 @@ public class Core {
         let zcashNodeStorage = ZcashNodeStorage(dbPool: dbPool)
         zcashNodeManager = ZcashNodeManager(testNetManager: testNetManager, blockchainSettingsStorage: blockchainSettingsStorage, zcashNodeStorage: zcashNodeStorage)
 
+        xrpNodeManager = XrpNodeManager(blockchainSettingsStorage: blockchainSettingsStorage)
+        nearNodeManager = NearNodeManager(blockchainSettingsStorage: blockchainSettingsStorage)
+
         let restoreStateStorage = RestoreStateStorage(dbPool: dbPool)
         restoreStateManager = RestoreStateManager(storage: restoreStateStorage)
 
@@ -249,6 +296,19 @@ public class Core {
         evmLabelManager = EvmLabelManager(provider: hsLabelProvider, storage: evmLabelStorage, syncerStateStorage: syncerStateStorage)
 
         let tronKitManager = TronKitManager(testNetManager: testNetManager, evmSyncSourceManager: evmSyncSourceManager)
+        thorChainEndpointManager = ThorChainEndpointManager(
+            blockchainSettingsStorage: blockchainSettingsStorage,
+            endpointProvider: ThorChainEndpointConfigurationProvider()
+        )
+        let thorChainKitManager = ThorChainKitManager(endpointManager: thorChainEndpointManager, restoreStateManager: restoreStateManager, marketKit: marketKit, walletManager: walletManager)
+        mayaChainEndpointManager = ThorChainEndpointManager(
+            blockchainSettingsStorage: blockchainSettingsStorage,
+            endpointProvider: MayaChainEndpointConfigurationProvider(),
+            blockchainType: .mayaChain
+        )
+        // No auto-enable deps for Maya: the catalog has no Maya denoms and the app maps
+        // .thorChainAsset to THOR only (AccountType.supports, AdapterFactory).
+        let mayaChainKitManager = ThorChainKitManager(endpointManager: mayaChainEndpointManager, network: .mayaMainnet)
         tronAccountManager = TronAccountManager(accountManager: accountManager, walletManager: walletManager, marketKit: marketKit, tronKitManager: tronKitManager, restoreStateManager: restoreStateManager)
 
         tonKitManager = TonKitManager(restoreStateManager: restoreStateManager, marketKit: marketKit, walletManager: walletManager)
@@ -265,8 +325,15 @@ public class Core {
             walletManager: walletManager
         )
 
+        xrpKitManager = XrpKitManager(restoreStateManager: restoreStateManager, marketKit: marketKit, walletManager: walletManager, nodeManager: xrpNodeManager, testNetManager: testNetManager)
+
         let restoreSettingsStorage = RestoreSettingsStorage(dbPool: dbPool)
         restoreSettingsManager = RestoreSettingsManager(storage: restoreSettingsStorage)
+
+        nearKitManager = NearKitManager(
+            restoreStateManager: restoreStateManager, restoreSettingsManager: restoreSettingsManager, marketKit: marketKit, walletManager: walletManager,
+            nodeManager: nearNodeManager, testNetManager: testNetManager
+        )
 
         zanoKitManager = ZanoKitManager(restoreSettingsManager: restoreSettingsManager, walletManager: walletManager, zanoNodeManager: zanoNodeManager)
         predefinedBlockchainService = PredefinedBlockchainService(restoreSettingsManager: restoreSettingsManager)
@@ -283,37 +350,12 @@ public class Core {
         )
         nftMetadataSyncer = NftMetadataSyncer(nftAdapterManager: nftAdapterManager, nftMetadataManager: nftMetadataManager, nftStorage: nftStorage)
 
-        walletConnectRequestHandler = WalletConnectRequestChain.instance(evmBlockchainManager: evmBlockchainManager, stellarKitManager: stellarKitManager, accountManager: accountManager)
-
-        let walletClientInfo = WalletConnectClientInfo(
-            projectId: AppConfig.walletConnectV2ProjectKey ?? "c4f79cc821944d9680842e34466bfb",
-            relayHost: "relay.walletconnect.com",
-            name: AppConfig.appName,
-            description: "",
-            url: AppConfig.appWebPageLink,
-            icons: ["https://raw.githubusercontent.com/horizontalsystems/HS-Design/master/PressKit/UW-AppIcon-on-light.png"]
-        )
-
-        let walletConnectService = WalletConnectService(
-            info: walletClientInfo,
-            logger: logger
-        )
-        let walletConnectSessionStorage = WalletConnectSessionStorage(dbPool: dbPool)
-        walletConnectSessionManager = WalletConnectSessionManager(
-            service: walletConnectService,
-            storage: walletConnectSessionStorage,
-            accountManager: accountManager,
-            requestHandler: walletConnectRequestHandler,
-            currentDateProvider: CurrentDateProvider()
-        )
-
-        walletConnectManager = WalletConnectManager(walletConnectSessionManager: walletConnectSessionManager)
-
         let scannedTransactionStorage = try ScannedTransactionStorage(dbPool: dbPool)
         spamWrapper = SpamWrapper(
             storage: scannedTransactionStorage,
             contactBookManager: contactManager,
             accountManager: accountManager,
+            localStorage: localStorage,
             logger: logger
         )
 
@@ -324,10 +366,14 @@ public class Core {
             zcashNodeManager: zcashNodeManager,
             btcBlockchainManager: btcBlockchainManager,
             tronKitManager: tronKitManager,
+            thorChainKitManager: thorChainKitManager,
+            mayaChainKitManager: mayaChainKitManager,
             tonKitManager: tonKitManager,
             stellarKitManager: stellarKitManager,
             zanoKitManager: zanoKitManager,
             solanaKitManager: solanaKitManager,
+            xrpKitManager: xrpKitManager,
+            nearKitManager: nearKitManager,
             restoreSettingsManager: restoreSettingsManager,
             coinManager: coinManager,
             spamWrapper: spamWrapper,
@@ -342,10 +388,14 @@ public class Core {
             stellarKitManager: stellarKitManager,
             zanoKitManager: zanoKitManager,
             solanaKitManager: solanaKitManager,
+            xrpKitManager: xrpKitManager,
+            nearKitManager: nearKitManager,
             btcBlockchainManager: btcBlockchainManager,
             moneroNodeManager: moneroNodeManager,
             zanoNodeManager: zanoNodeManager,
-            zcashNodeManager: zcashNodeManager
+            zcashNodeManager: zcashNodeManager,
+            thorChainKitManager: thorChainKitManager,
+            mayaChainKitManager: mayaChainKitManager
         )
         transactionAdapterManager = TransactionAdapterManager(
             adapterManager: adapterManager,
@@ -355,7 +405,7 @@ public class Core {
 
         rateAppManager = RateAppManager(walletManager: walletManager, adapterManager: adapterManager, localStorage: localStorage)
 
-        let chartRepository = ChartIndicatorsRepository(localStorage: localStorage, subscriptionManager: subscriptionManager)
+        let chartRepository = ChartIndicatorsRepository(localStorage: localStorage)
         appBackupProvider = AppBackupProvider(
             accountManager: accountManager,
             accountFactory: accountFactory,
@@ -365,6 +415,7 @@ public class Core {
             moneroNodeManager: moneroNodeManager,
             zanoNodeManager: zanoNodeManager,
             zcashNodeManager: zcashNodeManager,
+            thorChainEndpointManager: thorChainEndpointManager,
             btcBlockchainManager: btcBlockchainManager,
             restoreSettingsManager: restoreSettingsManager,
             chartRepository: chartRepository,
@@ -392,7 +443,7 @@ public class Core {
         recentAddressStorage = try RecentAddressStorage(dbPool: dbPool)
 
         let statStorage = StatStorage(dbPool: dbPool)
-        statManager = StatManager(marketKit: marketKit, storage: statStorage, userDefaultsStorage: userDefaultsStorage)
+        statManager = StatManager(marketKit: marketKit, storage: statStorage, userDefaultsStorage: userDefaultsStorage, autoEnableStats: config.autoEnableStats)
 
         let tonConnectStorage = try TonConnectStorage(dbPool: dbPool)
         tonConnectManager = TonConnectManager(storage: tonConnectStorage, accountManager: accountManager)
@@ -404,12 +455,7 @@ public class Core {
 
         appEventHandler = EventHandler(deepLinkManager: deepLinkManager)
 
-        deepLinkViewManager = DeepLinkViewManager(
-            eventHandler: appEventHandler,
-            walletConnectManager: walletConnectManager,
-            accountManager: accountManager,
-            cloudBackupManager: cloudBackupManager
-        )
+        deepLinkViewManager = DeepLinkViewManager(eventHandler: appEventHandler)
 
         startScreenAlertManager = StartScreenAlertManager(
             accountManager: accountManager,
@@ -430,18 +476,6 @@ public class Core {
 
         valueFormatter = CurrencyValueFormatter(amountRoundingManager: amountRoundingManager)
 
-        let walletConnectHandler = WalletConnectHandlerModule.handler(
-            walletConnectManager: walletConnectSessionManager,
-            walletConnectRequestHandler: walletConnectRequestHandler,
-            cloudAccountBackupManager: cloudBackupManager,
-            accountManager: accountManager,
-            lockManager: lockManager
-        )
-        let widgetCoinHandler = WidgetCoinEventHandler(marketKit: marketKit)
-        let sendAddressHandler = AddressEventHandler(marketKit: marketKit)
-        let telegramUserHandler = TelegramUserHandler(marketKit: marketKit)
-        // let tonConnectHandler = TonConnectEventHandler(tonConnectManager: tonConnectManager)
-
         openCryptoPay = OpenCryptoPayModule(
             dbPool: dbPool,
             networkManager: networkManager,
@@ -453,16 +487,17 @@ public class Core {
         transactionInfoExtraFactory = TransactionInfoExtraFactory()
         transactionInfoExtraFactory.register(OpenCryptoPayTransactionInfoProvider(manager: openCryptoPay.paymentManager, accountManager: accountManager))
 
-        let openCryptoPayHandler = OpenCryptoPayEventHandler()
-
-        appEventHandler.append(handler: walletConnectHandler)
-        // eventHandler.append(handler: tonConnectHandler)
-        appEventHandler.append(handler: widgetCoinHandler)
-        appEventHandler.append(handler: sendAddressHandler)
-        appEventHandler.append(handler: telegramUserHandler)
-        appEventHandler.append(handler: openCryptoPayHandler)
+        let swapStorage = SwapStorage(dbPool: dbPool, marketKit: marketKit)
+        swapHistoryManager = SwapHistoryManager(accountManager: accountManager, storage: swapStorage)
 
         backgroundTaskManager = BackgroundTaskManager()
+
+        zcashNodeUpdateSignalProvider = ZcashNodeUpdateSignalProvider(adapterManager: adapterManager)
+        zcashNodeAutoSelector = NodeAutoSelector(
+            engine: ZcashNodeAutoSelectEngine(nodeManager: zcashNodeManager, coinManager: coinManager, adapterManager: adapterManager),
+            updateSignalProvider: zcashNodeUpdateSignalProvider,
+            reachabilityManager: reachabilityManager
+        )
 
         appManager = AppManager(
             widgetRefresher: widgetRefresher,
@@ -484,25 +519,71 @@ public class Core {
             nftMetadataSyncer: nftMetadataSyncer,
             tonKitManager: tonKitManager,
             stellarKitManager: stellarKitManager,
-            solanaKitManager: solanaKitManager
+            solanaKitManager: solanaKitManager,
+            xrpKitManager: xrpKitManager,
+            nearKitManager: nearKitManager,
+            swapHistoryManager: swapHistoryManager,
+            moneroNodeManager: moneroNodeManager,
+            zcashNodeAutoSelector: zcashNodeAutoSelector
         )
+
+        if AppEventHandlerFactory.resolved().contains(.walletConnect) {
+            walletConnect = try WCManager.instance(
+                dbPool: dbPool,
+                evmBlockchainManager: evmBlockchainManager,
+                stellarKitManager: stellarKitManager,
+                solanaKitManager: solanaKitManager,
+                accountManager: accountManager,
+                coinManager: coinManager,
+                lockManager: lockManager,
+                appManager: appManager,
+                securityManager: securityManager,
+                purchaseManager: purchaseManager,
+                networkManager: networkManager,
+                logger: logger
+            )
+        } else {
+            walletConnect = nil
+        }
 
         appWorkerRegistry = AppWorkerRegistry(appManager: appManager)
         appWorkerRegistry.register(provider: openCryptoPay.proofWorkerProvider)
 
+        backupPromptManager = BackupPromptManager(
+            accountManager: accountManager,
+            walletManager: walletManager,
+            adapterManager: adapterManager,
+            cloudBackupManager: cloudBackupManager,
+            lockManager: lockManager,
+            appManager: appManager,
+            localStorage: localStorage
+        )
+
         swapAssetStorage = SwapAssetStorage(dbPool: dbPool)
-        swapProviderManager = MultiSwapProviderManager(localStorage: localStorage, networkManager: networkManager, apiKey: AppConfig.uswapApiKey)
+        confidentialProviderStorage = ConfidentialProviderStorage(dbPool: dbPool)
+        swapProviderManager = MultiSwapProviderManager(storage: SwapProviderStorage(dbPool: dbPool), networkManager: networkManager, apiKey: AppConfig.uswapApiKey)
         swapProviderInfoManager = SwapProviderInfoManager(networkManager: networkManager, apiKey: AppConfig.uswapApiKey)
 
-        let swapStorage = SwapStorage(dbPool: dbPool, marketKit: marketKit)
-        swapHistoryManager = SwapHistoryManager(accountManager: accountManager, storage: swapStorage)
-
-        let walletActivator = CreateSmartAccountService.defaultActivator(marketKit: marketKit, walletManager: walletManager)
-        smartAccountService = CreateSmartAccountService(
+        createPasskeyAccountService = CreatePasskeyAccountService(
             accountFactory: accountFactory,
             accountManager: accountManager,
-            smartAccountManager: smartAccountManager,
-            activateDefaultWallets: walletActivator
+            walletManager: walletManager
         )
+    }
+}
+
+public extension Core {
+    func logError(message: String, context: [String]? = nil, save: Bool = true) {
+        logger.log(level: .error, message: message, context: context, save: save)
+    }
+
+    struct Config {
+        let autoEnableTokensOnReceive: Bool
+        let autoEnableStats: Bool
+
+        public init(autoEnableTokensOnReceive: Bool = true, autoEnableStats: Bool = false) {
+            self.autoEnableTokensOnReceive = autoEnableTokensOnReceive
+            self.autoEnableStats = autoEnableStats
+        }
     }
 }

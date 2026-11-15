@@ -1,13 +1,13 @@
 import SwiftUI
 
-struct BadgeViewNew: View {
+public struct BadgeViewNew: View {
     private let text: String
     private let change: Int?
     private let mode: Mode
     private let colorStyle: ColorStyle
     private let onTap: (() -> Void)?
 
-    init(_ text: CustomStringConvertible, change: Int? = nil, mode: BadgeViewNew.Mode? = nil, colorStyle: ColorStyle? = nil) {
+    public init(_ text: CustomStringConvertible, change: Int? = nil, mode: BadgeViewNew.Mode? = nil, colorStyle: ColorStyle? = nil) {
         if let componentBadge = text as? ComponentBadge {
             self.text = componentBadge.text
             self.change = change ?? componentBadge.change
@@ -23,7 +23,7 @@ struct BadgeViewNew: View {
         }
     }
 
-    var body: some View {
+    public var body: some View {
         if let onTap {
             Button(action: onTap) {
                 bordered().contentShape(Rectangle())
@@ -38,6 +38,8 @@ struct BadgeViewNew: View {
         switch mode {
         case .solid:
             content().background(RoundedRectangle(cornerRadius: .cornerRadius8, style: .continuous).fill(Color.themeBlade))
+        case let .solidWith(backgroundColorStyle):
+            content().background(RoundedRectangle(cornerRadius: .cornerRadius8, style: .continuous).fill(backgroundColorStyle.color()))
         case .transparent:
             content().background(RoundedRectangle(cornerRadius: .cornerRadius8, style: .continuous).stroke(colorStyle.color(), lineWidth: .heightOneDp))
         }
@@ -66,9 +68,10 @@ struct BadgeViewNew: View {
     }
 }
 
-extension BadgeViewNew {
+public extension BadgeViewNew {
     enum Mode {
         case solid
+        case solidWith(colorStyle: ColorStyle)
         case transparent
     }
 }

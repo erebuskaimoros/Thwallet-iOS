@@ -185,7 +185,7 @@ struct DogecoinIntegrationTests {
 
     @Test
     func swapMappingsAndThorchainUtxoPolicyAreSafe() throws {
-        #expect(USwapMultiSwapProvider.blockchainTypeMap["dogecoin"] == .dogecoin)
+        #expect(USwapAssetRepository.blockchainTypeMap["dogecoin"] == .dogecoin)
         #expect(thorChainBlockchainType(assetBlockchainId: "DOGE") == .dogecoin)
 
         let filters = thorChainUtxoFilters(blockchainType: .dogecoin)

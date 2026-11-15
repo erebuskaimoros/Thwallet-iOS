@@ -1,16 +1,19 @@
 import Foundation
+import StellarKit
 
 public class MultiSwapQuote {
-    let expectedBuyAmount: Decimal
-    let estimatedTime: TimeInterval?
+    public let expectedBuyAmount: Decimal
+    public let estimatedTime: TimeInterval?
+    // Set when the buy token is a Stellar classic asset the account holds no trustline for
+    var activationAsset: StellarKit.Asset?
 
-    init(expectedBuyAmount: Decimal, estimatedTime: TimeInterval? = nil) {
+    public init(expectedBuyAmount: Decimal, estimatedTime: TimeInterval? = nil) {
         self.expectedBuyAmount = expectedBuyAmount
         self.estimatedTime = estimatedTime
     }
 
     var customButtonState: MultiSwapButtonState? {
-        nil
+        activationAsset.map { StellarActivationHelper.buttonState(asset: $0) }
     }
 
     func cautions() -> [CautionNew] {

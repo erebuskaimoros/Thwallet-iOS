@@ -5,6 +5,7 @@
 "button.confirm" = "Bestätigen";
 "button.continue" = "Weiter";
 "button.done" = "Fertig";
+"button.back" = "Zurück";
 "button.reset" = "Zurücksetzen";
 "button.import" = "Wiederherstellen";
 "button.next" = "Weiter";
@@ -25,6 +26,7 @@
 "button.reject" = "Verwerfen";
 "button.connect" = "Verbinden";
 "button.save" = "Speichern";
+"button.create" = "Erstellen";
 "button.send" = "Senden";
 "button.sign" = "Signieren";
 "button.i_understand" = "Ich stimme zu";
@@ -75,6 +77,7 @@
 "alert.revoking" = "Widerrufen";
 "alert.revoked" = "Widerrufen";
 "alert.cant_recognize" = "Kann nicht erkennen";
+"alert.change_wallet" = "Wallet wechseln";
 "alert.not_founded" = "Nicht gefunden.";
 
 "alert.fee_too_low" = "Gebühr zu niedrig";
@@ -132,7 +135,7 @@
 
 // Access Camera
 
-"access_camera.message" = "%@ benötigt Zugriff auf Ihre Kamera, um den QR-Code zu scannen.\n\nGehe zu Einstellungen - > %@ und erlaube Zugriff auf die Kamera.";
+"access_camera.message" = "Der Zugriff dieser App auf Ihre Kamera wurde verweigert. Sie können ihn in den Einstellungen erlauben.";
 "access_camera.not_supported" = "Ihr Gerät unterstützt das Scannen eines Codes von einem Artikel nicht. Verwenden Sie bitte ein Gerät mit einer Kamera.";
 "access_camera.settings" = "Einstellungen";
 
@@ -187,13 +190,29 @@
 "restore.cloud.password.placeholder" = "Passwort sichern";
 "restore.cloud.password.description" = "Geben Sie das Passwort für diese Sicherungsdatei ein, um Ihre Daten wiederherzustellen.";
 
+"restore.near_account.title" = "NEAR-Konto";
+"restore.near_account.description" = "Diese Wiederherstellungsphrase verwaltet mehr als ein NEAR-Konto. Wähle das Konto, das in dieser Wallet verwendet werden soll.";
+"restore.near_account.search_failed" = "Die Suche nach Konten dieser Wiederherstellungsphrase ist fehlgeschlagen. Versuche es erneut, gib den Kontonamen ein oder verwende das Standardkonto.";
+"restore.near_account.default_account" = "Standardkonto";
+"restore.near_account.use_default" = "Standardkonto verwenden";
+"restore.near_account.enter_name" = "Kontonamen eingeben";
+"restore.near_account.other_keys_warning" = "Auch andere Schlüssel haben vollen Zugriff auf dieses Konto. Wer sie besitzt, kann das Guthaben bewegen oder den Zugriff deiner Wiederherstellungsphrase entfernen.";
+"restore.near_account.contract_warning" = "Auf diesem Konto ist ein Smart Contract bereitgestellt. Je nach Code kann er das Guthaben des Kontos bewegen. Fahre nur fort, wenn du weißt, was er tut.";
+"restore.near_account.access_lost" = "Diese Wiederherstellungsphrase hat keinen Zugriff mehr auf dieses Konto. Er wurde möglicherweise in einer anderen Wallet entfernt.";
+"restore.near_account_name.title" = "Kontoname";
+"restore.near_account_name.description" = "Gib ein NEAR-Konto ein, das diese Wiederherstellungsphrase verwaltet, z. B. alice.near.";
+"restore.near_account_name.invalid" = "Kein gültiger NEAR-Kontoname";
+"restore.near_account_name.not_found" = "Dieses Konto existiert nicht";
+"restore.near_account_name.no_access" = "Diese Wiederherstellungsphrase hat keinen vollen Zugriff auf dieses Konto";
+"restore.near_account_name.check_failed" = "Das Konto konnte nicht geprüft werden. Versuche es erneut.";
+
 // Coin Settings
 
 "coin_settings.title" = "Blockchain-Einstellungen";
 "coin_settings.bitcoin_cash_coin_type.title.type0" = "Legacy";
 "coin_settings.bitcoin_cash_coin_type.title.type145" = "CashAddress";
 "sync_mode.hybrid" = "Hybrid";
-"sync_mode.from_blockchain" = "Von Blockchain";
+"sync_mode.from_blockchain" = "%@-Blockchain";
 "blockchain_settings.description" = "Wählen Sie das Adressformat für die Coin aus.";
 "blockchain_settings.footer" = "Verwenden Sie die empfohlene Option, wenn Sie unsicher sind. Beim Wiederherstellen einer vorhandenen Wallet muss das richtige Format gewählt werden.";
 
@@ -263,13 +282,13 @@
 
 // Backup Prompt
 
-"backup_prompt.backup_recovery_phrase" = "Wiederherstellungsphrase sichern";
-"backup_prompt.backup_required" = "Sicherung erforderlich";
-"backup_prompt.warning" = "Erstellen Sie eine Sicherungskopie der Wiederherstellungsphrase und des zugehörigen Passworts, mit dem Sie Ihre Wallet wiederherstellen können, wenn Ihr Telefon verloren geht, gestohlen, kaputt, etc.";
-"backup_prompt.backup" = "Sicherung";
+"backup_prompt.title" = "Wallet sichern";
+"backup_prompt.description" = "Ohne ein Backup bedeutet der Verlust Ihres Telefons den dauerhaften Verlust Ihrer Guthaben. Es gibt keine Möglichkeit, sie wiederherzustellen.";
 "backup_prompt.backup_manual" = "Manuelle Sicherung";
+"backup_prompt.backup_manual.description" = "Schreiben Sie Ihre Wiederherstellungsphrase auf";
 "backup_prompt.backup_cloud" = "Sicherung in iCloud";
-"backup_prompt.later" = "Später";
+"backup_prompt.backup_cloud.description" = "Verschlüsselt, geräteübergreifend synchronisiert";
+"backup_prompt.remind_later" = "Später erinnern";
 
 // Backup to iCloud
 
@@ -310,6 +329,7 @@
 "balance.hide_coin" = "Ocultar moneda";
 "balance.rate_per_coin" = "%@ pro %@";
 "balance.syncing" = "Synchronisieren...";
+"balance.confirming" = "Bestätigung";
 "balance.searching" = "Transaktionen werden gesucht...";
 "balance.connecting" = "Verbinde...";
 "balance.stopped" = "Stoppen";
@@ -339,6 +359,9 @@
 "balance.token.locked" = "Gesperrt";
 "balance.token.locked.stellar.description" = "Das Stellar-Netzwerk sperrt 1 XLM zur Aktivierung der Wallet sowie 0,5 XLM als Reserve für jedes in Ihrer Wallet aktivierte Token.";
 "balance.token.locked.stellar.description.wallet_activation" = "Wallet-Aktivierung";
+"balance.token.locked.xrp.description" = "Das XRP Ledger sperrt 1 XRP zur Aktivierung des Wallets und 0,2 XRP als Reserve für jede Vertrauenslinie oder jedes andere Objekt, das sich in Ihrem Wallet befindet. Die Reserve wird freigegeben, wenn das Objekt entfernt wird.";
+"balance.token.locked.xrp.other_objects" = "Andere Objekte (%@)";
+"balance.token.xrp.account_not_activated" = "Dieses Konto ist noch nicht aktiviert. Die erste Einzahlung muss mindestens 1 XRP betragen; kleinere Zahlungen werden vom Netzwerk abgelehnt.";
 "balance.token.locked.info.title" = "TimeLock";
 "balance.token.locked.info.description" = "Der Sender hat dieses Guthaben mit einer Ausgabesperre versehen, die zu dem angezeigten Datum abläuft.\n\nKeine Sorge, die erhaltenen Bitcoin sind bereits Ihre. Die Bitcoins sind nur zeitweise gesperrt, so dass Sie sie erst nach Ablauf der Sperrzeit im Bitcoin-Netzwerk ausgeben können.";
 "balance.token.not_relayed" = "Übertragung";
@@ -349,16 +372,21 @@
 "balance.token.transparent.info.description" = "Sie besitzen ein ZEC-Guthaben auf einer transparenten Adresse. Um es in Unstoppable zu verwenden, muss es für vollständige Privatsphäre abgeschirmt werden.";
 "balance.token.transparent.detected.title" = "Transparenter ZEC erkannt";
 "balance.token.transparent.detected.description" = "Sie besitzen ein ZEC-Guthaben auf einer transparenten Adresse. Um es in Unstoppable zu verwenden, muss es für vollständige Privatsphäre abgeschirmt werden.";
-"balance.token.shield" = "Proteger";
+"balance.token.shield" = "Abschirmen";
 "balance.token.migration.required" = "Migration erforderlich";
 "transactions.migrate" = "Migrieren";
 "transactions.migrate.to_ironwood" = "nach Ironwood";
 "balance.token.migration.detected.title" = "ZEC-Pool-Migration";
-"balance.token.migration.detected.description" = "Zcash wurde auf einen neuen geschützten Pool aktualisiert. Ihr Guthaben im alten Pool muss migriert werden, um in Unstoppable weiterhin vollständig nutzbar zu bleiben.";
+"balance.token.migration.detected.description" = "Zcash has upgraded to a new shielded pool. Your shielded balance must be migrated to that new pool to remain fully anonymous in future transactions.
+\n\nPlease note that migration transactions aren’t fully anonymous and expose the amounts involved.
+\n\nTo maintain high level of privacy you may consider using VPN or TOR when making migration transactions.";
 "balance.token.migrate" = "Migrieren";
 "error.zcash.migration_failed" = "Die Migration konnte nicht abgeschlossen werden. Es sind keine Mittel verloren gegangen — Sie können es später erneut versuchen.";
+"error.zcash.sync_stalled" = "Die Synchronisierung ist ins Stocken geraten. Zum Wiederholen nach unten ziehen.";
+"error.zcash.sync_required" = "Warten Sie, bis die Wallet die Synchronisierung abgeschlossen hat, und versuchen Sie es erneut.";
 "zcash.migration.warning.title" = "Öffentlich sichtbarer Betrag";
 "zcash.migration.warning" = "Das Verschieben von Mitteln zwischen Pools erfordert, dass der migrierte Betrag auf der Blockchain öffentlich sichtbar ist. Der Absender, der Empfänger und Ihre Adressen bleiben privat.";
+"zcash.shielding" = "Shielding ZEC";
 
 "balance.token.receive_address" = "Dirección de recepción";
 "balance.token.account.inactive.description" = "Transaktionen werden nach der Aktivierung angezeigt";
@@ -408,6 +436,7 @@
 "deposit.not_active.view_address" = "Meine Adresse anzeigen";
 "deposit.stellar.inactive_asset.title" = "Token aktivieren";
 "deposit.stellar.inactive_asset.description" = "Um %@ zu empfangen, müssen Sie das Token aktivieren. Das Stellar-Netzwerk verlangt, dass für jedes Token eine Trustline eingerichtet wird. Ohne diese kann Ihre Wallet %@ nicht empfangen — die Transaktion wird abgelehnt und die Gelder nicht gutgeschrieben.";
+"deposit.xrp.inactive_asset.description" = "Um %@ zu empfangen, müssen Sie das Token aktivieren. Das XRP Ledger erfordert eine Vertrauenslinie für jedes Token, die 0,2 XRP Ihres Guthabens sperrt, solange sie existiert. Ohne diese kann Ihr Wallet %@ nicht empfangen – die Transaktion wird abgelehnt und die Gelder werden nicht übermittelt.";
 
 "deposit.used_addresses.title" = "Verwendete Adressen";
 "deposit.used_addresses.description" = "%@ Adressen werden aus Datenschutz- und Sicherheitsgründen geändert. Unten finden Sie eine Liste der verwendeten Adressen in diesem Wallet.";
@@ -439,11 +468,13 @@
 // Send
 
 "send.title" = "Senden %@";
-"send.title.shield" = "Schutz %@";
 "send.send" = "Senden";
+"send.tab.standard" = "Standard";
+"send.tab.private" = "Privat";
+"send.tab.cross_pay" = "Cross Pay";
 "send.no_assets" = "Sie haben keine Assets zu senden.";
 "send.amount_placeholder" = "Betrag";
-"send.address_placeholder" = "Adresse";
+"send.address_placeholder" = "An Adresse";
 "send.address_or_domain_placeholder" = "Adresse oder Domäne";
 "send.fee" = "Gebühr";
 "send.network_fee" = "Gebühr";
@@ -467,7 +498,7 @@
 "send.hodler_locktime_off" = "Aus";
 "send.hodler_error.unsupported_address" = "Zeitsperre funktioniert nur mit P2PKH-Adressen (beginnend mit 1) ";
 "send.fee_info.title" = "Gebührenrate";
-"send.fee_info.description" = "Blockchains verlangen, dass Nutzer Netzwerkgebühren beim Versenden von Transaktionen bezahlen. Die Gebühren sind höher, wenn viele Transaktionen im Netzwerk stattfinden.\n\nDie %@ Brieftasche schätzt die Gebühr basierend auf der aktuellen Blockchain Aktivität und empfiehlt den optimalen Wert, damit die Transaktion innerhalb einer angemessenen Zeit bearbeitet werden kann.\n\nDie empfohlene Gebührenrate, die als Betrag des satoshi Benutzers angezeigt wird, um für ein einziges Byte der Transaktion zu bezahlen. Daher hängt die Gesamtgebühr von der Gesamtgröße der Transaktion ab, die in Bytes gemessen wird.\n\nBenutzer können die zur Verfügung gestellten Steuerelemente verwenden, um den Gebührenwert zu erhöhen oder zu senken. Die Änderung des Gebührensatzes ändert die Gesamtgebühr für die Transaktion, die der Nutzer zu zahlen hat.\n\nSetzen der Gebühr unter dem empfohlenen Wert kann dazu führen, dass eine Transaktion stundenlang als ausstehend gehalten oder abgelehnt wird. Je niedriger der Wert, desto länger dauert die Bestätigung der Transaktion. Für Transaktionen, bei denen Priorität wichtig ist, empfehlen wir, höhere Gebührensätze festzulegen.";
+"send.fee_info.description" = "Beim Senden einer Transaktion zahlen Sie eine Netzwerkgebühr. Je stärker das Netzwerk ausgelastet ist, desto höher ist die Gebühr.\n\n%@ schlägt eine optimale Gebühr vor, damit Ihre Transaktion in angemessener Zeit bestätigt wird. Sie können diesen Wert erhöhen oder senken.\n\nEine zu niedrige Gebühr kann dazu führen, dass Ihre Transaktion lange ausstehend bleibt oder sogar abgelehnt wird. Für eine schnellere Bestätigung wählen Sie eine höhere Gebühr.";
 "send.transaction_inputs_outputs_info.title" = "Transaktionseingänge / -ausgänge";
 "send.transaction_inputs_outputs_info.description" = "Die meisten Bitcoin-Transaktionen sowie Transaktionen in Kryptowährungen wie Bitcoin-Cash, Dash, und Litecoin erzeugen zwei Ausgänge. Die eine Ausgabe ist der Betrag, der an den Empfänger geht, die andere ist die Umstellausgabe, die an den Absender zurückgegeben wird. Die Art und Weise, wie die meisten Brieftaschen Transaktionen erstellen, macht es für einen Dritten leicht zu verstehen, welche der Ausgaben an den Empfänger gingen und welcher der Änderungsbetrag an den Absender zurückgegeben wurde. Da die an den Absender zurückgegebene Ausgabe später bei zukünftigen Transaktionen verwendet wird, zeigt sich eine Verbindung zwischen diesen beiden Transaktionen.\n\nDie Brieftasche %@ implementiert Maßnahmen, um es jemandem zu erschweren, herauszufinden, welche Ausgabe wohin geht.\n\nEs gibt zwei Optionen für %@ Benutzer:";
 "send.transaction_inputs_outputs_info.shuffle.title" = "1. Shuffle";
@@ -476,15 +507,38 @@
 "send.transaction_inputs_outputs_info.deterministic.description" = "Es gibt einen allgemein vereinbarten Standard für die Bestellung von Transaktionsausgängen (bekannt als BIP69). In Open-Source-Brieftaschen stellt dieser Standard sicher, dass Wallet-Benutzer nicht darauf vertrauen müssen, wie Entwickler der App die Reihenfolge der Ausgaben implementieren. Da dieser Standard neu ist, haben noch nicht viele Brieftaschen ihn implementiert. Infolgedessen ist es einigermaßen möglich, auf der Blockchain zu sehen, ob eine Transaktion von einer Brieftasche gesendet wurde, die diesen Standard verwendet hat oder nicht.";
 "send.select_all" = "Alles Auswählen";
 "send.unselect_all" = "Alle abwählen";
+"send.balance.available" = "Verfügbar: %@";
+"send.balance.clear" = "Löschen";
 
 "send.confirmation.title" = "Senden bestätigen";
 "send.confirmation.you_send" = "Sie Senden";
 "send.confirmation.transfer" = "Überweisung";
 "send.confirmation.to" = "An";
+"send.confirmation.from" = "Von";
 "send.confirmation.own" = "Eigene";
 "send.confirmation.contact_name" = "Kontaktname";
 "send.confirmation.memo" = "Memo";
 "send.confirmation.memo_placeholder" = "Memo";
+"send.memo.public_warning" = "Dieses Memo wird öffentlich auf der Blockchain sichtbar sein.";
+"send.memo.private_warning" = "Diese Notiz wird in verschlüsselter Form auf der Blockchain veröffentlicht.";
+"send.memo.local_warning" = "Dieses Memo wird nur auf Ihrem Telefon gespeichert.";
+"send.memo.too_long" = "Memo ist zu lang";
+"send.xrp.destination_tag" = "Ziel-Tag";
+"send.xrp.destination_tag.title" = "Ziel-Tag";
+"send.xrp.destination_tag.info" = "Börsen und einige Dienste erfordern ein Ziel-Tag, um Ihre Einzahlung gutzuschreiben. Das Tag ist öffentlich im Ledger.";
+"send.xrp.destination_tag.required" = "Diese Adresse erfordert ein Ziel-Tag. Zahlungen ohne eines werden abgelehnt.";
+"send.xrp.destination_tag.invalid" = "Destination Tag muss eine ganze Zahl von 0 bis 4294967295 sein.";
+"send.xrp.destination_tag.conflict" = "Der Destination Tag stimmt nicht mit dem Tag in der Adresse überein.";
+"send.xrp.address_error.network_mismatch" = "Ungültiges Netzwerk: Diese Adresse gehört zu einem anderen XRP-Netzwerk.";
+"send.xrp.activation.reserve_note" = "Die Aktivierung sperrt %@ als Reserve in Ihrem Wallet. Sie wird freigegeben, wenn die Vertrauenslinie später entfernt wird.";
+"send.xrp.activation.insufficient_balance" = "Sie haben nicht genug verfügbare XRP, um die Vertrauenslinie-Reserve und die Netzwerkgebühr zu decken.";
+"send.near.receiver_registration" = "Registrierung des Empfängers";
+"send.near.receiver_registration.info" = "Der Token-Vertrag erhebt eine einmalige Einzahlung, um einen Empfänger zu registrieren, der diesen Token noch nie besessen hat.";
+"send.near.storage_deposit_too_high" = "Dieser Token verlangt eine ungewöhnlich hohe Einzahlung für die Registrierung des Empfängers und könnte Betrug sein.";
+"send.near.storage_deposit_changed" = "Die Registrierungsgebühr für den Empfänger hat sich geändert. Prüfen Sie die neue Gebühr und senden Sie erneut.";
+"send.near.not_full_access_key" = "Diese Wiederherstellungsphrase hat nur eingeschränkten Zugriff auf dieses Konto und kann keine Gelder senden.";
+"send.near.previous_transaction_pending" = "Eine vorherige Transaktion ist noch ausstehend. Prüfen Sie Ihren Transaktionsverlauf, bevor Sie erneut senden.";
+"send.near.rejected" = "Das Netzwerk hat diese Transaktion abgelehnt. Es wurde nichts gesendet.";
 "send.confirmation.fee" = "Gebühr";
 "send.confirmation.fee_sponsored" = "Gesponsert";
 "send.confirmation.fee_paid_in" = "Bezahlt in %@";
@@ -502,6 +556,7 @@
 "send.confirmation.status" = "Status";
 "send.confirmation.status.failed" = "Fehlgeschlagen";
 "send.confirmation.send_to_own" = "Transaktion wird an eigene Adresse gesendet";
+"send.confirmation.send_to_shielded" = "An Ihre abgeschirmte Adresse";
 "send.confirmation.operation" = "Vorgang";
 "send.confirmation.transaction_xdr" = "Transaktion XDR";
 
@@ -512,6 +567,8 @@
 "send.confirmation.refresh" = "Aktualisieren";
 "send.confirmation.refreshing" = "Aktualisierung läuft";
 "send.confirmation.slide_to_send" = "Zum Senden wischen";
+"send.confirmation.shield_title" = "Abschirmung bestätigen";
+"send.confirmation.slide_to_shield" = "Zum Abschirmen wischen";
 "send.confirmation.sending" = "Wird gesendet";
 "send.confirmation.unexpected_error" = "Unerwarteter Fehler";
 "send.confirmation.unexpected_error.text" = "Beim Senden deiner Transaktion ist ein Fehler aufgetreten. Bitte versuche es erneut oder kopiere den Fehlercode und kontaktiere den Support.";
@@ -547,6 +604,7 @@
 "send.fee_settings.fee_rate_unavailable" = "Gebührensatz nicht verfügbar. Bitte überprüfen Sie die Gebührensätze manuell";
 
 "send.unspent_outputs" = "UTxOs";
+"send.unspent_outputs.auto" = "Auto";
 "send.unspent_outputs.description" = "Wählen Sie manuell aus, welche Coins in der Transaktion ausgegeben werden sollen.";
 "send.unspent_outputs.send_to" = "Senden an";
 "send.unspent_outputs.change" = "Ändern";
@@ -560,6 +618,7 @@
 "send.token_syncing" = "Token-Synchronisation";
 "send.token_not_synced" = "Token nicht synchronisiert";
 "send.insufficient_balance" = "Unzureichendes Guthaben";
+"send.shield_coin" = "Shield %@ zum Senden";
 "send.continue_anyway" = "Trotzdem fortfahren";
 
 "send.address.enter_address" = "Adresse eingeben";
@@ -588,6 +647,35 @@
 "send.address.blacklist.caution.title" = "Adresse auf schwarzer Liste!";
 "send.address.blacklist.caution.description" = "Die eingegebene Adresse ist als auf der schwarzen Liste stehend gekennzeichnet. Transaktionen an diese Adresse könnten zu Verlusten oder anderen Risiken führen. Bitte überprüfe die Details des Empfängers, bevor du fortfährst.";
 
+// Private Send
+
+"private_send.tab.caution.title" = "Privates Senden";
+"private_send.tab.caution.text" = "Privates Senden verbirgt die direkte On-Chain-Verbindung zwischen Ihrer Adresse und dem Empfänger über einen vertraulichen Vermittler.";
+"private_send.amount_caption" = "Betrag, den der Empfänger erhält";
+"private_send.unavailable" = "Privater Versand nicht verfügbar";
+"private_send.memo_unavailable" = "Memo ist nicht verfügbar, wenn Privates Senden aktiviert ist";
+
+"private_send.fee" = "Gebühr für privaten Versand";
+"private_send.fee.info" = "Diese Gebühr deckt die Kosten für die private Verarbeitung Ihrer Transaktion. Sie wird zusätzlich zur Netzwerkgebühr erhoben und hängt vom gesendeten Betrag ab.";
+"private_send.reserved_amount" = "Reservierter Betrag";
+"private_send.reserved_amount.info" = "Ein zusätzlicher Betrag wird vorübergehend reserviert, um mögliche Preisänderungen während der Verarbeitung Ihrer Transaktion abzudecken. Nicht verwendete Teile werden nach Abschluss des Sendevorgangs in einer separaten Transaktion an Ihre Wallet zurückgegeben.";
+"private_send.estimated_time" = "Voraussichtliche Ankunft";
+
+"private_send.commit_failed" = "Der private Versand konnte nicht eingerichtet werden. Versuchen Sie es erneut.";
+
+"private_send.caution.title" = "Privater Versand";
+"private_send.caution.below_minimum %@" = "Beim privaten Versand muss der Empfänger mindestens %@ erhalten.";
+"private_send.caution.above_maximum %@" = "Privater Versand unterstützt maximal %@.";
+"private_send.caution.insufficient_balance %@" = "Für diesen privaten Versand benötigen Sie %@ in Ihrem Wallet, einschließlich Gebühren.";
+"private_send.caution.no_route" = "Für diesen Token und Betrag ist derzeit keine private Route verfügbar.";
+"private_send.caution.exact_output_unsupported" = "Diese Route kann keinen exakten Empfangsbetrag garantieren.";
+"private_send.caution.provider_suspended" = "Der Anbieter für privaten Versand ist vorübergehend nicht verfügbar.";
+"private_send.caution.network_error" = "Der Anbieter für privaten Versand konnte nicht erreicht werden. Überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.";
+"private_send.caution.token_unsupported" = "Privater Versand ist für diesen Token nicht mehr verfügbar.";
+"private_send.caution.attachment_unsupported" = "Diese private Route erfordert ein Transaktions-Tag, das dieses Wallet nicht anhängen kann. Privater Versand ist für diesen Token nicht verfügbar.";
+"private_send.caution.amount_adjusted" = "Der Betrag wurde angepasst, um die Gebühren zu decken, und stimmt nicht mehr mit dem Angebot für den privaten Versand überein. Reduzieren Sie den Betrag und versuchen Sie es erneut.";
+"private_send.caution.buffer_unknown" = "Die angezeigte Gebühr ist eine Obergrenze; die tatsächlichen Kosten können niedriger sein.";
+
 // Donate
 
 "donate.list.title" = "Spenden mit";
@@ -604,6 +692,22 @@
 // Swap
 
 "swap.title" = "Swap";
+"swap.tab.standard" = "Standard";
+"swap.tab.private" = "Privat";
+"swap.private.caution.title" = "Privater Swap";
+"swap.private.caution.text" = "Der private Swap teilt den erhaltenen Betrag auf mehrere Adressen auf und erschwert so die Nachverfolgung des Transaktionsflusses.";
+"swap.private.recipients.title" = "Empfänger";
+"swap.private.recipients.description" = "Fügen Sie Empfängeradressen hinzu und legen Sie fest, wie der erhaltene Betrag zwischen ihnen aufgeteilt wird.";
+"swap.private.duplicate_addresses.title" = "Doppelte Adressen";
+"swap.private.duplicate_addresses.text" = "Die Verwendung derselben Adresse verringert den Datenschutzvorteil der Aufteilung.";
+"swap.private.invalid_split.title" = "Ungültige Aufteilung";
+"swap.private.invalid_split.text" = "Der Anbieter unterstützt dieses Aufteilungsverhältnis nicht. Passen Sie die Aufteilung an, um fortzufahren.";
+"swap.private.address" = "Adresse %d";
+"swap.private.enter_addresses" = "Adressen eingeben";
+"swap.token_select.popular_tokens" = "Beliebte Token";
+"swap.token_select.your_tokens" = "Deine Token";
+"swap.token_select.top_tokens" = "Top Token";
+"swap.token_select.recent" = "Letzte Suche";
 "swap.you_pay" = "Sie bezahlen";
 "swap.estimated" = "geschätzt";
 "swap.balance" = "Guthaben";
@@ -617,8 +721,6 @@
 "swap.approving_button" = "Wird bestätigt...";
 "swap.revoking_button" = "Widerrufen...";
 "swap.not_available_button" = "Saldo N/A";
-"swap.trade_error.not_found" = "Diese Token sind nicht tauschbar";
-"swap.trade_error.wrap_unwrap_not_allowed" = "Dieser Service erlaubt keine Verpackung/Auspackung. Bitte versuchen Sie einen anderen Swap-Service. 1Inch empfohlen";
 "swap.button_error.insufficient_balance" = "Unzureichendes Guthaben";
 "swap.switch_provider.title" = "Dienst wechseln";
 "swap.amount_type.coin" = "Münze";
@@ -628,15 +730,24 @@
 
 "swap.rate_not_available" = "Rate nicht verfügbar";
 "swap.route" = "Route";
-"swap.select" = "Auswählen";
+"token_selector.select" = "Auswählen";
 "swap.quoting" = "Preisangeboten";
 "swap.select_token_in" = "Token auswählen";
 "swap.select_token_out" = "Token auswählen";
 "swap.no_providers" = "Keine Routen";
+"swap.suggested_path.no_quotes_available" = "Keine Angebote verfügbar";
+"swap.suggested_path.text" = "Sie können zuerst %@ und dann %@ in %@ tauschen.";
+"swap.suggested_path.text.part" = "%@ in %@ tauschen";
 "swap.enter_amount" = "Betrag eingeben";
 "swap.no_quotes" = "Keine Angebote";
+"swap.error.no_memo" = "Diese Route kann derzeit nicht bestätigt werden. Bitte aktualisieren Sie das Angebot oder wählen Sie einen anderen Anbieter.";
+"swap.deposit_address" = "Einzahlungsadresse";
+"swap.deposit_memo" = "Einzahlungs-Memo";
+"swap.error.invalid_swap_memo" = "Das Swap-Memo enthält keinen gültigen Empfänger.";
+"swap.error.memo_recipient_mismatch" = "Der Empfänger im Swap-Memo stimmt nicht mit dem ausgewählten Empfänger überein.";
 "swap.token_not_enabled" = "Token nicht aktiviert";
-"swap.token_syncing" = "Token-Synchronisation";
+"swap.enable_coin" = "%@ aktivieren";
+"swap.shield_coin" = "Shield %@ zum Tauschen";
 "swap.token_not_synced" = "Token nicht synchronisiert";
 "swap.insufficient_balance" = "Unzureichendes Guthaben";
 
@@ -648,6 +759,9 @@
 
 "swap.quotes.providers.risk_levels.title" = "Routenbewertung";
 "swap.quotes.providers.risk_levels.description" = "Diese Bewertungen zeigen, wie jede Route Swaps und Transaktionsprüfungen handhabt.";
+"swap.quotes.providers.risk_levels.excellent" = "Ausgezeichnet";
+"swap.quotes.providers.risk_levels.good" = "Gut";
+"swap.quotes.providers.risk_levels.fair" = "Befriedigend";
 "swap.quotes.providers.risk_levels.excellent.description" = "Direkte On-Chain-Ausführung. Keine Prüfungen oder Sperrungen. Automatische Rückerstattung bei fehlgeschlagenem Swap.";
 "swap.quotes.providers.risk_levels.good.description" = "Transaktionen werden vor Abschluss automatisch geprüft. Wird ein Problem festgestellt, wird der Swap abgelehnt und die Mittel zurückerstattet.";
 "swap.quotes.providers.risk_levels.fair.description" = "Einige Transaktionen erfordern möglicherweise eine zusätzliche Verifizierung. Wird ein Problem festgestellt, werden die Mittel in der Regel automatisch zurückerstattet.";
@@ -661,6 +775,7 @@
 "swap.pending_allowance" = "Ausstehendes Guthaben";
 "swap.approve" = "Genehmigen";
 "swap.approving" = "Wird bestätigt";
+"swap.activate_asset" = "%@ auf Stellar aktivieren";
 "swap.allowance_error" = "Zulagenfehler";
 "swap.revoke" = "Widerrufen";
 "swap.revoking" = "Widerrufen";
@@ -674,9 +789,12 @@
 "swap.price_impact.info" = "Die erwartete Preisabweichung vom angezeigten Preis, die sich in der Regel mit der Swap-Menge erhöht.";
 "swap.high_price_impact" = "Hohe Preisbeeinflussung";
 "swap.recipient" = "Empfänger";
+"swap.recipient.error.transparent_zcash_required" = "Der ausgewählte Anbieter kann nur an eine transparente (t-) Zcash-Adresse liefern";
+"swap.recipient.error.shielded_zcash_required" = "Hier kann nur eine geschützte (u- oder zs-) Zcash-Adresse verwendet werden";
+"swap.external_recipient.description" = "Das Wallet, das die getauschten Guthaben erhalten wird.";
 "swap.slippage" = "Preisabweichung";
-"swap.swapped_time" = "Zeit";
-"swap.swapped_time.info" = "Ungefähre Zeit bis zum Erhalt der Gelder. Die Verarbeitung des Swaps und die Transaktionsbestätigungen können je nach Netzwerk und Provider etwas Zeit in Anspruch nehmen.";
+"swap.swapped_time" = "Swap-Zeit";
+"swap.swapped_time.info" = "Dies ist die geschätzte Zeit, die benötigt wird, um den Swap abzuschließen und Ihre Guthaben zu erhalten. Die tatsächliche Zeit kann je nach Netzwerkbedingungen, Transaktionsbestätigungen und der gewählten Swap-Route kürzer oder länger sein.";
 
 "swap.affiliate_fee" = "Affiliate-Gebühr";
 "swap.liquidity_fee" = "Liquiditätsgebühren";
@@ -726,11 +844,6 @@
 "swap.advanced_settings.error.invalid_slippage" = "Ungültige Slippage";
 "swap.advanced_settings.error.invalid_deadline" = "Ungültige Frist";
 
-"swap.one_inch.error.cannot_estimate" = "Schätzungsfehler";
-"swap.one_inch.error.cannot_estimate.info" = "Fehler! Überprüfen Sie Ihr Guthaben und vergewissern Sie sich, dass genügend %@ zur Deckung der Gebühr vorhanden sind. Oder versuchen Sie, die Kursdifferenz zu erhöhen und versuchen Sie es erneut. Wird in 3 Sekunden erneut versucht...";
-"swap.one_inch.error.insufficient_liquidity" = "Unzureichende Liquidität";
-"swap.one_inch.error.insufficient_liquidity.info" = "Wahrscheinlich ist nicht genügend Liquidität vorhanden, um diesen Handel abzuwickeln. Versuchen Sie einen niedrigeren Betrag.";
-
 "swap.service" = "Dienst";
 "swap.service.title" = "Dienst";
 
@@ -753,8 +866,11 @@
 "swap.confirmation.slide_to_swap" = "Wischen zum Tauschen";
 "swap.confirmation.swapping" = "Swapping";
 "swap.confirmation.refresh" = "Aktualisieren";
+"swap.confirmation.commit.rate_changed" = "Der Preis hat sich geändert. Prüfe das aktualisierte Angebot und versuche es erneut.";
+"swap.confirmation.commit.refresh_required" = "Das Angebot ist abgelaufen. Ein neues Angebot wurde geladen.";
+"swap.confirmation.commit.failed" = "Der Swap konnte nicht gestartet werden. Ein neues Angebot wurde geladen.";
 "swap.confirmation.impact_high" = "Du wirst bei diesem Swap einen großen Teil (%@) deiner Mittel verlieren.";
-"swap.confirmation.impact_too_high" = "%@ hat Swap-Aktion für diesen Handel deaktiviert, da du einen extrem ungünstigen Preis bekommst. Dies ist auf extrem niedrige Liquidität zurückzuführen.\nWenn Sie trotzdem wechseln möchten, verwenden Sie stattdessen %@ Webseite.";
+"swap.confirmation.impact_too_high" = "Dieser Swap würde aufgrund sehr geringer Liquidität zu einem großen Verlust (%@) führen.";
 "swap.confirmation.impact_warning" = "Wichtig! Du bekommst einen extrem ungünstigen Preis. Dies ist auf die extrem niedrige Liquidität zurückzuführen.";
 
 "swap.confirmation.minimum_received" = "Garantiert";
@@ -766,13 +882,13 @@
 "swap.dex_info.header_price_impact" = "Preisauswirkungen";
 "swap.dex_info.content_price_impact" = "Erwartete Preisabweichung von einem angezeigten Preis, steigt normalerweise mit dem Tauschbetrag.";
 
-"swap.maya.shielded_address.error" = "Abgeschirmte Adresse für Memo (Maya) kann nicht abgerufen werden";
-
 // Swap History
 
 "swap_history.title" = "Swap-Verlauf";
 "swap_history.all" = "Alle";
 "swap_history.empty" = "Sie haben noch keine ausstehenden oder vergangenen Swaps.";
+"swap_history.status.depositing" = "Einzahlung läuft…";
+"swap_history.status.swapping" = "Tausch läuft…";
 
 // Swap Info
 
@@ -784,7 +900,7 @@
 "swap_info.view" = "Anzeigen";
 "swap_info.deposit" = "Einzahlung %@";
 "swap_info.swap" = "Swap";
-"swap_info.send" = "Senden %@";
+"swap_info.receive" = "Empfangen %@";
 "swap_info.refund" = "Rückerstattung %@";
 "swap_info.unknown" = "Unbekannt";
 "swap_info.request_refund" = "Rückerstattung anfordern";
@@ -804,6 +920,8 @@
 "swap_info.status.unknown" = "Unbekannt";
 "swap_info.status.failed" = "Fehlgeschlagen";
 "swap_info.status.action_required" = "Handlung erforderlich";
+"swap_info.status.signed" = "Signiert";
+"swap_info.status.expired" = "Abgelaufen";
 
 // Market
 
@@ -892,7 +1010,7 @@
 "market.top.floor_price" = "Stockwerk:";
 "market.top.top_market_pairs" = "Top Marktpaare";
 "market.top.top_platforms" = "Top Plattformen";
-"market.top.protocols" = "Protocols";
+"market.top.protocols" = "Protokolle: %@";
 
 "market.pairs.volume" = "Lautstärke";
 "top_pairs.title" = "Top Marktpaare";
@@ -1022,8 +1140,8 @@
 "market.global.defi_cap.title" = "DeFi MK";
 "market.global.defi_cap.description" = "Gesamter Marktwert von DeFi-Projekten";
 
-"market.etf.title" = "Gesamtnettonzufluss";
-"market.etf.description" = "Der Nettogeldzufluss eines ETFs entspricht seinen Geldeingängen abzüglich der Abflüsse.";
+"market.etf.title" = "%@-ETF";
+"market.etf.description" = "Nettozufluss aller %@-ETFs, einschließlich Spot- und Futures-basierter Fonds.";
 "market.etf.total_net_assets" = "Gesamte Netto-Assets";
 "market.etf.sort_by.highest_assets" = "Höchste Vermögenswerte";
 "market.etf.sort_by.lowest_assets" = "Niedrigste Vermögenswerte";
@@ -1090,6 +1208,8 @@
 "coin_page.overview" = "Preis";
 "coin_page.analytics" = "Analytik";
 "coin_page.markets" = "Märkte";
+"coin_page.buy" = "Kaufen";
+"coin_page.sell" = "Verkaufen";
 "coin_page.tweets" = "Tweets";
 
 // Coin Page -> Overview
@@ -1378,6 +1498,7 @@
 "transactions.processing" = "Verarbeite";
 "transactions.completed" = "Abgeschlossen";
 "transactions.failed" = "Fehlgeschlagen";
+"transactions.not_processed" = "Nicht verarbeitet";
 
 "transactions.receive" = "Empfangen";
 "transactions.send" = "Gesendet";
@@ -1417,6 +1538,9 @@
 
 "transactions.ton_transaction.title" = "Ton Transaktion";
 "transactions.stellar_transaction.title" = "Stellar-Transaktion";
+"transactions.xrp_transaction.title" = "XRP Ledger-Transaktion";
+"transactions.trust_set" = "Vertrauenslinie";
+"tx_info.operation_type" = "Operationstyp";
 "transactions.contract" = "Vertrag";
 
 // Transaction Info
@@ -1941,8 +2065,12 @@
 "add_token.contract_address_not_found" = "Vertragsadresse in %@ Blockchain nicht gefunden";
 "add_token.jetton_master_not_found" = "Jetton Master nicht in %@ Blockchain gefunden";
 "add_token.input_placeholder.contract_address" = "Vertragsadresse";
+"add_token.input_placeholder.asset_id" = "Asset-ID";
+"add_token.invalid_asset_id" = "Ungültige Asset-ID";
 "add_token.input_placeholder.jetton_master_address" = "Jetton Hauptadresse";
 "add_token.input_placeholder.mint_address" = "Token-Mint-Adresse";
+"add_token.input_placeholder.xrp_currency" = "Währungscode.Emittent";
+"add_token.invalid_xrp_currency" = "Ungültige XRP Ledger-Token-Referenz";
 "add_token.invalid_mint_address" = "Ungültige Solana-Adresse";
 "add_token.mint_address_not_found" = "Token nicht in der %@-Blockchain gefunden";
 "add_token.coin_name" = "Münzname";
@@ -1953,6 +2081,7 @@
 
 "wallet_connect.title" = "WalletConnect";
 "wallet_connect.error.invalid_url" = "Ungültige URL-Adresse";
+"wallet_connect.error.expired_url" = "Der Verbindungslink ist abgelaufen. Erstelle einen neuen in der dApp.";
 "wallet_connect.active_account" = "Aktive Wallet";
 "wallet_connect.network" = "Netzwerk";
 "wallet_connect.list.pending_requests" = "Ausstehende Anfragen";
@@ -1963,6 +2092,7 @@
 "wallet_connect.main.premium_alert.subtitle.risky" = "Este sitio no está verificado. Conectarse podría exponerte a phishing y a la pérdida de fondos.";
 "wallet_connect.main.premium_alert.subtitle.not_available" = "Betrugsschutz-Überprüfung fehlgeschlagen. Verbindung erlaubt, aber die Domain könnte unsicher sein.";
 "wallet_connect.scam_protection" = "Betrugsschutz";
+"wallet_connect.dapp_check" = "dApp-Prüfung";
 "wallet_connect.scam_protection.deactivated" = "Deaktiviert";
 "wallet_connect.scam_protection.risky" = "Riskant";
 "wallet_connect.scam_protection.secure" = "Sicher";
@@ -1977,7 +2107,7 @@
 "wallet_connect.button_reconnect" = "Wiederverbinden";
 "wallet_connect.button_disconnect" = "Verbindung trennen";
 "ethereum_transaction.error.title" = "Fehler";
-"ethereum_transaction.error.insufficient_balance" = "Die Transaktion erfordert %@ zum Senden.";
+"transaction.error.insufficient_balance" = "Die Transaktion erfordert %@ zum Senden.";
 "ethereum_transaction.error.insufficient_balance_with_fee" = "Das aktuelle %@-Guthaben liegt unter dem für die Abwicklung dieser Transaktion erforderlichen Betrag einschließlich der Transaktionsgebühr.";
 "ethereum_transaction.error.lower_than_base_gas_limit" = "Der gewählte Gebührenwert ist zu niedrig und wird abgelehnt!";
 "ethereum_transaction.error.nonce_already_in_block" = "Transaktion bereits im Block!";
@@ -1987,10 +2117,129 @@
 "ethereum_transaction.error.reverted" = "Die Transaktion kann nicht ausgeführt werden: %@";
 "wallet_connect.request_title" = "Vertragsaufruf";
 "wallet_connect.button.confirm" = "Bestätigen";
+"wallet_connect.button.expired" = "Abgelaufen";
 "wallet_connect.sign.request_title" = "Signaturanfrage";
+"wallet_connect.transaction.title" = "Transaktion bestätigen";
+"wallet_connect.sign_transaction.title" = "Transaktion signieren";
+"wallet_connect.allowance.title" = "Token-Freigabe";
+"wallet_connect.allowance.description" = "%@ wird in der Lage sein, diese Token in deinem Namen zu bewegen.";
+"wallet_connect.allowance.amount" = "Freigabebetrag";
 "wallet_connect.sign.domain" = "Domäne";
 "wallet_connect.sign.dapp_name" = "dApp";
-"wallet_connect.sign.message" = "Zu unterzeichnende Nachricht";
+"wallet_connect.sign.message" = "Nachricht";
+"wallet_connect.request.transactions" = "Transaktionen";
+"wallet_connect.request.signer" = "Unterzeichner";
+"wallet_connect.solana.method_transfer" = "Überweisung";
+"wallet_connect.solana.value" = "Wert";
+"wallet_connect.stellar.payment" = "Zahlung";
+"wallet_connect.stellar.create_account" = "Konto erstellen";
+"wallet_connect.stellar.account_merge" = "Konto zusammenführen";
+"wallet_connect.stellar.path_payment_send" = "Pfadzahlung (Strict Send)";
+"wallet_connect.stellar.path_payment_receive" = "Pfadzahlung (Strict Receive)";
+"wallet_connect.stellar.change_trust" = "Trust ändern";
+"wallet_connect.stellar.manage_buy_offer" = "Kaufangebot verwalten";
+"wallet_connect.stellar.manage_sell_offer" = "Verkaufsangebot verwalten";
+"wallet_connect.stellar.passive_sell_offer" = "Passives Verkaufsangebot erstellen";
+"wallet_connect.stellar.set_options" = "Kontooptionen festlegen";
+"wallet_connect.stellar.source" = "Von";
+"wallet_connect.stellar.amount" = "Betrag";
+"wallet_connect.stellar.issuer" = "Emittent";
+"wallet_connect.stellar.send_amount" = "Sendebetrag";
+"wallet_connect.stellar.send_max" = "Maximaler Sendebetrag";
+"wallet_connect.stellar.receive_min" = "Minimaler Empfangsbetrag";
+"wallet_connect.stellar.receive_amount" = "Empfangsbetrag";
+"wallet_connect.stellar.send_issuer" = "Emittent des Sende-Assets";
+"wallet_connect.stellar.receive_issuer" = "Emittent des Empfangs-Assets";
+"wallet_connect.stellar.asset" = "Asset";
+"wallet_connect.stellar.pool_share" = "Liquiditätspool-Anteil";
+"wallet_connect.stellar.limit" = "Trustline-Limit";
+"wallet_connect.stellar.selling_asset" = "Verkauftes Asset";
+"wallet_connect.stellar.buying_asset" = "Gekauftes Asset";
+"wallet_connect.stellar.selling_issuer" = "Emittent des verkauften Assets";
+"wallet_connect.stellar.buying_issuer" = "Emittent des gekauften Assets";
+"wallet_connect.stellar.buy_amount" = "Kaufbetrag";
+"wallet_connect.stellar.sell_amount" = "Verkaufsbetrag";
+"wallet_connect.stellar.buy_price" = "Preis (Verkauf pro Kauf)";
+"wallet_connect.stellar.sell_price" = "Preis (Kauf pro Verkauf)";
+"wallet_connect.stellar.offer_id" = "Angebots-ID";
+"wallet_connect.stellar.master_weight" = "Master-Key-Gewicht";
+"wallet_connect.stellar.low_threshold" = "Niedriger Schwellenwert";
+"wallet_connect.stellar.medium_threshold" = "Mittlerer Schwellenwert";
+"wallet_connect.stellar.high_threshold" = "Hoher Schwellenwert";
+"wallet_connect.stellar.set_flags" = "Flags setzen";
+"wallet_connect.stellar.clear_flags" = "Flags löschen";
+"wallet_connect.stellar.inflation_destination" = "Inflationsziel";
+"wallet_connect.stellar.home_domain" = "Home-Domain";
+"wallet_connect.stellar.signer_type" = "Unterzeichnertyp";
+"wallet_connect.stellar.signer" = "Unterzeichner";
+"wallet_connect.stellar.signer_weight" = "Unterzeichner-Gewicht";
+"wallet_connect.stellar.signer_payload" = "Unterzeichner-Payload";
+"wallet_connect.stellar.memo_id" = "Memo-ID";
+"wallet_connect.stellar.memo_hash" = "Memo-Hash";
+"wallet_connect.stellar.memo_return_hash" = "Memo-Return-Hash";
+"wallet_connect.stellar.permissions.title" = "Kontoberechtigungen";
+"wallet_connect.stellar.permissions.description" = "Diese Transaktion ändert Kontoeinstellungen oder Signierberechtigungen. Prüfe Unterzeichner, Gewichtungen und Schwellenwerte sorgfältig.";
+"wallet_connect.stellar.unknown.title" = "Unbekannte Operationen";
+"wallet_connect.stellar.unknown.description" = "Einige Operationen können nicht vollständig angezeigt werden. Signiere nur, wenn du der anfragenden App vertraust und die Transaktion verstehst.";
+"wallet_connect.solana.unknown_lookup_address" = "Unbekannt (Address-Lookup-Tabelle)";
+"wallet_connect.solana.hidden_recipient.title" = "Verborgener Empfänger";
+"wallet_connect.solana.hidden_recipient.text" = "Diese Transaktion überweist Guthaben an eine Adresse aus einer Lookup-Tabelle. Der Empfänger kann nicht angezeigt werden. Signiere nur, wenn du dieser dApp vertraust.";
+"wallet_connect.solana.unknown_instructions.title" = "Unbekannte Anweisungen";
+"wallet_connect.solana.unknown_instructions.text" = "Diese Transaktion enthält zusätzliche Anweisungen, deren Auswirkungen nicht angezeigt werden. Signiere nur, wenn du dieser dApp vertraust.";
+"wallet_connect.solana.unreadable_transaction.title" = "Unlesbare Transaktion";
+"wallet_connect.solana.unreadable_transaction.text" = "Die Details dieser Transaktion konnten nicht dekodiert werden, sodass du nicht sehen kannst, was sie bewirkt: Empfänger, Betrag und Programme sind verborgen. Fahre nur fort, wenn du dieser App vollständig vertraust.";
+"wallet_connect.verdict.token_swap_native_value" = "Dieser Token-Swap sendet auch native Coins";
+"wallet_connect.verdict.swap_router_unsupported" = "1inch wird auf %@ nicht unterstützt";
+"wallet_connect.verdict.swap_not_canonical_router" = "1inch-Swap ist nicht an den offiziellen Router adressiert";
+"wallet_connect.verdict.missing_signer" = "Die Anfrage gibt keine Signieradresse an";
+"wallet_connect.verdict.malformed_signer" = "Die Signieradresse ist fehlerhaft";
+"wallet_connect.verdict.signer_not_approved" = "Die Signieradresse ist für %@ nicht genehmigt";
+"wallet_connect.verdict.chain_not_in_session" = "Chain %@ ist nicht Teil der genehmigten Sitzung";
+"wallet_connect.verdict.origin_scam" = "Diese dApp ist als Betrug markiert";
+"wallet_connect.verdict.origin_invalid" = "Der dApp-Ursprung stimmt nicht mit der verifizierten Domain überein";
+"wallet_connect.verdict.typed_data_no_chain" = "Typisierte Daten haben keine Chain-ID, die Signatur kann auf anderen Chains wiederholt werden";
+"wallet_connect.verdict.typed_data_chain_not_approved" = "Die Chain-ID %@ der typisierten Daten ist nicht genehmigt";
+"wallet_connect.verdict.eth_sign_blind_hash" = "eth_sign über einen rohen 32-Byte-Hash ist Blind-Signierung";
+"wallet_connect.verdict.eth_sign_unreadable" = "eth_sign-Nachricht ist kein lesbarer Text";
+"wallet_connect.verdict.solana_message_is_transaction" = "Diese Nachricht ist eine getarnte Transaktion. Durch das Signieren wird sie autorisiert.";
+"wallet_connect.verdict.solana_message_unreadable" = "solana_signMessage-Nachricht ist kein lesbarer Text";
+"wallet_connect.verdict.permit_unlimited" = "Das Signieren erlaubt %@, jederzeit beliebige Mengen dieses Tokens aus deiner Wallet zu bewegen, bis die Freigabe widerrufen wird";
+"wallet_connect.sign_transaction.description" = "%@ erhält die signierte Transaktion und kann sie jederzeit senden.";
+"wallet_connect.connect.title" = "Verbinden mit %@";
+"wallet_connect.session.title" = "Verbunden mit %@";
+"wallet_connect.connect.wallet" = "Wallet";
+"wallet_connect.connect.description" = "Durch das Verbinden erlaubst du dieser App, deine öffentliche Adresse einzusehen.";
+"wallet_connect.connect.unsupported" = "Diese dApp erfordert Netzwerke oder Methoden, die diese Wallet nicht unterstützt";
+"wallet_connect.defense.safe.title" = "Sicher";
+"wallet_connect.defense.safe.text" = "Ich habe es geprüft. Diese dApp ist sicher zum Verbinden.";
+"wallet_connect.defense.danger.title" = "Gefahr!";
+"wallet_connect.defense.danger.text" = "Diese dApp ist nicht verifiziert. Das Verbinden kann deine Guthaben gefährden.";
+"wallet_connect.defense.scam.title" = "Bekannter Betrug!";
+"wallet_connect.defense.scam.text" = "Diese Seite steht auf einer Liste bekannter bösartiger Domains. Das Verbinden wird sehr wahrscheinlich zum Verlust deiner Guthaben führen.";
+"wallet_connect.defense.attention.title" = "Achtung!";
+"wallet_connect.defense.attention.text" = "Du könntest dich mit einer gefälschten Seite verbinden und Guthaben verlieren. Aktiviere mich, um geschützt zu bleiben.";
+"wallet_connect.defense.activate" = "Aktivieren";
+"wallet_connect.defense.loading" = "dApp wird überprüft…";
+"wallet_connect.defense.not_available" = "dApp-Prüfung ist derzeit nicht verfügbar";
+"wallet_connect.sign.request_type" = "Anfragetyp";
+"wallet_connect.sign.contract" = "Vertrag";
+"wallet_connect.sign.network" = "Netzwerk";
+"wallet_connect.list.requests" = "Anfragen";
+"wallet_connect.list.request.sign" = "Signieren";
+"wallet_connect.list.request.confirm" = "Bestätigen";
+"wallet_connect.list.request.approve" = "Genehmigen";
+"wallet_connect.list.disconnect.title" = "%@ trennen";
+"wallet_connect.list.disconnect.description" = "Bist du sicher, dass du diese Verbindung entfernen möchtest?";
+"wallet_connect.error.invalid_url.title" = "Ungültige URL";
+"wallet_connect.error.invalid_url.description" = "Verbindung über diesen Link nicht möglich. Bitte überprüfe ihn und versuche es erneut.";
+"wallet_connect.error.request_failed.title" = "Anfrage fehlgeschlagen";
+"wallet_connect.error.request_failed.description" = "Etwas ist schiefgelaufen und die Anfrage konnte nicht abgeschlossen werden";
+"wallet_connect.verify.mismatch.title" = "Identitätstäuschung erkannt!";
+"wallet_connect.verify.mismatch.text" = "Diese Anfrage stammt von %@, was nicht mit der Seite übereinstimmt, als die sie sich ausgibt. Dies ist eine verbreitete Phishing-Methode.";
+"wallet_connect.verify.mismatch.no_origin" = "Diese Anfrage stammt von einer anderen Seite als der, die sie vorgibt zu sein. Dies ist eine verbreitete Phishing-Methode.";
+"wallet_connect.verify.unknown.title" = "Nicht verifizierte Seite";
+"wallet_connect.verify.unknown.text" = "Die Identität dieser Seite konnte nicht bestätigt werden. Überprüfe die Adresse sorgfältig, bevor du dich verbindest.";
+"button.try_again" = "Erneut versuchen";
 
 "wallet_connect.send.transaction" = "Transaktion senden";
 
@@ -2134,6 +2383,16 @@
 "monero_network.added" = "Hinzugefügt";
 "monero_network.add_new" = "Neu hinzufügen";
 "monero_network.description" = "Wählen Sie den Knoten aus, den die Unstoppable-App zur Synchronisierung der Wallet(s) verwenden soll.";
+"monero_network.auto_select" = "Node automatisch auswählen";
+"monero_network.auto_select.description" = "Mit dem schnellsten aktuellen Node verbinden";
+"monero_network.unreachable" = "Nicht erreichbar";
+"add_monero_node.error.port_required" = "URL muss einen Port enthalten";
+"monero.account" = "Konto";
+"monero.accounts.title" = "Konten";
+"monero.accounts.description" = "Konten sind separate Bereiche innerhalb derselben Monero-Wallet. Guthaben, Adressen und Transaktionen gehören zum aktiven Konto. Das Verschieben von Guthaben zwischen Konten erfordert eine On-Chain-Transaktion.";
+"monero.accounts.new" = "Neues Konto";
+"monero.accounts.rename" = "Umbenennen";
+"monero.accounts.name_placeholder" = "Name (optional)";
 "monero_network.settings.title" = "Knoteneinstellungen";
 "monero_network.settings.description" = "Vertrauenswürdiger Node – Wenn aktiviert, vertraut die Wallet dem ausgewählten Node und akzeptiert dessen Daten ohne zusätzliche Überprüfung. \n\nEin → Transaktionen erscheinen sofort nach der Übertragung als ausstehend (schnellere Synchronisierung, aber geringere Privatsphäre und größere Abhängigkeit vom Node).\n\nAus → Transaktionen erscheinen erst nach Netzwerkbestätigungen (langsamer, aber sicherer und privater).";
 "monero_network.settings.trust" = "Vertrauen";
@@ -2162,6 +2421,11 @@
 "zcash_network.added" = "Hinzugefügt";
 "zcash_network.add_new" = "Neu hinzufügen";
 "zcash_network.description" = "Wählen Sie den Lightwallet-Server, den die Unstoppable-App zur Synchronisierung der Wallet(s) verwenden soll.";
+"zcash_network.auto_select" = "Server automatisch auswählen";
+"zcash_network.auto_select.description" = "Verbindung zum schnellsten aktuellen Server herstellen";
+"zcash_network.unreachable" = "Nicht erreichbar";
+"xrp_network.description" = "Wählen Sie den Knoten aus, den die Unstoppable-App zur Synchronisierung der Wallet(s) verwenden soll.";
+"near-protocol_network.description" = "Wählen Sie den Knoten aus, den die Unstoppable-App zur Synchronisierung der Wallet(s) verwenden soll.";
 
 "add_zcash_node.title" = "Server hinzufügen";
 "add_zcash_node.description" = "Geben Sie die Adresse des lightwalletd-Servers ein (Host oder Host:Port).";
@@ -2185,13 +2449,14 @@
 "fee_settings.inputs_outputs" = "Ein-/Ausgänge";
 "fee_settings.inputs_outputs.description" = "Ändert die Struktur der Transaktions-Inputs und -Outputs.";
 "fee_settings.transaction_settings" = "Transaktionseinstellungen";
-"fee_settings.transaction_settings.description" = "Machen Sie Ihre Bitcoin-Transaktionen schwieriger nachvollziehbar, indem Sie die Transaktionsstruktur verändern.";
+"fee_settings.transaction_settings.description" = "Erschweren Sie die Nachverfolgung Ihrer %@-Transaktion, indem Sie die Struktur von Transaktionen ändern.";
 "fee_settings.replace_by_fee" = "Ersetzen durch Gebühr";
 "fee_settings.replace_by_fee.description" = "Diese Option ermöglicht es Ihnen, eine festsitzende Transaktion erneut zu senden, indem Sie die Höhe der Gebühr erhöhen.";
 "fee_settings.time_lock" = "TimeLock";
-"fee_settings.time_lock.description" = "TimeLock funktioniert nur beim Senden an BIP44 Adressen (ab 1)";
+"fee_settings.time_lock.description" = "TimeLock funktioniert nur beim Senden an BIP44-Adressen (beginnend mit 1).";
+"fee_settings.time_lock.not_applied" = "Wird bei Privatem Senden und Cross Pay nicht angewendet.";
 
-"fee_settings.network_fee" = "Gebühr";
+"fee_settings.network_fee" = "Netzwerkgebühr";
 "fee_settings.network_fee.info" = "Die geschätzten Kosten für den Versand der Transaktion im Netzwerk.";
 "fee_settings.zcash_marginal_fee" = "Grenzgebühr";
 "fee_settings.zcash_marginal_fee.info" = "Die Grenzgebühr ist der Betrag in Zatoshi, der für jeden von der Transaktion verwendeten Output gezahlt wird.\n\nWenn das Wallet viele kleine Outputs verwendet, wird die gesamte Netzwerkgebühr höher sein.";
@@ -2394,7 +2659,6 @@
 "purchases.swap_protection.info" = "Stoppt Bots und Front-Running-Angriffe während Swaps. Hält deine Transaktionen fair und sicher.";
 "purchases.robbery_protection" = "Raubschutz";
 "purchases.robbery_protection.description" = "Schützt deine Gelder, falls du gezwungen bist, die App zu entsperren.";
-"purchases.robbery_protection.info" = "Ermöglicht das Erstellen einer Tarn-Wallet mit separater PIN und hält Ihre echten Vermögenswerte in risikoreichen Situationen verborgen.";
 
 // Advanced Controls
 "purchases.advanced_controls" = "Erweiterte Steuerungen";
@@ -2534,3 +2798,24 @@
 "open_crypto_pay.tx_info.proof_status.submitted" = "Eingereicht";
 "open_crypto_pay.tx_info.proof_status.pending" = "Ausstehend";
 "open_crypto_pay.tx_info.proof_status.reconciliation" = "Abgleich erforderlich";
+
+"cross_pay.send_to" = "Senden an";
+"cross_pay.select_token" = "Token auswählen";
+"cross_pay.you_pay" = "Sie zahlen";
+"cross_pay.you_pay.info" = "Der eingezahlte Betrag zur Finanzierung dieser Zahlung, einschließlich der Umtauschkosten des Anbieters und einer erstattungsfähigen Slippage-Reserve. Nicht verwendete Teile der Reserve werden an Ihre Wallet zurückgegeben.";
+"cross_pay.caution.insufficient_balance %@" = "Diese Zahlung erfordert %@ in Ihrer Wallet, einschließlich Gebühren.";
+"cross_pay.error.token_unsupported" = "Token wird nicht unterstützt";
+"cross_pay.error.below_minimum %@" = "Mindestbetrag beträgt %@";
+"cross_pay.error.above_maximum %@" = "Höchstbetrag beträgt %@";
+"cross_pay.error.no_route" = "Keine Route verfügbar";
+"cross_pay.error.provider_suspended" = "Der Zahlungsanbieter ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.";
+"cross_pay.error.network" = "Angebot fehlgeschlagen. Überprüfen Sie die Verbindung.";
+"cross_pay.error.commit_failed" = "Die Zahlung konnte nicht eingerichtet werden. Bitte versuchen Sie es später erneut.";
+"cross_pay.unavailable" = "Zahlung nicht verfügbar";
+"cross_pay.you_will_pay" = "Sie zahlen";
+"cross_pay.quoting" = "Angebot wird abgerufen...";
+"cross_pay.info.title" = "CrossPay";
+"cross_pay.info.text %@" = "Mit CrossPay senden Sie ein Asset und bezahlen mit einem anderen. Ihr %@ wird automatisch in das Asset umgewandelt, das der Empfänger erhält.";
+
+"swap.amount_min" = "(Min.)";
+"swap.amount_max" = "(Max.)";

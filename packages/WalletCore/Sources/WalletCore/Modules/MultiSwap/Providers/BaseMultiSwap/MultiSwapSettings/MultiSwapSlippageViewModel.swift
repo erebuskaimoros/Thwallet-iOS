@@ -4,7 +4,6 @@ import MarketKit
 import UIKit
 
 class MultiSwapSlippageViewModel: ObservableObject {
-    private let decimalParser = AmountDecimalParser()
     private let initialSlippage: Decimal
 
     @Published var slippageCautionState: CautionState = .none
@@ -12,7 +11,7 @@ class MultiSwapSlippageViewModel: ObservableObject {
         didSet {
             if slippageString == oldValue { return }
 
-            if let decimal = decimalParser.parseAnyDecimal(from: slippageString) {
+            if let decimal = AmountDecimalParser.parseAnyDecimal(from: slippageString) {
                 slippage = decimal
             } else {
                 slippage = 0
@@ -65,8 +64,8 @@ extension MultiSwapSlippageViewModel {
     }
 }
 
-enum MultiSwapSlippage {
-    static let `default`: Decimal = 1
+public enum MultiSwapSlippage {
+    public static let `default`: Decimal = 1
     static var limitBounds: ClosedRange<Decimal> { 0.01 ... 50 }
     static let usualHighest: Decimal = 5
 
@@ -96,7 +95,7 @@ enum MultiSwapSlippage {
         }
         if slippage > MultiSwapSlippage.limitBounds.upperBound {
             return .caution(.init(
-                text: SwapSettingsModule.SlippageError.tooHigh(
+                text: MultiSwapSlippage.SlippageError.tooHigh(
                     max: MultiSwapSlippage.limitBounds.upperBound
                 ).localizedDescription,
                 type: .error
@@ -105,7 +104,7 @@ enum MultiSwapSlippage {
         }
         if slippage < MultiSwapSlippage.limitBounds.lowerBound {
             return .caution(.init(
-                text: SwapSettingsModule.SlippageError.tooLow(
+                text: MultiSwapSlippage.SlippageError.tooLow(
                     min: MultiSwapSlippage.limitBounds.lowerBound
                 ).localizedDescription,
                 type: .error
@@ -128,6 +127,7 @@ extension CautionState {
             switch caution.type {
             case .warning: return .warning
             case .error: return .error
+            case .regular: return .regular
             }
         }
     }

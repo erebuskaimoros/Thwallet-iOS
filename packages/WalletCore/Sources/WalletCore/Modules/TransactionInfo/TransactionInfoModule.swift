@@ -12,7 +12,10 @@ enum TransactionInfoModule {
 
         let service = TransactionInfoService(transactionRecord: transactionRecord, adapter: adapter, currencyManager: Core.shared.currencyManager, rateService: rateService, nftMetadataService: nftMetadataService, balanceHiddenManager: Core.shared.balanceHiddenManager)
         let contactLabelService = ContactLabelService(contactManager: Core.shared.contactManager, blockchainType: transactionRecord.source.blockchainType)
-        let factory = TransactionInfoViewItemFactory(evmLabelManager: Core.shared.evmLabelManager, contactLabelService: contactLabelService, actionEnabled: transactionRecord.source.blockchainType.resendable, extraProviderFactory: Core.shared.transactionInfoExtraFactory)
+        // speed up and cancel replace a pending transaction, which a watch account cannot sign
+        let watchAccount = Core.shared.accountManager.activeAccount?.watchAccount ?? false
+        let actionEnabled = transactionRecord.source.blockchainType.resendable && !watchAccount
+        let factory = TransactionInfoViewItemFactory(evmLabelManager: Core.shared.evmLabelManager, contactLabelService: contactLabelService, actionEnabled: actionEnabled, extraProviderFactory: Core.shared.transactionInfoExtraFactory)
         let viewModel = TransactionInfoViewModel(service: service, factory: factory, contactLabelService: contactLabelService)
         let viewController = TransactionInfoViewController(adapter: adapter, viewModel: viewModel, pageTitle: "tx_info.title".localized, urlManager: UrlManager(inApp: true))
 
@@ -30,7 +33,8 @@ extension TransactionInfoModule {
         case actionTitle(iconName: String?, iconDimmed: Bool, title: String, subTitle: String?)
         case amount(title: String, subtitle: String?, iconUrl: String?, iconAlternativeUrl: String?, iconPlaceholderImageName: String, coinAmount: String, currencyAmount: String?, type: AmountType, coin: Coin?)
         case nftAmount(iconUrl: String?, iconPlaceholderImageName: String, nftAmount: String, type: AmountType, providerCollectionUid: String?, nftUid: NftUid?)
-        case status(status: TransactionStatus)
+        /// notProcessed: failed without reaching the chain, which is not an error to show as one.
+        case status(status: TransactionStatus, notProcessed: Bool = false)
         case option(option: Option)
         case date(date: Date)
         case from(value: String, valueTitle: String?, contactAddress: ContactAddress?)

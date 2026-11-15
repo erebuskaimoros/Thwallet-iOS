@@ -1,13 +1,14 @@
 import BigInt
+import Combine
 import Foundation
 import HsToolKit
 import RxSwift
 import TronKit
 
-class BaseTronAdapter {
+public class BaseTronAdapter {
     static let confirmationsThreshold = 18
 
-    let tronKitWrapper: TronKitWrapper
+    public let tronKitWrapper: TronKitWrapper
     let decimals: Int
 
     init(tronKitWrapper: TronKitWrapper, decimals: Int) {
@@ -19,7 +20,7 @@ class BaseTronAdapter {
         tronKitWrapper.tronKit
     }
 
-    /// `true` for on-chain-active accounts AND for gas-token-payment accounts (passkey-AA / GasFree)
+    /// `true` for on-chain-active accounts AND for gas-token-payment accounts (passkey / GasFree)
     /// whose wallet may not be on-chain yet but still semantically usable for receive/send via the
     /// abstraction layer. Use this for UI activation cues, not raw `tronKit.accountActive`.
     var effectiveAccountActive: Bool {
@@ -28,9 +29,9 @@ class BaseTronAdapter {
 
     /// Single source for `effectiveAccountActive` updates. Subclasses' `cautionUpdatedObservable`
     /// and any UI-facing publisher should subscribe to this rather than re-deriving the OR.
-    var effectiveAccountActivePublisher: Observable<Bool> {
+    var effectiveAccountActivePublisher: AnyPublisher<Bool, Never> {
         let gasTokenPayment = tronKitWrapper.gasTokenPayment
-        return tronKit.accountActivePublisher.asObservable().map { $0 || gasTokenPayment }
+        return tronKit.accountActivePublisher.map { $0 || gasTokenPayment }.eraseToAnyPublisher()
     }
 
     func balanceDecimal(kitBalance: BigUInt?, decimals: Int) -> Decimal {
@@ -53,7 +54,7 @@ class BaseTronAdapter {
         }
     }
 
-    var isMainNet: Bool {
+    public var isMainNet: Bool {
         tronKitWrapper.tronKit.network == .mainNet
     }
 
@@ -61,7 +62,7 @@ class BaseTronAdapter {
         BalanceData(balance: balanceDecimal(kitBalance: balance, decimals: decimals))
     }
 
-    func accountActive(address: TronKit.Address) async -> Bool {
+    public func accountActive(address: TronKit.Address) async -> Bool {
         await (try? tronKit.accountActive(address: address)) ?? true
     }
 
@@ -75,7 +76,7 @@ class BaseTronAdapter {
 }
 
 // IAdapter
-extension BaseTronAdapter {
+public extension BaseTronAdapter {
     var statusInfo: [(String, Any)] {
         []
     }
@@ -86,7 +87,7 @@ extension BaseTronAdapter {
 }
 
 // ITransactionsAdapter
-extension BaseTronAdapter {
+public extension BaseTronAdapter {
     var lastBlockInfo: LastBlockInfo? {
         tronKit.lastBlockHeight.map { LastBlockInfo(height: $0, timestamp: nil) }
     }
@@ -97,7 +98,7 @@ extension BaseTronAdapter {
 }
 
 extension BaseTronAdapter: IDepositAdapter {
-    var receiveAddress: DepositAddress {
+    public var receiveAddress: DepositAddress {
         ActivatedDepositAddress(
             receiveAddress: tronKit.receiveAddress.base58,
             isActive: effectiveAccountActive

@@ -6,7 +6,6 @@ import SwiftUI
 class LegacyFeeSettingsViewModel: ObservableObject {
     private let service: EvmTransactionService
     private let feeViewItemFactory: FeeViewItemFactory
-    private let decimalParser = AmountDecimalParser()
 
     @Published var gasPriceCautionState: FieldCautionState = .none
     @Published var applyEnabled = false
@@ -42,7 +41,7 @@ class LegacyFeeSettingsViewModel: ObservableObject {
 
     private func sync() {
         applyEnabled = service.currentGasPrice != gasPrice
-        resetEnabled = service.recommendedGasPrice != gasPrice
+        resetEnabled = service.defaultGasPrice != gasPrice
 
         let warnings = EvmTransactionService.validateGasPrice(recommended: service.recommendedGasPrice, current: gasPrice)
         cautions = warnings.map(\.caution)
@@ -55,7 +54,7 @@ class LegacyFeeSettingsViewModel: ObservableObject {
     }
 
     private func handleChange() {
-        guard let gasPriceDecimal = decimalParser.parseAnyDecimal(from: _gasPriceValue) else {
+        guard let gasPriceDecimal = AmountDecimalParser.parseAnyDecimal(from: _gasPriceValue) else {
             gasPriceCautionState = .caution(.error)
             return
         }
@@ -64,7 +63,7 @@ class LegacyFeeSettingsViewModel: ObservableObject {
     }
 
     private func updateByStep(value: String?, direction: StepChangeButtonsViewDirection) -> Decimal? {
-        guard let decimal = value.flatMap({ decimalParser.parseAnyDecimal(from: $0) }) else {
+        guard let decimal = value.flatMap({ AmountDecimalParser.parseAnyDecimal(from: $0) }) else {
             return nil
         }
 
@@ -80,17 +79,17 @@ extension LegacyFeeSettingsViewModel {
     }
 
     func onReset() {
-        if case let .legacy(gasPrice) = service.recommendedGasPrice {
+        if case let .legacy(gasPrice) = service.defaultGasPrice {
             _gasPriceValue = feeViewItemFactory.decimalValue(value: gasPrice).description
             handleChange()
         }
     }
 
     func apply() {
-        guard let gasPrice, let recommendedGasPrice = service.recommendedGasPrice else {
+        guard let gasPrice, let defaultGasPrice = service.defaultGasPrice else {
             return
         }
 
-        service.set(gasPrice: gasPrice == recommendedGasPrice ? nil : gasPrice)
+        service.set(gasPrice: gasPrice == defaultGasPrice ? nil : gasPrice)
     }
 }

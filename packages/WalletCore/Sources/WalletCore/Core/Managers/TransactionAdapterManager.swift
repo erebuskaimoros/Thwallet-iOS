@@ -1,30 +1,31 @@
+import Combine
 import Foundation
-import RxRelay
-import RxSwift
 
-class TransactionAdapterManager {
-    private let disposeBag = DisposeBag()
+public class TransactionAdapterManager {
+    private var cancellables = Set<AnyCancellable>()
+    // serial: replaces the SerialDispatchQueueScheduler the Rx subscription used
+    private let initQueue = DispatchQueue(label: "\(AppConfig.label).transaction-adapter-manager", qos: .userInitiated)
 
     private let adapterManager: AdapterManager
     private let evmBlockchainManager: EvmBlockchainManager
     private let adapterFactory: AdapterFactory
 
-    private let adaptersReadyRelay = PublishRelay<Void>()
+    private let adaptersReadySubject = PassthroughSubject<Void, Never>()
 
     private let queue = DispatchQueue(label: "\(AppConfig.label).transactions_adapter_manager", qos: .userInitiated)
     private var _adapterMap = [TransactionSource: ITransactionsAdapter]()
 
-    init(adapterManager: AdapterManager, evmBlockchainManager: EvmBlockchainManager, adapterFactory: AdapterFactory) {
+    public init(adapterManager: AdapterManager, evmBlockchainManager: EvmBlockchainManager, adapterFactory: AdapterFactory) {
         self.adapterManager = adapterManager
         self.evmBlockchainManager = evmBlockchainManager
         self.adapterFactory = adapterFactory
 
-        adapterManager.adapterDataReadyObservable
-            .observeOn(SerialDispatchQueueScheduler(qos: .userInitiated))
-            .subscribe(onNext: { [weak self] adapterData in
+        adapterManager.adapterDataReadyPublisher
+            .receive(on: initQueue)
+            .sink { [weak self] adapterData in
                 self?.initAdapters(adapterMap: adapterData.adapterMap)
-            })
-            .disposed(by: disposeBag)
+            }
+            .store(in: &cancellables)
     }
 
     private func initAdapters(adapterMap: [Wallet: IAdapter]) {
@@ -43,12 +44,18 @@ class TransactionAdapterManager {
                 transactionsAdapter = adapterFactory.evmTransactionsAdapter(transactionSource: source)
             } else if source.blockchainType == .tron {
                 transactionsAdapter = adapterFactory.tronTransactionsAdapter(transactionSource: source)
+            } else if source.blockchainType == .thorChain || source.blockchainType == .mayaChain {
+                transactionsAdapter = adapterFactory.thorChainTransactionsAdapter(transactionSource: source)
             } else if source.blockchainType == .ton {
                 transactionsAdapter = adapterFactory.tonTransactionAdapter(transactionSource: source)
             } else if source.blockchainType == .stellar {
                 transactionsAdapter = adapterFactory.stellarTransactionAdapter(transactionSource: source)
             } else if source.blockchainType == .solana {
                 transactionsAdapter = adapterFactory.solanaTransactionsAdapter(transactionSource: source)
+            } else if source.blockchainType == .xrp {
+                transactionsAdapter = adapterFactory.xrpTransactionAdapter(transactionSource: source)
+            } else if source.blockchainType == .near {
+                transactionsAdapter = adapterFactory.nearTransactionAdapter(transactionSource: source)
             } else {
                 transactionsAdapter = adapter as? ITransactionsAdapter
             }
@@ -60,18 +67,18 @@ class TransactionAdapterManager {
 
         queue.async {
             self._adapterMap = newAdapterMap
-            self.adaptersReadyRelay.accept(())
+            self.adaptersReadySubject.send(())
         }
     }
 }
 
-extension TransactionAdapterManager {
-    var adapterMap: [TransactionSource: ITransactionsAdapter] {
+public extension TransactionAdapterManager {
+    internal var adapterMap: [TransactionSource: ITransactionsAdapter] {
         queue.sync { _adapterMap }
     }
 
-    var adaptersReadyObservable: Observable<Void> {
-        adaptersReadyRelay.asObservable()
+    var adaptersReadyPublisher: AnyPublisher<Void, Never> {
+        adaptersReadySubject.eraseToAnyPublisher()
     }
 
     func adapter(for source: TransactionSource) -> ITransactionsAdapter? {

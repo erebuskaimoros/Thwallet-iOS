@@ -5,7 +5,7 @@ import DashKit
 import ECashKit
 import LitecoinKit
 import MarketKit
-import ZcashLightClientKit
+import ZODLSwiftWalletSDK
 
 enum AddressParserFactory {
     static func parser(blockchainType: BlockchainType?, tokenType: TokenType?) -> AddressUriParser {
@@ -78,7 +78,7 @@ enum AddressParserFactory {
             }
 
             return handlers
-        case .ethereum, .gnosis, .fantom, .polygon, .arbitrumOne, .avalanche, .optimism, .binanceSmartChain, .base, .zkSync:
+        case .ethereum, .gnosis, .fantom, .polygon, .arbitrumOne, .avalanche, .optimism, .binanceSmartChain, .base, .zkSync, .robinhood, .arc:
             let evmAddressParserItem = EvmAddressParser(blockchainType: blockchainType)
 
             var handlers = [IAddressParserItem]()
@@ -94,6 +94,10 @@ enum AddressParserFactory {
             return handlers
         case .tron:
             return [TronAddressParser()]
+        case .thorChain:
+            return [ThorChainAddressParserItem()]
+        case .mayaChain:
+            return [ThorChainAddressParserItem(blockchainType: .mayaChain, network: .mayaMainnet)]
         case .zcash:
             let network = ZcashNetworkBuilder.network(for: ZcashAdapter.networkType)
             let validator = ZcashAddressValidator(network: network)
@@ -106,7 +110,14 @@ enum AddressParserFactory {
             }
             let zcashParserItem = ZcashAddressParserItem(parserType: .validator(validator), addressType: addressType)
 
-            return [zcashParserItem]
+            var handlers: [IAddressParserItem] = [zcashParserItem]
+            // name services only where ENS runs (send, contacts), as on Android; the ZNS indexer is mainnet only
+            if withEns, ZcashAdapter.networkType == .mainnet {
+                let resolver = ZnsResolver(networkManager: Core.shared.networkManager)
+                handlers.append(ZnsAddressParserItem(resolver: resolver, rawAddressParserItem: zcashParserItem))
+            }
+
+            return handlers
         case .solana:
             return [SolanaAddressParserItem()]
         case .ton:
@@ -116,7 +127,18 @@ enum AddressParserFactory {
         case .monero:
             return [MoneroAddressParserItem()]
         case .zano:
-            return [ZanoAddressParserItem()]
+            var handlers: [IAddressParserItem] = [ZanoAddressParserItem()]
+            // aliases are a name service: only where ENS runs, as on Android (ZanoChainPlugin.domainAddressHandlers)
+            if withEns {
+                let aliasResolver = ZanoAliasResolver(zanoNodeManager: Core.shared.zanoNodeManager, networkManager: Core.shared.networkManager)
+                handlers.append(ZanoAliasAddressParserItem(resolver: aliasResolver))
+            }
+
+            return handlers
+        case .xrp:
+            return [XrpAddressParserItem()]
+        case .near:
+            return [NearAddressParserItem(rpcUrls: Core.shared.nearNodeManager.rpcUrls(network: Core.shared.nearKitManager.network))]
         case .unsupported: return []
         }
     }

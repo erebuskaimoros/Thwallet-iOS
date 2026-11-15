@@ -2,6 +2,8 @@ import Foundation
 import MarketKit
 
 class AppBackupProvider {
+    // Android accepts a full backup only with version 2 (BackupProvider.validate); bumping it breaks
+    // cross-platform restore — see AccountTypeBackupCodec for the rest of the format contract
     private static let version = 2
 
     private let accountManager: AccountManager
@@ -12,6 +14,7 @@ class AppBackupProvider {
     private let moneroNodeManager: MoneroNodeManager
     private let zanoNodeManager: ZanoNodeManager
     private let zcashNodeManager: ZcashNodeManager
+    private let thorChainEndpointManager: ThorChainEndpointManager
     private let btcBlockchainManager: BtcBlockchainManager
     private let restoreSettingsManager: RestoreSettingsManager
     private let chartRepository: ChartIndicatorsRepository
@@ -36,6 +39,7 @@ class AppBackupProvider {
          moneroNodeManager: MoneroNodeManager,
          zanoNodeManager: ZanoNodeManager,
          zcashNodeManager: ZcashNodeManager,
+         thorChainEndpointManager: ThorChainEndpointManager,
          btcBlockchainManager: BtcBlockchainManager,
          restoreSettingsManager: RestoreSettingsManager,
          chartRepository: ChartIndicatorsRepository,
@@ -60,6 +64,7 @@ class AppBackupProvider {
         self.moneroNodeManager = moneroNodeManager
         self.zanoNodeManager = zanoNodeManager
         self.zcashNodeManager = zcashNodeManager
+        self.thorChainEndpointManager = thorChainEndpointManager
         self.btcBlockchainManager = btcBlockchainManager
         self.restoreSettingsManager = restoreSettingsManager
         self.chartRepository = chartRepository
@@ -92,20 +97,20 @@ class AppBackupProvider {
     private var swapProviders: [SettingsBackup.DefaultProvider] {
         EvmBlockchainManager
             .blockchainTypes
-            .map {
-                SettingsBackup.DefaultProvider(
-                    blockchainTypeId: $0.uid,
-                    provider: localStorage.defaultProvider(blockchainType: $0).id
-                )
+            .compactMap { blockchainType in
+                localStorage.defaultProvider(blockchainType: blockchainType).map {
+                    SettingsBackup.DefaultProvider(blockchainTypeId: blockchainType.uid, provider: $0.id)
+                }
             }
     }
 
-    private func defaultSettings(evmSyncSources: EvmSyncSourceManager.SyncSourceBackup, moneroNodes: MoneroNodeManager.NodeBackup, zanoNodes: ZanoNodeManager.NodeBackup, zcashEndpoints: ZcashNodeManager.NodeBackup) -> SettingsBackup {
+    private func defaultSettings(evmSyncSources: EvmSyncSourceManager.SyncSourceBackup, moneroNodes: MoneroNodeManager.NodeBackup, zanoNodes: ZanoNodeManager.NodeBackup, zcashEndpoints: ZcashNodeManager.NodeBackup, thorChainEndpoint: ThorChainEndpointManager.EndpointBackup) -> SettingsBackup {
         SettingsBackup(
             evmSyncSources: evmSyncSources,
             moneroNodes: moneroNodes,
             zanoNodes: zanoNodes,
             zcashEndpoints: zcashEndpoints,
+            thorChainEndpoint: thorChainEndpoint,
             btcModes: [],
             remoteContactsSync: nil,
             swapProviders: [],
@@ -133,12 +138,13 @@ class AppBackupProvider {
         )
     }
 
-    private func settings(evmSyncSources: EvmSyncSourceManager.SyncSourceBackup, moneroNodes: MoneroNodeManager.NodeBackup, zanoNodes: ZanoNodeManager.NodeBackup, zcashEndpoints: ZcashNodeManager.NodeBackup) -> SettingsBackup {
+    private func settings(evmSyncSources: EvmSyncSourceManager.SyncSourceBackup, moneroNodes: MoneroNodeManager.NodeBackup, zanoNodes: ZanoNodeManager.NodeBackup, zcashEndpoints: ZcashNodeManager.NodeBackup, thorChainEndpoint: ThorChainEndpointManager.EndpointBackup) -> SettingsBackup {
         SettingsBackup(
             evmSyncSources: evmSyncSources,
             moneroNodes: moneroNodes,
             zanoNodes: zanoNodes,
             zcashEndpoints: zcashEndpoints,
+            thorChainEndpoint: thorChainEndpoint,
             btcModes: btcBlockchainManager.backup,
             remoteContactsSync: localStorage.remoteContactsSync,
             swapProviders: swapProviders,
@@ -162,7 +168,7 @@ class AppBackupProvider {
         try accountIds.compactMap {
             accountManager.account(id: $0)
         }.compactMap {
-            let walletBackup = try Self.encrypt(account: $0, wallets: enabledWallets(account: $0), passphrase: passphrase)
+            let walletBackup = try encrypt(account: $0, wallets: enabledWallets(account: $0), passphrase: passphrase)
             return CloudRestoreBackupListModule.RestoredBackup(name: $0.name, walletBackup: walletBackup)
         }
     }
@@ -179,30 +185,36 @@ class AppBackupProvider {
         let moneroNodeBackup: MoneroNodeManager.NodeBackup
         let zanoNodeBackup: ZanoNodeManager.NodeBackup
         let zcashNodeBackup: ZcashNodeManager.NodeBackup
+        let thorChainEndpointBackup: ThorChainEndpointManager.EndpointBackup
 
         if includeCustomRpc {
             syncSources = EvmSyncSourceManager.SyncSourceBackup(selected: evmSyncSourceManager.selectedSources, custom: [])
             moneroNodeBackup = MoneroNodeManager.NodeBackup(selected: moneroNodeManager.selectedNodes, custom: [])
             zanoNodeBackup = ZanoNodeManager.NodeBackup(selected: zanoNodeManager.selectedNodes, custom: [])
-            zcashNodeBackup = ZcashNodeManager.NodeBackup(selected: zcashNodeManager.selectedNodes, custom: [])
+            zcashNodeBackup = ZcashNodeManager.NodeBackup(selected: zcashNodeManager.selectedNodes, custom: [], autoSelect: zcashNodeManager.autoSelectEnabled)
+            thorChainEndpointBackup = thorChainEndpointManager.backup
         } else {
             syncSources = .init(selected: [], custom: [])
             moneroNodeBackup = .init(selected: [], custom: [])
             zanoNodeBackup = .init(selected: [], custom: [])
-            zcashNodeBackup = .init(selected: [], custom: [])
+            zcashNodeBackup = .init(selected: [], custom: [], autoSelect: nil)
+            thorChainEndpointBackup = .init(familyId: nil)
         }
 
         let settingsBackup: SettingsBackup
         if includePreferences {
-            settingsBackup = settings(evmSyncSources: syncSources, moneroNodes: moneroNodeBackup, zanoNodes: zanoNodeBackup, zcashEndpoints: zcashNodeBackup)
+            settingsBackup = settings(evmSyncSources: syncSources, moneroNodes: moneroNodeBackup, zanoNodes: zanoNodeBackup, zcashEndpoints: zcashNodeBackup, thorChainEndpoint: thorChainEndpointBackup)
         } else {
-            settingsBackup = defaultSettings(evmSyncSources: syncSources, moneroNodes: moneroNodeBackup, zanoNodes: zanoNodeBackup, zcashEndpoints: zcashNodeBackup)
+            settingsBackup = defaultSettings(evmSyncSources: syncSources, moneroNodes: moneroNodeBackup, zanoNodes: zanoNodeBackup, zcashEndpoints: zcashNodeBackup, thorChainEndpoint: thorChainEndpointBackup)
         }
+
+        let watchlistIds = sections.contains(.favourites) ? watchlistManager.coinUids : []
+        let contacts = sections.contains(.contacts) ? (contactManager.backupContactBook?.contacts ?? []) : []
 
         return RawFullBackup(
             accounts: accounts,
-            watchlistIds: sections.contains(.favourites) ? watchlistManager.coinUids : [],
-            contacts: sections.contains(.contacts) ? (contactManager.backupContactBook?.contacts ?? []) : [],
+            watchlistIds: watchlistIds,
+            contacts: contacts,
             settings: settingsBackup,
             customSyncSources: includeCustomRpc ? evmSyncSourceManager.customSources : [],
             customMoneroNodes: includeCustomRpc ? moneroNodeManager.customNodeRecords : [],
@@ -223,7 +235,7 @@ extension AppBackupProvider {
                 fileBackedUp: raw.account.fileBackedUp,
                 name: raw.account.name
             )
-            return RawWalletBackup(account: account, enabledWallets: raw.enabledWallets)
+            return RawWalletBackup(account: account, enabledWallets: raw.enabledWallets, restoreSettings: raw.restoreSettings)
         }
 
         accountManager.save(accounts: updated.map(\.account))
@@ -255,6 +267,12 @@ extension AppBackupProvider {
                 )
             }
             walletManager.save(enabledWallets: wallets)
+
+            // written after the per-wallet loop so the value from the account data wins over the
+            // plain-text one in `enabled_wallets`, and lands even when that wallet is not enabled
+            for (blockchainType, settings) in raw.restoreSettings {
+                restoreSettingsManager.save(settings: settings, account: raw.account, blockchainType: blockchainType)
+            }
         }
     }
 
@@ -282,7 +300,8 @@ extension AppBackupProvider {
             evmSyncSourceManager.restore(selected: raw.settings.evmSyncSources.selected, custom: raw.customSyncSources)
             moneroNodeManager.restore(selected: raw.settings.moneroNodes.selected, custom: raw.customMoneroNodes)
             zanoNodeManager.restore(selected: raw.settings.zanoNodes.selected, custom: raw.customZanoNodes)
-            zcashNodeManager.restore(selected: raw.settings.zcashEndpoints.selected, custom: raw.customZcashNodes)
+            zcashNodeManager.restore(selected: raw.settings.zcashEndpoints.selected, custom: raw.customZcashNodes, autoSelect: raw.settings.zcashEndpoints.autoSelect)
+            thorChainEndpointManager.restore(backup: raw.settings.thorChainEndpoint)
         }
 
         if sections.contains(.preferences) {
@@ -313,25 +332,44 @@ extension AppBackupProvider {
 
 extension AppBackupProvider {
     func decrypt(walletBackup: WalletBackup, name: String, passphrase: String) throws -> RawWalletBackup {
-        let accountType = try AccountType.decrypt(
+        let decoded = try AccountTypeBackupCodec.decrypt(
             crypto: walletBackup.crypto,
             type: walletBackup.type,
             passphrase: passphrase
         )
+
+        return rawWalletBackup(decoded: decoded, walletBackup: walletBackup, name: name)
+    }
+
+    private func rawWalletBackup(decoded: AccountTypeBackupCodec.Decoded, walletBackup: WalletBackup, name: String) -> RawWalletBackup {
         let account = accountFactory.account(
-            type: accountType,
+            type: decoded.accountType,
             origin: .restored,
             backedUp: walletBackup.isManualBackedUp,
             fileBackedUp: walletBackup.isFileBackedUp,
             name: name
         )
 
-        return RawWalletBackup(account: account, enabledWallets: walletBackup.enabledWallets)
+        return RawWalletBackup(account: account, enabledWallets: walletBackup.enabledWallets, restoreSettings: decoded.restoreSettings)
     }
 
     func decrypt(fullBackup: FullBackup, passphrase: String) throws -> RawFullBackup {
-        let wallets = try fullBackup.wallets
-            .map { try decrypt(walletBackup: $0.walletBackup, name: $0.name, passphrase: passphrase) }
+        // decryption failures (wrong passphrase, tampered file) fail the whole restore; an account whose
+        // data does not parse is skipped so the rest of the file still comes back
+        let wallets = try fullBackup.wallets.compactMap { restored -> RawWalletBackup? in
+            let data = try restored.walletBackup.crypto.decrypt(passphrase: passphrase)
+
+            guard let decoded = AccountTypeBackupCodec.decode(data: data, type: restored.walletBackup.type) else {
+                Core.shared.logger.log(level: .error, message: "Backup: skipped unreadable account \(restored.walletBackup.type.rawValue)")
+                return nil
+            }
+
+            return rawWalletBackup(decoded: decoded, walletBackup: restored.walletBackup, name: restored.name)
+        }
+
+        guard fullBackup.rawWalletCount == 0 || !wallets.isEmpty else {
+            throw CloudRestoreBackupListModule.RestoreError.invalidBackup
+        }
 
         let contacts = try fullBackup.contacts.map { try ContactBookManager.decrypt(crypto: $0, passphrase: passphrase) }
 
@@ -355,7 +393,7 @@ extension AppBackupProvider {
 
     func encrypt(raw: RawFullBackup, passphrase: String, sections: Set<BackupSection>? = nil) throws -> FullBackup {
         let wallets = try raw.accounts.map {
-            let walletBackup = try Self.encrypt(account: $0.account, wallets: $0.enabledWallets, passphrase: passphrase)
+            let walletBackup = try encrypt(account: $0.account, wallets: $0.enabledWallets, passphrase: passphrase)
             return CloudRestoreBackupListModule.RestoredBackup(name: $0.account.name, walletBackup: walletBackup)
         }
 
@@ -368,7 +406,7 @@ extension AppBackupProvider {
             evmSyncSources: .init(selected: raw.settings.evmSyncSources.selected, custom: customEvmSyncSource),
             moneroNodes: .init(selected: raw.settings.moneroNodes.selected, custom: customMoneroNode),
             zanoNodes: .init(selected: raw.settings.zanoNodes.selected, custom: customZanoNode),
-            zcashEndpoints: .init(selected: raw.settings.zcashEndpoints.selected, custom: customZcashNode)
+            zcashEndpoints: .init(selected: raw.settings.zcashEndpoints.selected, custom: customZcashNode, autoSelect: raw.settings.zcashEndpoints.autoSelect)
         )
 
         return FullBackup(
@@ -383,8 +421,17 @@ extension AppBackupProvider {
         )
     }
 
-    static func encrypt(account: Account, wallets: [WalletBackup.EnabledWallet], passphrase: String) throws -> WalletBackup {
-        let message = account.type.uniqueId(hashed: false)
+    func encrypt(account: Account, wallets: [WalletBackup.EnabledWallet], passphrase: String) throws -> WalletBackup {
+        // Passkey accounts aren't portable-backup-able (device-bound credential + separate local storage);
+        // the UI must not offer backup for them. Data-layer guard (moved off AccountType.Abstract).
+        if case .passkeyOwned = account.type {
+            throw CodingError.unsupportedAccountType
+        }
+
+        // Android reads a Monero watch account's height from the account data only, so it is written there
+        // as well as in the wallet's restore settings; a disabled XMR wallet has no settings to read from
+        let moneroHeight = restoreSettingsManager.settings(accountId: account.id, blockchainType: .monero).birthdayHeight ?? 0
+        let message = AccountTypeBackupCodec.data(accountType: account.type, moneroHeight: moneroHeight)
         let crypto = try BackupCrypto.encrypt(data: message, passphrase: passphrase)
 
         return WalletBackup(
@@ -404,5 +451,6 @@ extension AppBackupProvider {
     enum CodingError: Error {
         case invalidPassword
         case emptyParameters
+        case unsupportedAccountType
     }
 }

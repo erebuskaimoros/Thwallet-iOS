@@ -2,92 +2,10 @@ import Combine
 import Foundation
 import MarketKit
 
-public class PreSendViewModel: ObservableObject {
-    private let wallet: Wallet
-    let resolvedAddress: ResolvedAddress
-    private let currencyManager = Core.shared.currencyManager
-    private let marketKit = Core.shared.marketKit
-    private let walletManager = Core.shared.walletManager
-    private let adapterManager = Core.shared.adapterManager
-    private let decimalParser = AmountDecimalParser()
-
-    private var cancellables = Set<AnyCancellable>()
-
-    @Published var currency: Currency
-    private let customDecimals: Int?
-
-    public var amount: Decimal? {
-        didSet {
-            syncFiatAmount()
-            syncSendData()
-
-            var amount = decimalParser.parseAnyDecimal(from: amountString)
-
-            if amount == 0 {
-                amount = nil
-            }
-
-            if amount != self.amount {
-                amountString = self.amount?.description ?? ""
-            }
-        }
-    }
-
-    @Published public var amountString: String = "" {
-        didSet {
-            var amount = decimalParser.parseAnyDecimal(from: amountString)
-
-            if amount == 0 {
-                amount = nil
-            }
-
-            guard amount != self.amount else {
-                return
-            }
-
-            enteringFiat = false
-
-            self.amount = amount
-        }
-    }
-
-    @Published var fiatAmount: Decimal? {
-        didSet {
-            syncAmount()
-
-            let amount = decimalParser.parseAnyDecimal(from: fiatAmountString)?.rounded(decimal: 2)
-
-            if amount != fiatAmount {
-                fiatAmountString = fiatAmount?.description ?? ""
-            }
-        }
-    }
-
-    @Published var fiatAmountString: String = "" {
-        didSet {
-            let amount = decimalParser.parseAnyDecimal(from: fiatAmountString)?.rounded(decimal: 2)
-
-            guard amount != fiatAmount else {
-                return
-            }
-
-            enteringFiat = true
-
-            fiatAmount = amount
-        }
-    }
-
-    @Published var coinPrice: CoinPrice? {
-        didSet {
-            syncFiatAmount()
-        }
-    }
-
-    @Published public private(set) var adapterState: AdapterState?
-    @Published public private(set) var availableBalance: Decimal?
-    @Published var hasMemo = false
-
-    private var enteringFiat = false
+// The Standard tab of PreSendView: a direct transfer to the recipient, with memo and destination tag.
+public class PreSendViewModel: BasePreSendViewModel {
+    @Published var memoType: MemoType = .none
+    @Published var destinationTagState: DestinationTagState = .hidden
 
     @Published var memo: String = "" {
         didSet {
@@ -95,117 +13,73 @@ public class PreSendViewModel: ObservableObject {
         }
     }
 
-    var handler: IPreSendHandler?
-    @Published public private(set) var sendData: ExtendedSendData?
-    @Published var cautions = [CautionNew]()
-
-    public init(wallet: Wallet, handler: IPreSendHandler?, resolvedAddress: ResolvedAddress, amount: Decimal?, memo: String?, customDecimals: Int? = nil) {
-        self.wallet = wallet
-        self.handler = handler
-        self.resolvedAddress = resolvedAddress
-        self.customDecimals = customDecimals
-
-        currency = currencyManager.baseCurrency
-
-        defer {
-            if let amount {
-                self.amount = amount
-            }
-            if let memo {
-                self.memo = memo
-            }
+    @Published var destinationTag: String = "" {
+        didSet {
+            syncSendData()
         }
+    }
 
-        currencyManager.$baseCurrency
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.currency = $0 }
-            .store(in: &cancellables)
+    public convenience init(wallet: Wallet, predefinedAddress: ResolvedAddress?, amount: Decimal?, memo: String?, customDecimals: Int? = nil) {
+        self.init(
+            wallet: wallet,
+            handler: SendHandlerFactory.preSendHandler(wallet: wallet, address: predefinedAddress),
+            spendStepHandler: SpendStepHandlerFactory.handler(wallet: wallet, purpose: .send),
+            predefinedAddress: predefinedAddress,
+            amount: amount,
+            memo: memo,
+            customDecimals: customDecimals
+        )
+    }
 
-        coinPrice = marketKit.coinPrice(coinUid: wallet.coin.uid, currencyCode: currency.code)
-        marketKit.coinPricePublisher(coinUid: wallet.coin.uid, currencyCode: currency.code)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] price in self?.coinPrice = price }
-            .store(in: &cancellables)
+    public init(wallet: Wallet, handler: IPreSendHandler?, spendStepHandler: ISpendStepHandler? = nil, predefinedAddress: ResolvedAddress?, amount: Decimal?, memo: String?, destinationTag: String? = nil, customDecimals: Int? = nil) {
+        super.init(wallet: wallet, handler: handler, spendStepHandler: spendStepHandler, predefinedAddress: predefinedAddress, amount: amount, initialInputToken: wallet.token, customDecimals: customDecimals)
 
         if let handler {
-            adapterState = handler.state
-            availableBalance = handler.balance
-            hasMemo = handler.hasMemo(address: resolvedAddress.address)
+            destinationTagState = handler.destinationTagState
 
-            handler.statePublisher
+            handler.destinationTagStatePublisher
                 .receive(on: DispatchQueue.main)
-                .sink { [weak self] in self?.adapterState = $0 }
-                .store(in: &cancellables)
-
-            handler.balancePublisher
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] in self?.availableBalance = $0 }
-                .store(in: &cancellables)
-
-            handler.settingsModifiedPublisher
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] _ in self?.syncSendData() }
+                .sink { [weak self] in
+                    self?.destinationTagState = $0
+                    self?.syncSendData()
+                }
                 .store(in: &cancellables)
         }
 
-        syncFiatAmount()
-    }
+        syncMemoType()
 
-    private func syncAmount() {
-        guard enteringFiat else {
-            return
+        if let memo {
+            self.memo = memo
         }
 
-        guard let coinPrice, let fiatAmount else {
-            amount = nil
-            return
+        if let destinationTag {
+            self.destinationTag = destinationTag
         }
 
-        amount = fiatAmount / coinPrice.value
+        // Explicit: `memo`'s didSet does not fire from this class's own init, and the base init applied
+        // the amount before memo type and destination tag state were known.
+        syncSendData()
     }
 
-    private func syncFiatAmount() {
-        guard !enteringFiat else {
-            return
-        }
-
-        guard let coinPrice, let amount else {
-            fiatAmount = nil
-            return
-        }
-
-        fiatAmount = (amount * coinPrice.value).rounded(decimal: 2)
+    // Only the Standard tab tells the shared handler about the recipient: the handler's
+    // address-dependent state (e.g. the XRP destination tag) follows the Standard address.
+    override func didChangeAddress() {
+        handler?.set(address: resolvedAddress?.address)
+        syncMemoType()
+        destinationTag = ""
     }
 
-    private func syncHasMemo() {
-        guard let handler else {
-            hasMemo = false
-            return
-        }
-
-        hasMemo = handler.hasMemo(address: resolvedAddress.address)
-    }
-}
-
-public extension PreSendViewModel {
-    var token: Token {
-        wallet.token
-    }
-
-    internal var title: String {
-        handler?.title(token.coin.code) ?? "send.send".localized
-    }
-
-    internal func syncSendData() {
+    override func syncSendData() {
         guard let amount else {
             sendData = nil
             return
         }
 
-        // guard case let .valid(address) = addressState else {
-        //     sendData = nil
-        //     return
-        // }
+        guard let resolvedAddress else {
+            sendData = nil
+            cautions = []
+            return
+        }
 
         guard let handler else {
             sendData = nil
@@ -213,9 +87,9 @@ public extension PreSendViewModel {
         }
 
         let trimmedMemo = memo.trimmingCharacters(in: .whitespaces)
-        let memo = hasMemo && !trimmedMemo.isEmpty ? trimmedMemo : nil
+        let memo = memoType != .none && !trimmedMemo.isEmpty ? trimmedMemo : nil
 
-        let result = handler.sendData(amount: amount, address: resolvedAddress.address, memo: memo)
+        let result = handler.sendData(amount: amount, address: resolvedAddress.address, memo: memo, destinationTagInput: destinationTag)
 
         switch result {
         case let .valid(sendData):
@@ -227,39 +101,29 @@ public extension PreSendViewModel {
         }
     }
 
-    func setAmountIn(percent: Int) {
-        guard let availableBalance else {
+    override var formError: String? {
+        isMemoTooLong ? "send.memo.too_long".localized : nil
+    }
+
+    // Shown as it came and blocking the send, never cut to fit; measured as sent, without edge whitespace
+    private var isMemoTooLong: Bool {
+        guard let memoMaxBytes else {
+            return false
+        }
+
+        return memo.trimmingCharacters(in: .whitespaces).utf8.count > memoMaxBytes
+    }
+
+    private var memoMaxBytes: Int? {
+        memoType == .none ? nil : wallet.token.blockchainType.memoMaxBytes
+    }
+
+    private func syncMemoType() {
+        guard let handler else {
+            memoType = .none
             return
         }
 
-        enteringFiat = false
-
-        amount = (availableBalance * Decimal(percent) / 100).rounded(decimal: customDecimals ?? token.decimals)
-    }
-
-    func clearAmountIn() {
-        enteringFiat = false
-        amountString = ""
-    }
-}
-
-extension PreSendViewModel {
-    public struct ExtendedSendData {
-        public let sendData: SendData
-        public let address: String?
-    }
-
-    // TODO: remove this, not needed for new send
-    enum Mode {
-        case regular
-        case prefilled(address: String, amount: Decimal?)
-        case predefined(address: String)
-
-        var amount: Decimal? {
-            switch self {
-            case let .prefilled(_, amount): return amount
-            default: return nil
-            }
-        }
+        memoType = handler.memoType(address: resolvedAddress?.address)
     }
 }

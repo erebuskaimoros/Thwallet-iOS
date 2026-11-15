@@ -4,15 +4,15 @@ import Foundation
 import HsToolKit
 import ObjectMapper
 
-class SwapProviderInfoManager {
+public class SwapProviderInfoManager {
     private let networkManager: NetworkManager
-    private let baseUrl = "\(AppConfig.swapApiUrl)/v1"
+    private let baseUrl = "\(AppConfig.swapApiUrl)/v3"
     private var headers: HTTPHeaders?
     private var cache: [String: ProviderInfo]?
     private var syncTask: Task<Void, Never>?
     private let providerInfoUpdatedSubject = PassthroughSubject<Void, Never>()
 
-    var hasCache: Bool {
+    public var hasCache: Bool {
         cache != nil
     }
 
@@ -50,7 +50,7 @@ class SwapProviderInfoManager {
         }
     }
 
-    func startPreload() {
+    public func startPreload() {
         guard cache == nil, syncTask == nil else {
             return
         }

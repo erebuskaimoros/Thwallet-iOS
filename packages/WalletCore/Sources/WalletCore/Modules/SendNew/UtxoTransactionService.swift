@@ -3,7 +3,19 @@ import Combine
 import MarketKit
 import SwiftUI
 
-class UtxoTransactionService {
+class UtxoTransactionService: TransactionService {
+    override class func instance(sendData: SendData, baseToken: Token, initialTransactionSettings: InitialTransactionSettings?) -> ITransactionService? {
+        if case .bitcoinResend = sendData { return nil }
+        guard BtcBlockchainManager.blockchainTypes.contains(baseToken.blockchainType),
+              let adapter = Core.shared.adapterManager.adapter(for: baseToken) as? BitcoinBaseAdapter
+        else { return nil }
+        return UtxoTransactionService(
+            blockchainType: baseToken.blockchainType,
+            adapter: adapter,
+            initialTransactionSettings: initialTransactionSettings
+        )
+    }
+
     private let blockchainType: BlockchainType
     private let adapter: BitcoinBaseAdapter
     private let feeRateProvider: IFeeRateProvider?

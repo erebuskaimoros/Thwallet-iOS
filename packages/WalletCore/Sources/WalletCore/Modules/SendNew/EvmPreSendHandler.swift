@@ -5,7 +5,12 @@ import Foundation
 import MarketKit
 import RxSwift
 
-class EvmPreSendHandler {
+class EvmPreSendHandler: PreSendHandler {
+    override class func instance(wallet: Wallet, address _: ResolvedAddress?) -> IPreSendHandler? {
+        guard let adapter = Core.shared.adapterManager.adapter(for: wallet) as? ISendEthereumAdapter & IBalanceAdapter else { return nil }
+        return EvmPreSendHandler(token: wallet.token, adapter: adapter)
+    }
+
     private let token: Token
     private let adapter: ISendEthereumAdapter & IBalanceAdapter
 
@@ -17,6 +22,8 @@ class EvmPreSendHandler {
     init(token: Token, adapter: ISendEthereumAdapter & IBalanceAdapter) {
         self.token = token
         self.adapter = adapter
+
+        super.init()
 
         adapter.balanceStateUpdatedObservable
             .observeOn(ConcurrentDispatchQueueScheduler(qos: .userInitiated))

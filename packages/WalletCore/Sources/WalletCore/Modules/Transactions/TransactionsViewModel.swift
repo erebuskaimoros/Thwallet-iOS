@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import RxSwift
 
-public class TransactionsViewModel: ObservableObject {
+class TransactionsViewModel: ObservableObject {
     private static let pageLimit = 20
 
     private let walletManager = Core.shared.walletManager
@@ -11,6 +11,7 @@ public class TransactionsViewModel: ObservableObject {
     private let balanceHiddenManager = Core.shared.balanceHiddenManager
     private let amountRoundingManager = Core.shared.amountRoundingManager
     private let securityManger = Core.shared.securityManager
+    private let contactBookManager = Core.shared.contactManager
     private let contactLabelService = TransactionsContactLabelService(contactManager: Core.shared.contactManager)
     private let rateService = HistoricalRateService(marketKit: Core.shared.marketKit, currencyManager: Core.shared.currencyManager)
     private let nftMetadataService = NftMetadataService(nftMetadataManager: Core.shared.nftMetadataManager)
@@ -23,7 +24,7 @@ public class TransactionsViewModel: ObservableObject {
 
     @Published private(set) var syncing: Bool = false
     @Published private(set) var isReachable: Bool = true
-    @Published public private(set) var sections: [Section] = []
+    @Published private(set) var sections: [Section] = []
 
     @Published var typeFilter: TransactionTypeFilter = .all {
         didSet {
@@ -87,18 +88,24 @@ public class TransactionsViewModel: ObservableObject {
 
     private let queue = DispatchQueue(label: "\(AppConfig.label).transactions-view-model", qos: .userInitiated)
 
-    public init(transactionFilter: TransactionFilter = .init()) {
+    init(transactionFilter: TransactionFilter = .init()) {
         self.transactionFilter = transactionFilter
         isReachable = reachabilityManager.isReachable
         spamFilterEnabled = securityManger.spamFilterEnabled
 
         viewItemFactory = TransactionsViewItemFactory(contactLabelService: contactLabelService)
 
-        subscribe(disposeBag, adapterManager.adaptersReadyObservable) { [weak self] _ in self?.syncPoolGroup() }
+        adapterManager.adaptersReadyPublisher
+            .receive(on: DispatchQueue.global(qos: .userInitiated))
+            .sink { [weak self] _ in
+                self?.syncPoolGroup()
+            }
+            .store(in: &cancellables)
         subscribe(disposeBag, rateService.ratesChangedObservable) { [weak self] in self?.handleRatesChanged() }
         subscribe(disposeBag, rateService.rateUpdatedObservable) { [weak self] in self?.handle(rate: $0) }
         subscribe(disposeBag, nftMetadataService.assetsBriefMetadataObservable) { [weak self] in self?.handle(assetsBriefMetadata: $0) }
         subscribe(disposeBag, contactLabelService.stateObservable) { [weak self] _ in self?.reportItemData() }
+        subscribe(disposeBag, contactBookManager.addressesAddedObservable) { [weak self] _ in self?.syncPoolGroup() }
         subscribe(disposeBag, balanceHiddenManager.balanceHiddenObservable) { [weak self] _ in self?.reportItemData() }
 
         amountRoundingManager
@@ -353,7 +360,7 @@ public class TransactionsViewModel: ObservableObject {
 
     private var poolGroupType: PoolGroupFactory.PoolGroupType {
         if let token = transactionFilter.token {
-            return .token(token: token)
+            return .tokens(tokens: [token])
         } else if let blockchain = transactionFilter.blockchain {
             return .blockchain(blockchainType: blockchain.type, wallets: walletManager.activeWallets)
         } else {
@@ -452,29 +459,13 @@ extension TransactionsViewModel {
         }
     }
 
-    public func record(id: String) -> TransactionRecord? {
+    func record(id: String) -> TransactionRecord? {
         queue.sync {
             __items.first(where: { $0.record.uid == id })?.record
         }
     }
 
-    func onTap(section: Section, viewItem: ViewItem) {
-        queue.async {
-            guard let sectionIndex = self.__sections.firstIndex(where: { $0.id == section.id }), let index = self.__sections[sectionIndex].viewItems.firstIndex(where: { $0.id == viewItem.id }) else {
-                return
-            }
-
-            self.__sections[sectionIndex].viewItems[index].title += "1"
-            // self.__sections[sectionIndex].viewItems[index].progress = (self.__sections[sectionIndex].viewItems[index].progress ?? 0.0) + 0.1
-
-            // var newViewItem = self.__sections[sectionIndex].viewItems[index]
-            // newViewItem.id = UUID().description
-
-            // self.__sections[sectionIndex].viewItems.append(newViewItem)
-        }
-    }
-
-    public func onDisplay(section: Section, viewItem: ViewItem) {
+    func onDisplay(section: Section, viewItem: ViewItem) {
         queue.async {
             guard let sectionIndex = self.__sections.firstIndex(where: { $0.id == section.id }),
                   let index = self.__sections[sectionIndex].viewItems.firstIndex(where: { $0.id == viewItem.id })
@@ -496,8 +487,8 @@ extension TransactionsViewModel {
     }
 }
 
-public extension TransactionsViewModel {
-    internal class Item {
+extension TransactionsViewModel {
+    class Item {
         var transactionItem: TransactionItem
         var nftMetadata: [NftUid: NftAssetBriefMetadata]
         var currencyValue: CurrencyValue?
@@ -514,24 +505,24 @@ public extension TransactionsViewModel {
     }
 
     struct Section: Identifiable, Equatable {
-        public let id: Date
-        public let title: String
-        public var viewItems: [ViewItem]
+        let id: Date
+        let title: String
+        var viewItems: [ViewItem]
     }
 
     struct ViewItem: Hashable {
-        public var id: String
-        public let date: Date
-        public let iconType: IconType
-        public var progress: Float?
-        public var title: String
-        public let subTitle: String
-        public let primaryValue: Value?
-        public let secondaryValue: Value?
-        public let doubleSpend: Bool
-        public let sentToSelf: Bool
-        public let locked: Bool?
-        public let spam: Bool
+        var id: String
+        let date: Date
+        let iconType: IconType
+        var progress: Float?
+        var title: String
+        let subTitle: String
+        let primaryValue: Value?
+        let secondaryValue: Value?
+        let doubleSpend: Bool
+        let sentToSelf: Bool
+        let locked: Bool?
+        let spam: Bool
     }
 
     enum IconType: Hashable {
@@ -542,8 +533,8 @@ public extension TransactionsViewModel {
     }
 
     struct Value: Hashable {
-        public let text: String
-        public let type: ValueType
+        let text: String
+        let type: ValueType
     }
 
     enum ValueType {

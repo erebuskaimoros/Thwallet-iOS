@@ -5,7 +5,12 @@ import RxSwift
 import TonKit
 import TonSwift
 
-class TonPreSendHandler {
+class TonPreSendHandler: PreSendHandler {
+    override class func instance(wallet: Wallet, address _: ResolvedAddress?) -> IPreSendHandler? {
+        guard let adapter = Core.shared.adapterManager.adapter(for: wallet) as? ISendTonAdapter & IBalanceAdapter else { return nil }
+        return TonPreSendHandler(token: wallet.token, adapter: adapter)
+    }
+
     private let token: Token
     private let adapter: IBalanceAdapter
 
@@ -17,6 +22,8 @@ class TonPreSendHandler {
     init(token: Token, adapter: IBalanceAdapter) {
         self.token = token
         self.adapter = adapter
+
+        super.init()
 
         adapter.balanceStateUpdatedObservable
             .observeOn(ConcurrentDispatchQueueScheduler(qos: .userInitiated))
@@ -51,8 +58,10 @@ extension TonPreSendHandler: IPreSendHandler {
         balanceSubject.eraseToAnyPublisher()
     }
 
-    func hasMemo(address _: String?) -> Bool {
-        true
+    // Chain-constant, so it reads the one table rather than restating it: a TON comment is a public
+    // payload (.onChainPublic).
+    func memoType(address _: String?) -> MemoType {
+        token.blockchainType.memoType
     }
 
     func sendData(amount: Decimal, address: String, memo: String?) -> SendDataResult {

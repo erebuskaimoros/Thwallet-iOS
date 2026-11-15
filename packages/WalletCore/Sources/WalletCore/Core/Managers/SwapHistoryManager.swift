@@ -1,7 +1,8 @@
 import Combine
 import Foundation
+import MarketKit
 
-class SwapHistoryManager {
+public class SwapHistoryManager {
     private let accountManager: AccountManager
     private let storage: SwapStorage
     private var cancellables = Set<AnyCancellable>()
@@ -10,11 +11,11 @@ class SwapHistoryManager {
 
     private let swapUpdateSubject = PassthroughSubject<Swap, Never>()
 
+    // No work in init: the first sync is kicked by AppManager.didFinishLaunching, once the app
+    // (registries, adapters, host-app context) is assembled.
     init(accountManager: AccountManager, storage: SwapStorage) {
         self.accountManager = accountManager
         self.storage = storage
-
-        sync()
     }
 
     private func _sync() async throws {
@@ -31,6 +32,14 @@ class SwapHistoryManager {
         var hasStillPendingSwaps = false
 
         for swap in pendingSwaps {
+            // mechanism-pending: there is no on-chain hash to track by yet; resolve() will supply it.
+            // Swaps without a trackingHandle keep today's behaviour even with a nil txHash
+            // (deposit-based providers track by providerSwapId alone)
+            if Self.isAwaitingTxHash(swap) {
+                hasStillPendingSwaps = true
+                continue
+            }
+
             guard let provider = SwapProviderFactory.provider(id: swap.providerId) else {
                 continue
             }
@@ -57,16 +66,24 @@ class SwapHistoryManager {
     private func scheduleTimer() {
         syncTimer?.cancel()
         syncTimer = Just(())
-            .delay(for: .seconds(30), scheduler: RunLoop.main)
+            .delay(for: .seconds(15), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.sync()
             }
     }
 }
 
-extension SwapHistoryManager {
+public extension SwapHistoryManager {
     var swapUpdatePublisher: AnyPublisher<Swap, Never> {
         swapUpdateSubject.eraseToAnyPublisher()
+    }
+
+    func pendingSwaps(account: Account) -> [Swap] {
+        do {
+            return try storage.pendingSwaps(accountId: account.id)
+        } catch {
+            return []
+        }
     }
 
     func sync() {
@@ -89,13 +106,13 @@ extension SwapHistoryManager {
         }
     }
 
-    func lastSwap(accountId: String) -> Swap? {
+    internal func lastSwap(accountId: String) -> Swap? {
         try? storage.lastSwap(accountId: accountId)
     }
 
-    func swaps(accountId: String, from: Date? = nil, limit: Int) -> [Swap] {
+    func swaps(accountId: String, token: Token? = nil, from: Date? = nil, limit: Int) -> [Swap] {
         do {
-            return try storage.swaps(accountId: accountId, from: from, limit: limit)
+            return try storage.swaps(accountId: accountId, token: token, from: from, limit: limit)
         } catch {
             return []
         }
@@ -104,9 +121,79 @@ extension SwapHistoryManager {
     func save(swap: Swap) {
         do {
             try storage.save(swap: swap)
+            swapUpdateSubject.send(swap)
             sync()
         } catch {
             print(error)
         }
+    }
+
+    // mechanism-agnostic hook: attaches the on-chain txHash to the swap saved with
+    // this trackingHandle and starts tracking it
+    func resolve(trackingHandle: String, txHash: String) {
+        do {
+            guard try storage.setTxHash(txHash, trackingHandle: trackingHandle) else {
+                return
+            }
+
+            sync()
+        } catch {
+            print(error)
+        }
+    }
+
+    // mechanism-agnostic hook: the broadcast succeeded but the mechanism can never yield a ref
+    // (e.g. TonKit's send returns Void). Clearing the handle releases the record from
+    // isAwaitingTxHash() so the provider tracks it by providerSwapId alone — without this the
+    // swap would sit "awaiting tx hash" forever.
+    func beginProviderTracking(trackingHandle: String) {
+        do {
+            guard try storage.clearTrackingHandle(trackingHandle) else {
+                return
+            }
+
+            sync()
+        } catch {
+            print(error)
+        }
+    }
+
+    // mechanism-agnostic hook: a retried broadcast reuses the row it failed on. Scoped to the
+    // failed status — never resurrects a settled swap; false = nothing to retry.
+    func retryFailed(trackingHandle: String) -> Bool {
+        do {
+            guard try storage.markNotStarted(trackingHandle: trackingHandle) else {
+                return false
+            }
+
+            if let swap = try storage.swap(trackingHandle: trackingHandle) {
+                swapUpdateSubject.send(swap)
+            }
+
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    // mechanism-agnostic hook: the mechanism itself learned the swap failed (e.g. a reverted /
+    // never-mined userOp) — no server tracking involved. Targeted update scoped to pending
+    // statuses; a settled swap is never downgraded, a re-delivery is a no-op.
+    func markFailed(trackingHandle: String) {
+        do {
+            guard try storage.markFailed(trackingHandle: trackingHandle) else {
+                return
+            }
+
+            if let swap = try storage.swap(trackingHandle: trackingHandle) {
+                swapUpdateSubject.send(swap)
+            }
+        } catch {
+            print(error)
+        }
+    }
+
+    internal static func isAwaitingTxHash(_ swap: Swap) -> Bool {
+        swap.trackingHandle != nil && swap.txHash == nil
     }
 }

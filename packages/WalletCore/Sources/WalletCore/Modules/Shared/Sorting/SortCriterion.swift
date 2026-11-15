@@ -25,6 +25,9 @@ enum SortCriterion {
     // Wallet-specific
     case nonZeroBalanceFirst
     case hasPriceFirst
+
+    // MultiSwap default pair: ETH -> TRON -> BSC (blockchainOrder puts BSC before TRON)
+    case swapNetworkPriority
 }
 
 extension SortCriterion {
@@ -38,17 +41,21 @@ extension SortCriterion {
     static let coinSelect: [SortCriterion] = [.balanceDescending, .enabled, .marketCapRank, .nameAscending]
     static let coinSelectFiltered: [SortCriterion] = [.balanceDescending, .enabled, .filterRelevance, .marketCapRank, .nameAscending]
 
+    // MultiSwap default pair
+    static let swapDefaultSource: [SortCriterion] = [.fiatBalanceDescending, .swapNetworkPriority, .blockchainOrder, .tokenTypeOrder]
+    static let swapDefaultTopWallet: [SortCriterion] = walletBalance + [.blockchainOrder, .tokenTypeOrder]
+
     // MultiSwap coin selection
-    static let swapEnabled: [SortCriterion] = [.sameBlockchainFirst, .fiatBalanceDescending, .codeAscending, .codeNativeFirst, .blockchainOrder, .badge]
-    static let swapSuggested: [SortCriterion] = [.marketCapRank, .codeNativeFirst, .blockchainOrder, .badge]
-    static let swapFeatured: [SortCriterion] = [.codeNativeFirst, .blockchainOrder, .badge]
+    static let swapEnabled: [SortCriterion] = [.sameBlockchainFirst, .fiatBalanceDescending, .codeAscending, .codeNativeFirst, .blockchainOrder, .tokenTypeOrder, .badge]
+    static let swapSuggested: [SortCriterion] = [.marketCapRank, .codeNativeFirst, .blockchainOrder, .tokenTypeOrder, .badge]
+    static let swapFeatured: [SortCriterion] = [.codeNativeFirst, .blockchainOrder, .tokenTypeOrder, .badge]
 
     // MultiSwap filtered by evm-address and text
-    static let tokenByBlockchain: [SortCriterion] = [.enabled, .codeNativeFirst, .blockchainOrder, .badge]
-    static let tokenFilteredByBlockchain: [SortCriterion] = [.enabled, .filterRelevance, .codeNativeFirst, .blockchainOrder, .badge]
+    static let tokenByBlockchain: [SortCriterion] = [.enabled, .codeNativeFirst, .blockchainOrder, .tokenTypeOrder, .badge]
+    static let tokenFilteredByBlockchain: [SortCriterion] = [.enabled, .filterRelevance, .codeNativeFirst, .blockchainOrder, .tokenTypeOrder, .badge]
 
     // Legacy Transactions Screen
-    static let transactionToken: [SortCriterion] = [.nameAscending, .codeNativeFirst, .badge]
+    static let transactionToken: [SortCriterion] = [.nameAscending, .codeNativeFirst, .tokenTypeOrder, .badge]
 
     // Receive-Blockchains Screen
     static let blockchainList: [SortCriterion] = [.tokenTypeOrder, .blockchainOrder]

@@ -20,10 +20,13 @@ struct MoneroWalletTokenView: View {
                             }
                         }
 
-                        if let birthdayHeight = viewModel.birthdayHeight {
-                            view(birthdayHeight: birthdayHeight)
+                        if viewModel.adapter != nil {
+                            accountView()
                             HorizontalDivider()
                         }
+
+                        view(birthdayHeight: viewModel.birthdayHeight)
+                        HorizontalDivider()
                     }
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
@@ -34,6 +37,24 @@ struct MoneroWalletTokenView: View {
                 }
             )
         }
+    }
+
+    @ViewBuilder private func accountView() -> some View {
+        Cell(
+            middle: {
+                MiddleTextIcon(text: "monero.account".localized)
+            },
+            right: {
+                RightTextIcon(text: viewModel.activeAccountTitle, icon: "arrow_b_right")
+            },
+            action: {
+                guard let adapter = viewModel.adapter else { return }
+
+                Coordinator.shared.present { isPresented in
+                    MoneroAccountsView(wallet: viewModel.wallet, adapter: adapter, isPresented: isPresented)
+                }
+            }
+        )
     }
 
     @ViewBuilder private func view(birthdayHeight: Int) -> some View {

@@ -96,7 +96,8 @@ struct WalletView: View {
                 }
                 .animation(.default, value: accountWarningViewModel.item)
                 .refreshable {
-                    await viewModel.refresh()
+                    viewModel.refresh()
+                    await Task { try? await Task.sleep(seconds: 1) }.value
                 }
                 .onChange(of: viewModel.sortType) { _ in withAnimation { proxy.scrollTo(THEME_LIST_TOP_VIEW_ID) } }
                 .themeListScrollHeader()
@@ -190,7 +191,7 @@ struct WalletView: View {
                 if !item.wallet.account.watchAccount {
                     Button {
                         Coordinator.shared.present { isPresented in
-                            SendAddressViewWrapper(wallet: item.wallet, isPresented: isPresented)
+                            PreSendViewWrapper(wallet: item.wallet, isPresented: isPresented)
                         }
                         stat(page: .tokenPage, event: .openSend(token: item.wallet.token))
                     } label: {
@@ -208,18 +209,12 @@ struct WalletView: View {
                         Image("copy")
                     }
                 }
-                if !item.wallet.account.watchAccount {
+                if !item.wallet.account.watchAccount, viewModel.swapEnabled {
                     Button {
-                        if viewModel.swapEnabled {
-                            Coordinator.shared.present { _ in
-                                RegularMultiSwapView(token: item.wallet.token)
-                            }
-                            stat(page: .balance, event: .open(page: .swap))
-                        } else {
-                            Coordinator.shared.present(type: .bottomSheet) { isPresented in
-                                SwapOptionsView(isPresented: isPresented)
-                            }
+                        Coordinator.shared.present { _ in
+                            RegularMultiSwapView(token: item.wallet.token)
                         }
+                        stat(page: .balance, event: .open(page: .swap))
                     } label: {
                         Label("balance.swap".localized, image: "swap_e")
                     }
@@ -296,16 +291,10 @@ struct WalletView: View {
                 stat(page: .balance, event: .open(page: .sendTokenList))
             case .receive: viewModel.onTapReceive()
             case .swap:
-                if viewModel.swapEnabled {
-                    Coordinator.shared.present { _ in
-                        RegularMultiSwapView()
-                    }
-                    stat(page: .balance, event: .open(page: .swap))
-                } else {
-                    Coordinator.shared.present(type: .bottomSheet) { isPresented in
-                        SwapOptionsView(isPresented: isPresented)
-                    }
+                Coordinator.shared.present { _ in
+                    RegularMultiSwapView()
                 }
+                stat(page: .balance, event: .open(page: .swap))
             case .scan:
                 Coordinator.shared.present { isPresented in
                     ScanQrViewNew(reportAfterDismiss: true, isPresented: isPresented) { text in

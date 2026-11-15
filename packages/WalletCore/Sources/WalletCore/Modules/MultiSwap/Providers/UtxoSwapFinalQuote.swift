@@ -41,15 +41,15 @@ class UtxoSwapFinalQuote: SwapFinalQuote {
         super.canSwap && fee != nil && sendParameters != nil
     }
 
+    override func buildExecutable(tokenIn: Token) -> ISwapExecutable {
+        UtxoExecutable(token: tokenIn, sendParameters: sendParameters)
+    }
+
     override func caution(transactionError: Error, baseToken: Token) -> CautionNew? {
         UtxoSendHelper.caution(transactionError: transactionError, feeToken: baseToken)
     }
 
-    override func fields(tokenIn: Token, tokenOut: Token, baseToken: Token, currency: Currency, tokenInRate: Decimal?, tokenOutRate: Decimal?, baseTokenRate: Decimal?) -> [SendField] {
-        var fields = super.fields(tokenIn: tokenIn, tokenOut: tokenOut, baseToken: baseToken, currency: currency, tokenInRate: tokenInRate, tokenOutRate: tokenOutRate, baseTokenRate: baseTokenRate)
-
-        fields.append(contentsOf: UtxoSendHelper.feeFields(fee: fee, feeToken: baseToken, currency: currency, feeTokenRate: baseTokenRate))
-
-        return fields
+    override func feeFields(baseToken: Token, currency: Currency, baseTokenRate: Decimal?) -> [SendField] {
+        UtxoSendHelper.feeFields(fee: fee, feeToken: baseToken, currency: currency, feeTokenRate: baseTokenRate)
     }
 }

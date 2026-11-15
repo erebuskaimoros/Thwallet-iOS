@@ -36,7 +36,15 @@ public class EvmSyncSourceManager {
         case .gnosis: return .gnosis(apiKeys: AppConfig.gnosisscanKeys)
         case .fantom: return .fantom(apiKeys: AppConfig.ftmscanKeys)
         case .base: return .basescan(apiKeys: AppConfig.basescanKeys)
-        case .zkSync: return .eraZkSync(apiKeys: AppConfig.eraZkSyncKeys)
+        // Etherscan V2 dropped zkSync Era and its own explorer was shut down, so it is read from
+        // Blockscout PRO like Robinhood, with the same key
+        case .zkSync: return EvmKit.TransactionSource(
+                name: "zksync.blockscout.com",
+                type: .etherscan(apiBaseUrl: "https://api.blockscout.com/v2", txBaseUrl: "https://zksync.blockscout.com", apiKeys: AppConfig.robinhoodKeys)
+            )
+        case .robinhood: return .robinhood(apiKeys: AppConfig.robinhoodKeys)
+        // Arc is indexed through the shared Etherscan V2 endpoint, so it uses the Etherscan keys
+        case .arc: return .arc(apiKeys: AppConfig.etherscanKeys)
         case .tron: return EvmKit.TransactionSource(name: "trongrid", type: .etherscan(apiBaseUrl: "", txBaseUrl: "", apiKeys: []))
         default: fatalError("Non-supported EVM blockchain")
         }
@@ -79,8 +87,8 @@ extension EvmSyncSourceManager {
             } else {
                 return [
                     EvmSyncSource(
-                        name: "BlocksDecoded",
-                        rpcSource: .http(urls: [URL(string: "\(AppConfig.marketApiUrl)/v1/ethereum-rpc/mainnet")!], auth: nil),
+                        name: "Unstoppable",
+                        rpcSource: .http(urls: [URL(string: "https://ethereum-rpc.unstoppable.money")!], auth: nil),
                         transactionSource: defaultTransactionSource(blockchainType: blockchainType)
                     ),
                     EvmSyncSource(
@@ -160,6 +168,11 @@ extension EvmSyncSourceManager {
         case .optimism:
             return [
                 EvmSyncSource(
+                    name: "Unstoppable",
+                    rpcSource: .http(urls: [URL(string: "https://optimism-rpc.unstoppable.money")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+                EvmSyncSource(
                     name: "Optimism",
                     rpcSource: .optimismRpcHttp(),
                     transactionSource: defaultTransactionSource(blockchainType: blockchainType)
@@ -217,13 +230,18 @@ extension EvmSyncSourceManager {
         case .base:
             return [
                 EvmSyncSource(
-                    name: "Base",
-                    rpcSource: .baseRpcHttp(),
+                    name: "Unstoppable",
+                    rpcSource: .http(urls: [URL(string: "https://base-rpc.unstoppable.money")!], auth: nil),
                     transactionSource: defaultTransactionSource(blockchainType: blockchainType)
                 ),
                 EvmSyncSource(
                     name: "dRPC",
                     rpcSource: .http(urls: [URL(string: "https://base.drpc.org")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+                EvmSyncSource(
+                    name: "Base",
+                    rpcSource: .baseRpcHttp(),
                     transactionSource: defaultTransactionSource(blockchainType: blockchainType)
                 ),
                 EvmSyncSource(
@@ -240,6 +258,44 @@ extension EvmSyncSourceManager {
                     transactionSource: defaultTransactionSource(blockchainType: blockchainType)
                 ),
             ]
+        case .robinhood:
+            return [
+                EvmSyncSource(
+                    name: "Unstoppable",
+                    rpcSource: .http(urls: [URL(string: "https://robinhood-rpc.unstoppable.money")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+                EvmSyncSource(
+                    name: "Robinhood Chain",
+                    rpcSource: .http(urls: [URL(string: "https://rpc.mainnet.chain.robinhood.com")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+            ]
+        case .arc:
+            // The official rpc.mainnet.arc.io and its QuickNode mirror sit behind Cloudflare
+            // geo-blocking, so keyless providers reachable everywhere come first.
+            return [
+                EvmSyncSource(
+                    name: "PublicNode",
+                    rpcSource: .http(urls: [URL(string: "https://arc-rpc.publicnode.com")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+                EvmSyncSource(
+                    name: "dRPC",
+                    rpcSource: .http(urls: [URL(string: "https://arc.drpc.org")!, URL(string: "https://rpc.drpc.mainnet.arc.io")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+                EvmSyncSource(
+                    name: "Blockdaemon",
+                    rpcSource: .http(urls: [URL(string: "https://rpc.blockdaemon.mainnet.arc.io")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+                EvmSyncSource(
+                    name: "Arc",
+                    rpcSource: .http(urls: [URL(string: "https://rpc.mainnet.arc.io")!], auth: nil),
+                    transactionSource: defaultTransactionSource(blockchainType: blockchainType)
+                ),
+            ]
         case .tron:
             if testNetManager.testNetEnabled {
                 return [
@@ -252,13 +308,13 @@ extension EvmSyncSourceManager {
             } else {
                 return [
                     EvmSyncSource(
-                        name: "TronGrid",
-                        rpcSource: .http(urls: [URL(string: "https://api.trongrid.io/")!], auth: AppConfig.tronGridApiKeys.first),
+                        name: "Unstoppable",
+                        rpcSource: .http(urls: [URL(string: "https://tron-rpc.unstoppable.money")!], auth: nil),
                         transactionSource: defaultTransactionSource(blockchainType: blockchainType)
                     ),
                     EvmSyncSource(
-                        name: "Pocket Network",
-                        rpcSource: .http(urls: [URL(string: "https://tron.api.pocket.network")!], auth: AppConfig.tronGridApiKeys.first),
+                        name: "Public node",
+                        rpcSource: .http(urls: [URL(string: "https://tron-rpc.publicnode.com")!], auth: nil),
                         transactionSource: defaultTransactionSource(blockchainType: blockchainType)
                     ),
                 ]
@@ -306,7 +362,7 @@ extension EvmSyncSourceManager {
         defaultSyncSources(blockchainType: blockchainType) + customSyncSources(blockchainType: blockchainType)
     }
 
-    func syncSource(blockchainType: BlockchainType) -> EvmSyncSource {
+    public func syncSource(blockchainType: BlockchainType) -> EvmSyncSource {
         let syncSources = allSyncSources(blockchainType: blockchainType)
 
         if let urlString = blockchainSettingsStorage.evmSyncSourceUrl(blockchainType: blockchainType),
@@ -318,7 +374,7 @@ extension EvmSyncSourceManager {
         return syncSources[0]
     }
 
-    func httpSyncSource(blockchainType: BlockchainType) -> EvmSyncSource? {
+    public func httpSyncSource(blockchainType: BlockchainType) -> EvmSyncSource? {
         let syncSources = allSyncSources(blockchainType: blockchainType)
 
         if let urlString = blockchainSettingsStorage.evmSyncSourceUrl(blockchainType: blockchainType),

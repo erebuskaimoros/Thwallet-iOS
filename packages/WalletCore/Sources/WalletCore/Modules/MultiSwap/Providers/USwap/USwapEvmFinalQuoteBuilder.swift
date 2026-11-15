@@ -1,0 +1,166 @@
+import BigInt
+import EvmKit
+import Foundation
+import HsToolKit
+import MarketKit
+
+final class USwapEvmFinalQuoteBuilder: USwapFinalQuoteBuilder {
+    private let evmBlockchainManager: EvmBlockchainManager
+    private let evmFeeEstimator: EvmFeeEstimator
+    private let adapterManager: AdapterManager
+
+    init(evmBlockchainManager: EvmBlockchainManager, evmFeeEstimator: EvmFeeEstimator, adapterManager: AdapterManager) {
+        self.evmBlockchainManager = evmBlockchainManager
+        self.evmFeeEstimator = evmFeeEstimator
+        self.adapterManager = adapterManager
+    }
+
+    func supports(input: USwapFinalQuoteFactory.Input) -> Bool {
+        input.tokenIn.blockchainType.isEvm
+    }
+
+    func build(input: USwapFinalQuoteFactory.Input) async throws -> SwapFinalQuote {
+        let settingsGasPriceData = input.transactionSettings?.gasPriceData
+        let transactionData: TransactionData
+        let gasPrice: GasPrice?
+        let predefinedGasLimit: Int?
+
+        if let signable = input.response.execution?.primarySignable, signable.kind == "evm" {
+            // Server-built transaction (signed routes, thorchain_deposit): signed
+            // as the server priced it. The price comes from the tx — `gasPrice` for legacy, the
+            // EIP-1559 pair otherwise — and the user's setting is only a fallback when it carries none.
+            let jsonObject = signable.json
+
+            // Thwallet: `to`, `value`, `data` and `gas` are decoded fail-closed; a present but
+            // malformed field rejects the transaction instead of being defaulted.
+            let parsedTransaction = try USwapEvmSignableParser.parse(jsonObject)
+            guard let to = jsonObject["to"] as? String else {
+                throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+            }
+
+            // A vault deposit must reach the vault: either the router's `depositWithExpiry` (native
+            // and ERC-20 sells alike) or the inbound vault itself. Router, vault and `to` all come
+            // from the same server response, so this is a consistency check against server bugs,
+            // not a defence against a hostile server; the calldata (vault, amount, memo) is not
+            // decoded.
+            if case let .thorchainDeposit(_, inboundAddress, _, delivery) = input.response.execution {
+                let allowed = [delivery.router, inboundAddress]
+                    .compactMap { $0?.lowercased() }
+                    .filter { !$0.isEmpty }
+
+                guard allowed.contains(to.lowercased()) else {
+                    throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+                }
+            }
+
+            transactionData = parsedTransaction.transactionData
+            gasPrice = Self.gasPrice(json: jsonObject) ?? settingsGasPriceData?.userDefined
+            predefinedGasLimit = parsedTransaction.gasLimit
+        } else if let deposit = input.deposit {
+            // Transfer route without a server tx: a plain native / ERC-20 transfer to the deposit (the
+            // stub at preview, the real address after commit), priced with the user's setting.
+            // Thrown, not folded into `transactionError`: an EVM transfer carries no memo, so a text
+            // attachment would never reach the provider and the deposit would be unmatchable.
+            _ = try USwapMultiSwapApi.Attachment.memo(deposit.attachment, memoType: input.tokenIn.blockchainType.memoType)
+
+            guard let adapter = adapterManager.adapter(for: input.tokenIn) as? ISendEthereumAdapter else {
+                throw USwapMultiSwapProvider.SwapError.noEvmAdapter
+            }
+            guard let rawAmount = input.tokenIn.rawAmount(input.amountIn) else {
+                throw USwapMultiSwapProvider.SwapError.invalidTransactionData
+            }
+
+            transactionData = try adapter.transactionData(amount: rawAmount, address: EvmKit.Address(hex: deposit.address))
+            gasPrice = settingsGasPriceData?.userDefined
+            predefinedGasLimit = nil
+        } else {
+            throw USwapMultiSwapProvider.SwapError.noTransactionData
+        }
+
+        var evmFeeData: EvmFeeData?
+        var transactionError: Error?
+
+        if let evmKitWrapper = try evmBlockchainManager.evmKitManager(blockchainType: input.tokenIn.blockchainType).evmKitWrapper, let gasPrice {
+            let gasPriceData = GasPriceData(recommended: settingsGasPriceData?.recommended ?? gasPrice, userDefined: gasPrice)
+
+            do {
+                let estimatedFeeData = try await evmFeeEstimator.estimateFee(
+                    evmKitWrapper: evmKitWrapper,
+                    transactionData: transactionData,
+                    gasPriceData: gasPriceData,
+                    predefinedGasLimit: predefinedGasLimit
+                )
+                evmFeeData = estimatedFeeData
+
+                try Self.validateBalance(
+                    evmKitWrapper: evmKitWrapper,
+                    transactionData: transactionData,
+                    evmFeeData: estimatedFeeData,
+                    gasPriceData: gasPriceData
+                )
+            } catch {
+                transactionError = error
+            }
+        }
+
+        let approval = input.response.approvalSpender
+            .flatMap { try? EvmKit.Address(hex: $0) }
+            .flatMap { SwapApproval.build(spender: $0, tokenIn: input.tokenIn, amountIn: input.amountIn) }
+
+        return EvmSwapFinalQuote(
+            expectedBuyAmount: input.response.expectedBuyAmount,
+            transactionData: transactionData,
+            transactionError: transactionError,
+            slippage: input.slippage,
+            recipient: input.recipient,
+            estimatedTime: input.response.estimatedTime,
+            gasPrice: gasPrice,
+            evmFeeData: evmFeeData,
+            nonce: input.transactionSettings?.nonce,
+            mevProtectionAllowed: input.mevProtectionAllowed,
+            approval: approval,
+            toAddress: input.destinationAddress,
+            depositAddress: input.response.execution?.depositAddress,
+            providerSwapId: input.providerSwapId
+        )
+    }
+
+    // The price the server put on the tx: `gasPrice` (legacy) or the EIP-1559 pair; nil when it carries none.
+    private static func gasPrice(json: [String: Any]) -> GasPrice? {
+        if let maxFeePerGas = int(json["maxFeePerGas"]), let maxPriorityFeePerGas = int(json["maxPriorityFeePerGas"]) {
+            return .eip1559(maxFeePerGas: maxFeePerGas, maxPriorityFeePerGas: maxPriorityFeePerGas)
+        }
+        if let gasPrice = int(json["gasPrice"]) {
+            return .legacy(gasPrice: gasPrice)
+        }
+        return nil
+    }
+
+    // wei / gas values arrive as decimal or `0x`-hex strings (a bare number is tolerated too);
+    // a zero or negative price / limit is treated as absent so the user setting / estimate applies
+    private static func int(_ value: Any?) -> Int? {
+        let parsed: Int?
+        if let number = value as? NSNumber {
+            parsed = number.intValue
+        } else if let string = value as? String {
+            if string.hasPrefix("0x") || string.hasPrefix("0X") {
+                parsed = Int(string.dropFirst(2), radix: 16)
+            } else {
+                parsed = Int(string)
+            }
+        } else {
+            parsed = nil
+        }
+        return parsed.flatMap { $0 > 0 ? $0 : nil }
+    }
+
+    private static func validateBalance(evmKitWrapper: EvmKitWrapper, transactionData: TransactionData, evmFeeData: EvmFeeData, gasPriceData: GasPriceData) throws {
+        let evmBalance = evmKitWrapper.evmKit.accountState?.balance ?? 0
+        let txAmount = transactionData.value
+        let feeAmount = evmFeeData.totalFee(gasPrice: gasPriceData.userDefined)
+
+        if txAmount + feeAmount > evmBalance {
+            throw AppError.ethereum(reason: .insufficientBalanceWithFee)
+        }
+    }
+}

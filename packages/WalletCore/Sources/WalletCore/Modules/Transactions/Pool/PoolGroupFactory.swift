@@ -2,7 +2,9 @@ import Foundation
 import MarketKit
 import RxSwift
 
-class PoolGroupFactory {
+public class PoolGroupFactory {
+    public init() {}
+
     private func providers(poolGroupType: PoolGroupType, filter: TransactionTypeFilter, contact: Contact?) -> [PoolProvider] {
         switch poolGroupType {
         case let .all(wallets):
@@ -16,7 +18,7 @@ class PoolGroupFactory {
                 }
 
                 let poolSource: PoolSource
-                if Core.shared.evmBlockchainManager.allBlockchains.contains(where: { $0 == wallet.token.blockchain }) || wallet.token.blockchainType == .tron || wallet.token.blockchainType == .ton || wallet.token.blockchainType == .stellar {
+                if Core.shared.evmBlockchainManager.allBlockchains.contains(where: { $0 == wallet.token.blockchain }) || wallet.token.blockchainType == .tron || wallet.token.blockchainType == .ton || wallet.token.blockchainType == .stellar || wallet.token.blockchainType == .xrp || wallet.token.blockchainType == .near {
                     poolSource = PoolSource(
                         token: nil,
                         blockchainType: wallet.token.blockchainType,
@@ -49,7 +51,7 @@ class PoolGroupFactory {
             if contact != nil, address == nil {
                 return []
             }
-            if Core.shared.evmBlockchainManager.allBlockchains.contains(where: { $0.type == blockchainType }) || blockchainType == .tron || blockchainType == .ton || blockchainType == .stellar {
+            if Core.shared.evmBlockchainManager.allBlockchains.contains(where: { $0.type == blockchainType }) || blockchainType == .tron || blockchainType == .ton || blockchainType == .stellar || blockchainType == .xrp || blockchainType == .near {
                 let poolSource = PoolSource(
                     token: nil,
                     blockchainType: blockchainType,
@@ -83,23 +85,32 @@ class PoolGroupFactory {
                 return providers
             }
 
-        case let .token(token):
-            // filter by contact, but contact don't have address for blockchainType
-            let address = contact?.address(blockchainUid: token.blockchainType.uid)?.address
-            if contact != nil, address == nil {
-                return []
+        case let .tokens(tokens):
+            var poolSources = Set<PoolSource>()
+
+            for token in tokens {
+                // filter by contact, but contact don't have address for blockchainType
+                let address = contact?.address(blockchainUid: token.blockchainType.uid)?.address
+                if contact != nil, address == nil {
+                    continue
+                }
+
+                let poolSource = PoolSource(
+                    token: token,
+                    blockchainType: token.blockchainType,
+                    filter: filter,
+                    address: address
+                )
+
+                poolSources.insert(poolSource)
             }
 
-            let poolSource = PoolSource(
-                token: token,
-                blockchainType: token.blockchainType,
-                filter: filter,
-                address: address
-            )
-
-            if let adapter = Core.shared.transactionAdapterManager.adapter(for: poolSource.transactionSource) {
-                let provider = PoolProvider(adapter: adapter, source: poolSource)
-                return [provider]
+            return poolSources.compactMap { poolSource in
+                if let adapter = Core.shared.transactionAdapterManager.adapter(for: poolSource.transactionSource) {
+                    return PoolProvider(adapter: adapter, source: poolSource)
+                } else {
+                    return nil
+                }
             }
         }
 
@@ -107,7 +118,7 @@ class PoolGroupFactory {
     }
 }
 
-extension PoolGroupFactory {
+public extension PoolGroupFactory {
     func poolGroup(type: PoolGroupType, filter: TransactionTypeFilter, contact: Contact?, scamFilterEnabled: Bool) -> PoolGroup {
         let providers = providers(poolGroupType: type, filter: filter, contact: contact)
         let pools = providers.map { poolProvider in
@@ -117,10 +128,10 @@ extension PoolGroupFactory {
     }
 }
 
-extension PoolGroupFactory {
+public extension PoolGroupFactory {
     enum PoolGroupType {
         case all(wallets: [Wallet])
         case blockchain(blockchainType: BlockchainType, wallets: [Wallet])
-        case token(token: Token)
+        case tokens(tokens: [Token])
     }
 }

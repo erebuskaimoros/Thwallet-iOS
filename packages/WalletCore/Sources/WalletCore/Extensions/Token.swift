@@ -12,6 +12,8 @@ extension Token {
 
             switch blockchainType {
             case .optimism, .arbitrumOne, .base, .zkSync: return blockchain.name
+            case .robinhood: return "Robinhood"
+            case .arc: return "Arc"
             default: return nil
             }
         case .eip20:
@@ -23,6 +25,8 @@ extension Token {
             case .ethereum: return "ERC20"
             case .binanceSmartChain: return "BEP20"
             case .tron: return "TRC20"
+            case .robinhood: return "Robinhood"
+            case .arc: return "Arc"
             default: return blockchain.name
             }
         case .jetton:
@@ -36,10 +40,6 @@ extension Token {
         coin.uid == tokenQuery.customCoinUid
     }
 
-    var placeholderImageName: String {
-        "\(blockchainType.uid)_\(type.tokenProtocol)_32"
-    }
-
     var badge: String? {
         switch type {
         case let .derived(derivation): return derivation.mnemonicDerivation.rawValue.uppercased()
@@ -48,13 +48,35 @@ extension Token {
         }
     }
 
+    var maskImageUrl: String? {
+        switch type {
+        case .native:
+            switch blockchainType {
+            case .optimism, .arbitrumOne, .base, .zkSync, .robinhood, .arc: return blockchainType.imageUrl
+            default: return nil
+            }
+        case .derived, .addressType: return nil
+        default:
+            return blockchainType.imageUrl
+        }
+    }
+
     var fullBadge: String {
         badge ?? "coin_platforms.native".localized
+    }
+
+    // "ETH(Optimism)" for a token that carries a badge, plain coin code otherwise
+    var coinCodeWithBadge: String {
+        badge.map { "\(coin.code)(\($0))" } ?? coin.code
     }
 
     var sendToSelfAllowed: Bool {
         if case .native = type, blockchainType == .zcash { return false }
         if blockchainType == .tron { return false }
+        // the ledger rejects a payment to the sending account itself (temREDUNDANT)
+        if blockchainType == .xrp { return false }
+        // Android NearAddressValidator refuses the account's own id as the receiver
+        if blockchainType == .near { return false }
 
         return true
     }

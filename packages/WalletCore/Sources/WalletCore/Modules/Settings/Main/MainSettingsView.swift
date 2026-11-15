@@ -8,11 +8,6 @@ struct MainSettingsView: View {
 
     @Binding var walletConnectPresented: Bool
 
-    @StateObject var walletConnectVerificationModel = WalletConnectVerificationModel(
-        accountManager: Core.shared.accountManager,
-        cloudBackupManager: Core.shared.cloudBackupManager
-    )
-
     @State private var currentSlideIndex: Int = 0
     @State private var isFirstAppear = true
 
@@ -90,7 +85,7 @@ struct MainSettingsView: View {
 
                     footer()
 
-                    if viewModel.showTestSwitchers {
+                    if viewModel.showDevTools {
                         Spacer().frame(height: .margin32)
                         testSwitchersSection()
                     }
@@ -222,9 +217,7 @@ struct MainSettingsView: View {
 
     @ViewBuilder private func dAppConnection() -> some View {
         ClickableRow(spacing: .margin8) {
-            walletConnectVerificationModel.handle {
-                walletConnectPresented = true
-            }
+            walletConnectPresented = true
         } content: {
             HStack(spacing: .margin16) {
                 ThemeImage("link", size: .iconSize24)
@@ -234,7 +227,7 @@ struct MainSettingsView: View {
             Spacer()
 
             if viewModel.walletConnectPendingRequestCount > 0 {
-                BadgeViewNew("\(viewModel.walletConnectPendingRequestCount)") // TODO: use different badge
+                BadgeViewNew("\(viewModel.walletConnectPendingRequestCount)", mode: .solidWith(colorStyle: .red), colorStyle: .bright)
             } else if viewModel.walletConnectSessionCount > 0 {
                 Text("\(viewModel.walletConnectSessionCount)").textSubhead1()
             }
@@ -522,6 +515,13 @@ struct MainSettingsView: View {
                 .toggleStyle(SwitchToggleStyle(tint: .themeYellow))
             }
 
+            ListRow {
+                Toggle(isOn: $viewModel.emulateEvmSwapSend) {
+                    Text("Emulate EVM Swap Send").themeBody()
+                }
+                .toggleStyle(SwitchToggleStyle(tint: .themeYellow))
+            }
+
             row(
                 title: "Simulate Fail Swap",
                 subtitle: "none / server / local",
@@ -552,13 +552,6 @@ struct MainSettingsView: View {
             ListRow {
                 Toggle(isOn: $viewModel.testNetEnabled) {
                     Text("TestNet Enabled").themeBody()
-                }
-                .toggleStyle(SwitchToggleStyle(tint: .themeYellow))
-            }
-
-            ListRow {
-                Toggle(isOn: $viewModel.mayaStagenetEnabled) {
-                    Text("Maya Stagenet Enabled").themeBody()
                 }
                 .toggleStyle(SwitchToggleStyle(tint: .themeYellow))
             }

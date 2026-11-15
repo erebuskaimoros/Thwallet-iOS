@@ -1,15 +1,20 @@
 import MarketKit
 
-struct TransactionSource: Hashable {
-    let blockchainType: BlockchainType
+public struct TransactionSource: Hashable {
+    public let blockchainType: BlockchainType
     let meta: String?
 
-    func hash(into hasher: inout Hasher) {
+    public init(blockchainType: BlockchainType, meta: String?) {
+        self.blockchainType = blockchainType
+        self.meta = meta
+    }
+
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(blockchainType)
         hasher.combine(meta)
     }
 
-    static func == (lhs: TransactionSource, rhs: TransactionSource) -> Bool {
+    public static func == (lhs: TransactionSource, rhs: TransactionSource) -> Bool {
         lhs.blockchainType == rhs.blockchainType && lhs.meta == rhs.meta
     }
 }

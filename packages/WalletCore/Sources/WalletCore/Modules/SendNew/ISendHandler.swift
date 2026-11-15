@@ -6,8 +6,7 @@ public protocol ISendHandler {
     var syncingText: String? { get }
     var expirationDuration: Int? { get }
     // When false, a quote that reaches its `expirationDuration` is not silently re-requested;
-    // instead the screen marks it expired and waits for the user to refresh manually. Swaps
-    // opt out of auto-refresh so we don't keep hitting the provider's commit endpoint.
+    // instead the screen marks it expired and waits for the user to refresh manually.
     var autoRefreshEnabled: Bool { get }
     var initialTransactionSettings: InitialTransactionSettings? { get }
     var menuItems: [SendMenuItem] { get }
@@ -16,7 +15,11 @@ public protocol ISendHandler {
     func send(data: ISendData) async throws
 }
 
-extension ISendHandler {
+// An error the handler has already surfaced to the user itself (toast, re-quote); the send screen
+// must not present its generic error sheet for it.
+public protocol IHandledSendError: Error {}
+
+public extension ISendHandler {
     var syncingText: String? { nil }
     var expirationDuration: Int? { nil }
     var autoRefreshEnabled: Bool { true }
@@ -26,6 +29,11 @@ extension ISendHandler {
 }
 
 public struct SendMenuItem {
-    let label: String
-    let action: () -> Void
+    public let label: String
+    public let action: () -> Void
+
+    public init(label: String, action: @escaping () -> Void) {
+        self.label = label
+        self.action = action
+    }
 }

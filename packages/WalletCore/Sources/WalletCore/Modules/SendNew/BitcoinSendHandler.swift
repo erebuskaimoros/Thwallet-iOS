@@ -3,7 +3,12 @@ import Foundation
 import Hodler
 import MarketKit
 
-class BitcoinSendHandler {
+class BitcoinSendHandler: SendHandler {
+    override class func instance(sendData: WalletCore.SendData) -> ISendHandler? {
+        guard case let .bitcoin(token, params) = sendData else { return nil }
+        return instance(token: token, params: params)
+    }
+
     private let token: Token
     private var params: SendParameters
     private var adapter: BitcoinBaseAdapter
@@ -59,11 +64,20 @@ extension BitcoinSendHandler: ISendHandler {
     }
 
     func send(data: ISendData) async throws {
+        _ = try await sendCapturingRef(data: data)
+    }
+}
+
+extension BitcoinSendHandler: ISendHandlerRefCapturing {
+    // Same broadcast path as `send`, returning the on-chain tx hash.
+    func sendCapturingRef(data: ISendData) async throws -> String {
         guard let data = data as? SendData else {
             throw SendError.invalidData
         }
 
-        try adapter.send(params: data.params)
+        let fullTransaction = try adapter.send(params: data.params)
+
+        return fullTransaction.header.dataHash.hs.reversedHex
     }
 }
 
@@ -140,34 +154,37 @@ extension BitcoinSendHandler {
             return .init([from, to], isFlow: true)
         }
 
-        func sections(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendDataSection] {
-            var sections = [SendDataSection]()
-            if let flow = flowSection(baseToken: baseToken, currency: currency, rates: rates) {
-                sections.append(flow)
-            }
-
-            var sendFields = [SendField]()
-            let rate = rates[baseToken.coin.uid]
+        func fields(baseToken _: Token, currency _: Currency, rates _: [String: Decimal]) -> [SendField] {
+            var fields = [SendField]()
 
             if let memo = params.memo {
-                sendFields.append(.simpleValue(title: "send.confirmation.memo".localized, value: memo))
+                fields.append(.simpleValue(title: "send.confirmation.memo".localized, value: memo))
             }
 
             if let timeLock {
-                sendFields.append(.simpleValue(title: "send.confirmation.time_lock".localized, value: timeLock))
+                fields.append(.simpleValue(title: "send.confirmation.time_lock".localized, value: timeLock))
             }
 
             if rbfAllowed, !params.rbfEnabled {
-                sendFields.append(.simpleValue(
+                fields.append(.simpleValue(
                     title: "send.confirmation.replace_by_fee".localized,
                     value: "send.confirmation.replace_by_fee.disabled".localized
                 ))
             }
 
-            sendFields.append(contentsOf: UtxoSendHelper.feeFields(fee: fee, feeToken: baseToken, currency: currency, feeTokenRate: rate))
-            sections.append(.init(sendFields, isMain: false))
+            return fields
+        }
 
-            return sections
+        func feeFields(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendField] {
+            UtxoSendHelper.feeFields(fee: fee, feeToken: baseToken, currency: currency, feeTokenRate: rates[baseToken.coin.uid])
+        }
+
+        func sections(baseToken: Token, currency: Currency, rates: [String: Decimal]) -> [SendDataSection] {
+            let flow = flowSection(baseToken: baseToken, currency: currency, rates: rates)
+            let fields = fields(baseToken: baseToken, currency: currency, rates: rates)
+            let feeFields = feeFields(baseToken: baseToken, currency: currency, rates: rates)
+
+            return [flow, .init(fields + feeFields, isMain: false)].compactMap { $0 }
         }
     }
 }

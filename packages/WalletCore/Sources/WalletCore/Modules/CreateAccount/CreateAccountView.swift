@@ -123,7 +123,7 @@ struct CreateAccountView: View {
                                     ListSectionFooter(text: "create_wallet.passphrase_description".localized)
                                 }
                             }
-                        case .passkey, .smartAccount: EmptyView()
+                        case .passkey: EmptyView()
                         }
                     }
                     .animation(.default, value: viewModel.advanced)
@@ -165,25 +165,16 @@ struct CreateAccountView: View {
         switch viewModel.walletType {
         case .regular:
             do {
-                let account = try viewModel.createAccount()
-                handleSuccess(account: account)
+                _ = try viewModel.createAccount()
+                handleSuccess()
             } catch {
                 handleError(error)
             }
         case .passkey:
             Task {
                 do {
-                    let account = try await viewModel.createPasskeyAccount()
-                    await MainActor.run { handleSuccess(account: account) }
-                } catch {
-                    await MainActor.run { handleError(error) }
-                }
-            }
-        case .smartAccount:
-            Task {
-                do {
-                    let account = try await viewModel.createSmartAccount()
-                    await MainActor.run { handleSuccess(account: account) }
+                    _ = try await viewModel.createPasskeyAccount()
+                    await MainActor.run { handleSuccess() }
                 } catch {
                     await MainActor.run { handleError(error) }
                 }
@@ -191,19 +182,13 @@ struct CreateAccountView: View {
         }
     }
 
-    private func handleSuccess(account: Account) {
+    private func handleSuccess() {
         HudHelper.instance.show(banner: .created)
 
         if let onCreate {
             onCreate()
         } else {
             isPresented = false
-        }
-
-        if case .regular = viewModel.walletType {
-            Coordinator.shared.present(type: .bottomSheet) { isPresented in
-                BackupRequiredView.afterCreate(account: account, isPresented: isPresented)
-            }
         }
     }
 
@@ -213,8 +198,6 @@ struct CreateAccountView: View {
         } else if case CreateAccountViewModel.CreateError.invalidConfirmation = error {
             passphraseConfirmationCaution = .caution(Caution(text: "create_wallet.error.invalid_confirmation".localized, type: .error))
         } else if case PasskeyManager.PasskeyError.userCanceled = error {
-            return
-        } else if case SmartAccountPasskeyManager.AAError.userCanceled = error {
             return
         } else {
             HudHelper.instance.show(banner: .error(string: error.smartDescription))

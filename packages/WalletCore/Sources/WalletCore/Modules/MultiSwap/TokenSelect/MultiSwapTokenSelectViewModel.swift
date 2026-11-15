@@ -5,41 +5,208 @@ import HsExtensions
 import MarketKit
 
 class MultiSwapTokenSelectViewModel: ObservableObject {
-    private var syncTask: AnyTask?
+    private static let recentLimit = 10
+    private static let topLimit = 25
+
+    private var sectionsTask: AnyTask?
+    private var searchTask: AnyTask?
 
     private let marketKit = Core.shared.marketKit
     private let accountManager = Core.shared.accountManager
     private let adapterManager = Core.shared.adapterManager
     private let currencyManager = Core.shared.currencyManager
     private let walletManager = Core.shared.walletManager
+    private let localStorage = Core.shared.localStorage
 
     private let token: Token?
+    // "You Get" side: tokens the account can't hold stay selectable — the swap is
+    // delivered to an external address the user enters before confirmation
+    private let allowExternalReceive: Bool
+    // Cross Pay: paying out in the very asset that funds the payment is a plain send, so `token`
+    // is hidden on its own chain, in every derivation/address-format variant (as on Android)
+    private let excludeToken: Bool
 
     @Published var searchText: String = "" {
         didSet {
-            syncItems()
+            syncSearchResults()
         }
     }
 
-    @Published var items: [Item] = []
+    @Published var searchActive = false
 
-    init(token: Token?) {
+    @Published var popular = [Item]()
+    @Published var yourTokens = [Item]()
+    @Published var topTokens = [Item]()
+    @Published var recent = [Item]()
+    @Published var searchResults = [Item]()
+
+    init(token: Token?, allowExternalReceive: Bool = false, excludeToken: Bool = false) {
         self.token = token
+        self.allowExternalReceive = allowExternalReceive
+        self.excludeToken = excludeToken
 
-        syncItems()
+        syncSections()
     }
 
-    private func syncItems() {
-        syncTask = nil
+    // For external delivery the derivation/address-format variants of a chain are
+    // indistinguishable — the funds go to whatever address the user enters — so only
+    // the chain's default variant is offered (e.g. one BTC row with BIP84, not four).
+    private static func isExternallyReceivable(token: Token) -> Bool {
+        switch token.type {
+        case .derived, .addressType:
+            return token.tokenQuery.id == token.blockchainType.defaultTokenQuery.id
+        default:
+            return true
+        }
+    }
+
+    // Recent ids are stored globally, so a variant saved by another session (e.g. BTC BIP44)
+    // is narrowed to the chain-default variant here too, keeping the collapse rule canonical.
+    private static func includeToken(_ token: Token, account: Account?, allowExternalReceive: Bool) -> Bool {
+        if allowExternalReceive {
+            return BlockchainType.supported.contains(token.blockchainType) && isExternallyReceivable(token: token)
+        }
+
+        return account?.type.supports(token: token) ?? true
+    }
+
+    private static func isExcluded(_ candidate: Token, token: Token?, exclude: Bool) -> Bool {
+        guard exclude, let token else {
+            return false
+        }
+
+        return candidate.coin.uid == token.coin.uid && candidate.blockchainType == token.blockchainType
+    }
+
+    var searching: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    // tokens picked while the search field is active are remembered as recent
+    func handleSelection(token: Token) {
+        guard searchActive || searching else {
+            return
+        }
+
+        let id = token.tokenQuery.id
+        localStorage.swapRecentTokenQueryIds = Array(([id] + localStorage.swapRecentTokenQueryIds.filter { $0 != id }).prefix(Self.recentLimit))
+    }
+
+    private func syncSections() {
+        let account = accountManager.activeAccount
+
+        sectionsTask = Task { [weak self, marketKit, walletManager, adapterManager, currencyManager, localStorage, token, allowExternalReceive, excludeToken] in
+            let wallets = walletManager.activeWallets
+            let currency = currencyManager.baseCurrency
+            let coinPriceMap = marketKit.coinPriceMap(coinUids: wallets.map(\.coin.uid).removeDuplicates(), currencyCode: currency.code)
+
+            var balances = [Token: Decimal]()
+            var coinPrices = [String: Decimal]()
+
+            for wallet in wallets {
+                balances[wallet.token] = adapterManager.balanceAdapter(for: wallet)?.balanceData.available ?? 0
+
+                if let coinPrice = coinPriceMap[wallet.coin.uid], !coinPrice.expired {
+                    coinPrices[wallet.coin.uid] = coinPrice.value
+                }
+            }
+
+            let context = TokenSortContext(balances: balances, coinPrices: coinPrices)
+
+            func item(token: Token) -> Item {
+                var balanceString: String?
+                var fiatBalanceString: String?
+
+                if let balance = balances[token] {
+                    balanceString = AppValue(token: token, value: balance).formattedShort()
+
+                    if let price = coinPrices[token.coin.uid] {
+                        fiatBalanceString = ValueFormatter.instance.formatShort(currency: currency, value: balance * price)
+                    }
+                }
+
+                return Item(token: token, balance: balanceString, fiatBalance: fiatBalanceString)
+            }
+
+            let popularTokens = MultiSwapPopularTokenResolver.tokens(marketKit: marketKit, for: token)
+                .filter { Self.includeToken($0, account: account, allowExternalReceive: allowExternalReceive) && !Self.isExcluded($0, token: token, exclude: excludeToken) }
+            let popular = popularTokens.map { Item(token: $0, balance: nil, fiatBalance: nil) }
+
+            let yourTokens = wallets.map(\.token)
+                .filter { !Self.isExcluded($0, token: token, exclude: excludeToken) }
+                .sorted(by: SortCriterion.walletBalance, context: context)
+                .map(item)
+
+            var excludedIds = Set((popularTokens + wallets.map(\.token)).map(\.tokenQuery.id))
+            var topTokens = [Item]()
+
+            let topCoins = ((try? marketKit.topFullCoins(limit: 100)) ?? [])
+                .sorted { ($0.coin.marketCapRank ?? .max) < ($1.coin.marketCapRank ?? .max) }
+
+            for fullCoin in topCoins {
+                if topTokens.count >= Self.topLimit {
+                    break
+                }
+
+                let eligible = fullCoin.tokens.filter { candidate in
+                    Self.includeToken(candidate, account: account, allowExternalReceive: allowExternalReceive) && BlockchainType.supported.contains(candidate.blockchainType)
+                        && !Self.isExcluded(candidate, token: token, exclude: excludeToken)
+                }
+
+                let representative = eligible
+                    .sorted(by: [.codeNativeFirst, .blockchainOrder, .tokenTypeOrder, .badge], context: context)
+                    .first { !excludedIds.contains($0.tokenQuery.id) }
+
+                guard let representative else {
+                    continue
+                }
+
+                excludedIds.insert(representative.tokenQuery.id)
+                topTokens.append(item(token: representative))
+            }
+
+            let recent = localStorage.swapRecentTokenQueryIds
+                .compactMap { TokenQuery(id: $0) }
+                .compactMap { (try? marketKit.token(query: $0)) ?? nil }
+                .filter { Self.includeToken($0, account: account, allowExternalReceive: allowExternalReceive) && !Self.isExcluded($0, token: token, exclude: excludeToken) }
+                .map(item)
+
+            let resolvedTopTokens = topTokens
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await self?.apply(popular: popular, yourTokens: yourTokens, topTokens: resolvedTopTokens, recent: recent)
+        }
+        .erased()
+    }
+
+    @MainActor private func apply(popular: [Item], yourTokens: [Item], topTokens: [Item], recent: [Item]) {
+        self.popular = popular
+        self.yourTokens = yourTokens
+        self.topTokens = topTokens
+        self.recent = recent
+    }
+
+    @MainActor private func apply(searchResults: [Item]) {
+        self.searchResults = searchResults
+    }
+
+    private func syncSearchResults() {
+        searchTask = nil
 
         let filter = searchText.trimmingCharacters(in: .whitespaces)
 
+        guard !filter.isEmpty else {
+            searchResults = []
+            return
+        }
+
         let account = accountManager.activeAccount
 
-        syncTask = Task { [weak self, marketKit, walletManager, adapterManager, currencyManager, token] in
+        searchTask = Task { [weak self, marketKit, walletManager, adapterManager, currencyManager, token, allowExternalReceive, excludeToken] in
             let wallets = walletManager.activeWallets
-            var resultTokens = [Token]()
-
             let currency = currencyManager.baseCurrency
             let coinPriceMap = marketKit.coinPriceMap(coinUids: wallets.map(\.coin.uid).removeDuplicates(), currencyCode: currency.code)
 
@@ -50,7 +217,7 @@ class MultiSwapTokenSelectViewModel: ObservableObject {
                 let balance = adapterManager.balanceAdapter(for: wallet)?.balanceData.available ?? 0
                 balances[wallet.token] = balance
 
-                if let coinPrice = coinPriceMap[wallet.coin.uid] {
+                if let coinPrice = coinPriceMap[wallet.coin.uid], !coinPrice.expired {
                     fiatBalances[wallet.token] = balance * coinPrice.value
                 }
             }
@@ -58,60 +225,23 @@ class MultiSwapTokenSelectViewModel: ObservableObject {
             let context = TokenSortContext(balances: balances, fiatBalances: fiatBalances)
             context.filter = filter
             context.enabledTokens = Set(wallets.map(\.token))
-            context.referenceToken = token
 
-            do {
-                if filter.isEmpty {
-                    let enabledTokens = wallets.map(\.token).sorted(
-                        by: SortCriterion.swapEnabled,
-                        context: context
-                    )
-                    resultTokens.append(contentsOf: enabledTokens)
+            var resultTokens = [Token]()
 
-                    if let token {
-                        let topFullCoins = try marketKit.topFullCoins(limit: 100)
+            if let ethAddress = try? EvmKit.Address(hex: filter) {
+                let tokens = (try? marketKit.tokens(reference: ethAddress.hex)) ?? []
 
-                        let tokens = topFullCoins
-                            .map { $0.tokens.filter { $0.blockchainType == token.blockchainType } }
-                            .flatMap { $0 }
+                resultTokens = tokens
+                    .filter { Self.includeToken($0, account: account, allowExternalReceive: allowExternalReceive) && !Self.isExcluded($0, token: token, exclude: excludeToken) }
+                    .sorted(by: SortCriterion.tokenByBlockchain, context: context)
+            } else {
+                let allFullCoins = (try? marketKit.fullCoins(filter: filter, limit: 100)) ?? []
+                let tokens = allFullCoins.map(\.tokens).flatMap { $0 }
 
-                        let suggestedTokens = tokens
-                            .filter { (account?.type.supports(token: $0) ?? true) && !resultTokens.contains($0) }
-                            .sorted(by: SortCriterion.swapSuggested, context: context)
-
-                        resultTokens.append(contentsOf: suggestedTokens)
-                    }
-
-                    let tokenQueries: [TokenQuery]
-                    if case .hdExtendedKey = account?.type {
-                        tokenQueries = BtcBlockchainManager.blockchainTypes.map(\.nativeTokenQueries).flatMap { $0 }
-                    } else {
-                        tokenQueries = BlockchainType.supported.map(\.defaultTokenQuery)
-                    }
-
-                    let tokens = try marketKit.tokens(queries: tokenQueries)
-
-                    let featuredTokens = tokens
-                        .filter { (account?.type.supports(token: $0) ?? true) && !resultTokens.contains($0) }
-                        .sorted(by: SortCriterion.swapFeatured, context: context)
-
-                    resultTokens.append(contentsOf: featuredTokens)
-                } else if let ethAddress = try? EvmKit.Address(hex: filter) {
-                    let address = ethAddress.hex
-                    let tokens = try marketKit.tokens(reference: address)
-
-                    resultTokens = tokens
-                        .filter { (account?.type.supports(token: $0) ?? true) }
-                        .sorted(by: SortCriterion.tokenByBlockchain, context: context)
-                } else {
-                    let allFullCoins = try marketKit.fullCoins(filter: filter, limit: 100)
-                    let tokens = allFullCoins.map(\.tokens).flatMap { $0 }
-
-                    resultTokens = tokens
-                        .filter { (account?.type.supports(token: $0) ?? true) }
-                        .sorted(by: SortCriterion.tokenFilteredByBlockchain, context: context)
-                }
-            } catch {}
+                resultTokens = tokens
+                    .filter { Self.includeToken($0, account: account, allowExternalReceive: allowExternalReceive) && !Self.isExcluded($0, token: token, exclude: excludeToken) }
+                    .sorted(by: SortCriterion.tokenFilteredByBlockchain, context: context)
+            }
 
             let items = resultTokens.map { token in
                 var balanceString: String?
@@ -125,18 +255,14 @@ class MultiSwapTokenSelectViewModel: ObservableObject {
                     }
                 }
 
-                return Item(
-                    token: token,
-                    balance: balanceString,
-                    fiatBalance: fiatBalanceString
-                )
+                return Item(token: token, balance: balanceString, fiatBalance: fiatBalanceString)
             }
 
-            if !Task.isCancelled {
-                await MainActor.run { [weak self] in
-                    self?.items = items
-                }
+            guard !Task.isCancelled else {
+                return
             }
+
+            await self?.apply(searchResults: items)
         }
         .erased()
     }

@@ -7,9 +7,16 @@ public class BlockchainSettingsStorage {
     private let keyBtcTransactionSort = "btc-transaction-sort"
     private let keyBtcTransactionRbf = "btc-transaction-rbf"
     private let keyEvmSyncSource = "evm-sync-source"
+    private let keyThorChainEndpointFamily = "thorchain-endpoint-family"
     private let keyMoneroNode = "monero-node"
+    private let keyMoneroAutoSelect = "monero-auto-select"
     private let keyZanoNode = "zano-node"
     private let keyZcashNode = "zcash-node"
+    private let keyXrpNode = "xrp-node"
+    private let keyXrpTestNetNode = "xrp-node-testnet"
+    private let keyNearNode = "near-node"
+    private let keyNearTestNetNode = "near-node-testnet"
+    private let keyEndpointAutoSelect = "endpoint-auto-select"
 
     public init(storage: BlockchainSettingRecordStorage) {
         self.storage = storage
@@ -62,12 +69,30 @@ extension BlockchainSettingsStorage {
         try? storage.save(record: record)
     }
 
+    func thorChainEndpointFamilyId(blockchainType: BlockchainType) -> String? {
+        try? storage.record(blockchainUid: blockchainType.uid, key: keyThorChainEndpointFamily).map(\.value)
+    }
+
+    func save(thorChainEndpointFamilyId: String, blockchainType: BlockchainType) {
+        let record = BlockchainSettingRecord(blockchainUid: blockchainType.uid, key: keyThorChainEndpointFamily, value: thorChainEndpointFamilyId)
+        try? storage.save(record: record)
+    }
+
     func moneroNodeUrl(blockchainType: BlockchainType) -> String? {
         try? storage.record(blockchainUid: blockchainType.uid, key: keyMoneroNode).map(\.value)
     }
 
     func save(moneroNodeUrl: String, blockchainType: BlockchainType) {
         let record = BlockchainSettingRecord(blockchainUid: blockchainType.uid, key: keyMoneroNode, value: moneroNodeUrl)
+        try? storage.save(record: record)
+    }
+
+    func moneroAutoSelectEnabled(blockchainType: BlockchainType) -> Bool {
+        ((try? storage.record(blockchainUid: blockchainType.uid, key: keyMoneroAutoSelect))?.map { $0.value == "true" }) ?? false
+    }
+
+    func save(moneroAutoSelectEnabled: Bool, blockchainType: BlockchainType) {
+        let record = BlockchainSettingRecord(blockchainUid: blockchainType.uid, key: keyMoneroAutoSelect, value: moneroAutoSelectEnabled ? "true" : "false")
         try? storage.save(record: record)
     }
 
@@ -80,12 +105,54 @@ extension BlockchainSettingsStorage {
         try? storage.save(record: record)
     }
 
+    // Chain-agnostic flag: explicit values win, absent/malformed falls back to the chain's
+    // default (a corrupted record must not flip the feature). Monero keeps its legacy key.
+    func endpointAutoSelectEnabled(blockchainType: BlockchainType) -> Bool {
+        switch try? storage.record(blockchainUid: blockchainType.uid, key: keyEndpointAutoSelect)?.value {
+        case "true": return true
+        case "false": return false
+        default: return Self.defaultEndpointAutoSelect(blockchainType: blockchainType)
+        }
+    }
+
+    func save(endpointAutoSelectEnabled: Bool, blockchainType: BlockchainType) {
+        let record = BlockchainSettingRecord(blockchainUid: blockchainType.uid, key: keyEndpointAutoSelect, value: endpointAutoSelectEnabled ? "true" : "false")
+        try? storage.save(record: record)
+    }
+
+    private static func defaultEndpointAutoSelect(blockchainType: BlockchainType) -> Bool {
+        switch blockchainType {
+        case .zcash: return true
+        default: return false
+        }
+    }
+
     func zcashNodeUrl(blockchainType: BlockchainType) -> String? {
         try? storage.record(blockchainUid: blockchainType.uid, key: keyZcashNode).map(\.value)
     }
 
     func save(zcashNodeUrl: String, blockchainType: BlockchainType) {
         let record = BlockchainSettingRecord(blockchainUid: blockchainType.uid, key: keyZcashNode, value: zcashNodeUrl)
+        try? storage.save(record: record)
+    }
+
+    // Separate keys per network: the two node lists share no URL, so one key would let a testnet
+    // pick silently overwrite the mainnet one and drop the user back on the default node.
+    func xrpNodeUrl(blockchainType: BlockchainType, testNet: Bool) -> String? {
+        try? storage.record(blockchainUid: blockchainType.uid, key: testNet ? keyXrpTestNetNode : keyXrpNode).map(\.value)
+    }
+
+    func save(xrpNodeUrl: String, blockchainType: BlockchainType, testNet: Bool) {
+        let record = BlockchainSettingRecord(blockchainUid: blockchainType.uid, key: testNet ? keyXrpTestNetNode : keyXrpNode, value: xrpNodeUrl)
+        try? storage.save(record: record)
+    }
+
+    func nearNodeUrl(blockchainType: BlockchainType, testNet: Bool) -> String? {
+        try? storage.record(blockchainUid: blockchainType.uid, key: testNet ? keyNearTestNetNode : keyNearNode).map(\.value)
+    }
+
+    func save(nearNodeUrl: String, blockchainType: BlockchainType, testNet: Bool) {
+        let record = BlockchainSettingRecord(blockchainUid: blockchainType.uid, key: testNet ? keyNearTestNetNode : keyNearNode, value: nearNodeUrl)
         try? storage.save(record: record)
     }
 }

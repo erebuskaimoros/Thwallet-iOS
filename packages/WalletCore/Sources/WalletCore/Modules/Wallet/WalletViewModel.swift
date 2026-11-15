@@ -9,6 +9,7 @@ public class WalletViewModel: WalletListViewModel {
     private let appManager = Core.shared.appManager
     private let eventHandler = Core.shared.appEventHandler
     private let rateAppManager = Core.shared.rateAppManager
+    private let backupPromptManager = Core.shared.backupPromptManager
     private let appStateManager = AppStateManager.instance
 
     @Published private(set) var buttonHidden: Bool
@@ -103,7 +104,13 @@ public class WalletViewModel: WalletListViewModel {
 
 extension WalletViewModel {
     var buttons: [WalletButton] {
-        [.scan, .receive, .send, .swap]
+        var buttons: [WalletButton] = [.scan, .receive, .send]
+
+        if swapEnabled {
+            buttons.append(.swap)
+        }
+
+        return buttons
     }
 
     var swapEnabled: Bool {
@@ -112,10 +119,12 @@ extension WalletViewModel {
 
     func onAppear() {
         rateAppManager.onBalancePageAppear()
+        backupPromptManager.onBalancePageAppear()
     }
 
     func onDisappear() {
         rateAppManager.onBalancePageDisappear()
+        backupPromptManager.onBalancePageDisappear()
     }
 
     public func onTapAmount() {
@@ -141,14 +150,12 @@ extension WalletViewModel {
         walletService?.disable(wallet: wallet)
     }
 
-    func refresh() async {
+    public func refresh() {
         walletService?.refresh()
         coinPriceService.refresh()
-
-        try? await Task.sleep(seconds: 1)
     }
 
-    func process(scanned: String) {
+    public func process(scanned: String) {
         Task { [eventHandler] in
             try await eventHandler.handle(source: StatPage.balance, event: scanned.trimmingCharacters(in: .whitespacesAndNewlines), eventType: [.walletConnectUri, .address])
         }

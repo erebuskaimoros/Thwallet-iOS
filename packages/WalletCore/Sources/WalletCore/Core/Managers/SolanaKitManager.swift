@@ -51,12 +51,7 @@ public class SolanaKitManager {
             return _solanaKit
         }
 
-        guard let seed = account.type.mnemonicSeed else {
-            throw AdapterError.unsupportedAccount
-        }
-
-        let address = try SolanaKit.Signer.address(seed: seed)
-        let addressString = address.base58
+        let addressString = try Self.address(accountType: account.type)
 
         let kit = try SolanaKit.Kit.instance(
             address: addressString,
@@ -88,6 +83,13 @@ public class SolanaKitManager {
                     return
                 }
 
+                // The publisher replays its storage-seeded snapshot on subscribe; on a fresh restore
+                // that is empty and must not consume the one-shot pass — wait for the first real one
+                // (the THORChain restore pass waits the same way).
+                guard !tokenAccounts.isEmpty else {
+                    return
+                }
+
                 self?.handle(tokenAccounts: tokenAccounts, account: account)
 
                 self?.tokenAccountCancellable?.cancel()
@@ -96,15 +98,21 @@ public class SolanaKitManager {
     }
 
     private func handle(tokenAccounts: [FullTokenAccount], account: Account) {
+        guard Core.shared.config.autoEnableTokensOnReceive else {
+            return
+        }
+
         guard !tokenAccounts.isEmpty else {
             return
         }
 
         let existingWallets = walletManager.activeWallets
         let existingTokenTypeIds = existingWallets.map(\.token.type.id)
+        // Empty token accounts (closed positions, dust airdrops) are not worth a wallet row;
+        // the EVM and THORChain restore passes filter by balance the same way.
         let newTokenAccounts = tokenAccounts.filter { fullAccount in
             let tokenType = TokenType.spl(address: fullAccount.tokenAccount.mintAddress)
-            return !existingTokenTypeIds.contains(tokenType.id)
+            return !existingTokenTypeIds.contains(tokenType.id) && SplAdapter.balance(fullAccount: fullAccount) > 0
         }
 
         guard !newTokenAccounts.isEmpty else {
@@ -141,10 +149,17 @@ extension SolanaKitManager {
 
 extension SolanaKitManager {
     static func address(accountType: AccountType) throws -> String {
-        guard let seed = accountType.mnemonicSeed else {
+        switch accountType {
+        case .mnemonic:
+            guard let seed = accountType.mnemonicSeed else {
+                throw AdapterError.unsupportedAccount
+            }
+            return try SolanaKit.Signer.address(seed: seed).base58
+        case let .solanaAddress(address):
+            return address
+        default:
             throw AdapterError.unsupportedAccount
         }
-        return try SolanaKit.Signer.address(seed: seed).base58
     }
 
     static func signer(accountType: AccountType) throws -> SolanaKit.Signer {
