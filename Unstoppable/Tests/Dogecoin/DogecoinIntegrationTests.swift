@@ -51,11 +51,18 @@ struct DogecoinIntegrationTests {
         #expect(firstAddress.hasPrefix("D"))
         #expect(try dogecoinAddressConverter().convert(address: firstAddress).scriptType == .p2pkh)
 
-        let decoded = AccountType.decode(
-            uniqueId: watch.uniqueId(hashed: false),
+        // Both stored forms must restore: the Android-compatible one the codec writes today and
+        // the "address&uid|tokenId" form iOS wrote before the upstream backup codec.
+        let decoded = AccountTypeBackupCodec.decode(
+            data: AccountTypeBackupCodec.data(accountType: watch, moneroHeight: 0),
             type: AccountType.Abstract(watch)
         )
-        let restored = try #require(decoded)
+        let restored = try #require(decoded?.accountType)
+        let legacyDecoded = AccountTypeBackupCodec.decode(
+            data: watch.uniqueId(hashed: false),
+            type: AccountType.Abstract(watch)
+        )
+        #expect(legacyDecoded?.accountType == watch)
         #expect(restored == watch)
         #expect(restored.watchAddress == p2pkhAddress)
     }

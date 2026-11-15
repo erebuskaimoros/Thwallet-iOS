@@ -439,6 +439,7 @@ public enum AccountType: Identifiable {
         case .ecash: return "XEC"
         case .litecoin: return "LTC"
         case .dash: return "DASH"
+        case .dogecoin: return "DOGE"
         default: return blockchainType.uid
         }
     }
