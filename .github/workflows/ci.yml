@@ -77,7 +77,9 @@ jobs:
       - name: Build and test
         if: ${{ !inputs.refresh_package_resolved }}
         run: |
-          set -o pipefail
+          # The raw xcodebuild transcript is too large for the job log to keep its tail, which is
+          # where the diagnostics are. Keep it in a file and print only what explains a failure.
+          xcodebuild_status=0
           xcodebuild \
             -workspace Wallet.xcworkspace \
             -scheme Development \
@@ -86,7 +88,13 @@ jobs:
             -disableAutomaticPackageResolution \
             -resultBundlePath "$RUNNER_TEMP/Thwallet.xcresult" \
             CODE_SIGNING_ALLOWED=NO \
-            test
+            test > "$RUNNER_TEMP/xcodebuild.log" 2>&1 || xcodebuild_status=$?
+
+          grep -E "(error|failed|issue)[: ]|Undefined symbol|^ld: |\*\* (BUILD|TEST) |Test run with|Executed [0-9]+ tests" \
+            "$RUNNER_TEMP/xcodebuild.log" | sort -u | tail -n 400 || true
+          echo "--- last lines"
+          tail -n 60 "$RUNNER_TEMP/xcodebuild.log"
+          test "$xcodebuild_status" -eq 0
 
           xcrun xcresulttool get test-results summary \
             --path "$RUNNER_TEMP/Thwallet.xcresult" \
@@ -95,3 +103,11 @@ jobs:
               count = JSON.parse(STDIN.read).fetch("totalTestCount")
               abort "No tests executed" unless count.positive?
             '
+
+      - name: Upload xcodebuild log
+        if: ${{ always() && !inputs.refresh_package_resolved }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: xcodebuild-log
+          path: ${{ runner.temp }}/xcodebuild.log
+          if-no-files-found: warn
