@@ -283,7 +283,7 @@ extension AdapterFactory {
             case .native:
                 return evmAdapter(wallet: wallet)
             case let .eip20(address):
-                return eip20Adapter(address: address, wallet: wallet, coinManager: coinManager)
+                return eip20Adapter(address: address, wallet: wallet)
             default:
                 return nil
             }
