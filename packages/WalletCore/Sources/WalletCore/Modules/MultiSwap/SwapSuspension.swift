@@ -115,6 +115,14 @@ enum CanonicalAssetId {
         .mayaChain: "MAYA",
         .xrp: "XRP",
         .near: "NEAR",
+        // Thwallet chains, spelled as Android Thwallet's SwapSuspension table spells them.
+        .dogecoin: "DOGE",
+        .cronos: "CRO",
+        .blast: "BLAST",
+        .mantle: "MANTLE",
+        .seiEvm: "SEI",
+        .hyperEvm: "HYPEREVM",
+        .robinhood: "ROBINHOOD",
     ]
 
     /// The gas asset's ticker per chain — NOT always the chain code (`BASE.ETH`, `BSC.BNB`,
@@ -144,6 +152,13 @@ enum CanonicalAssetId {
         .mayaChain: "CACAO",
         .xrp: "XRP",
         .near: "NEAR",
+        .dogecoin: "DOGE",
+        .cronos: "CRO",
+        .blast: "ETH",
+        .mantle: "MNT",
+        .seiEvm: "SEI",
+        .hyperEvm: "HYPE",
+        .robinhood: "ETH",
     ]
 
     private static let wrappedSolMint = "So11111111111111111111111111111111111111112"

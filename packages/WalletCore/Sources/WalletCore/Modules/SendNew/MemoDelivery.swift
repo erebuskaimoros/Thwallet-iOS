@@ -40,7 +40,7 @@ public extension BlockchainType {
     var memoType: MemoType {
         switch self {
         // A memo becomes an OP_RETURN output, broadcast in the clear (BitcoinCore OutputSetter).
-        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash: .onChainPublic
+        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash, .dogecoin: .onChainPublic
         // Shielded memos are encrypted to the recipient; transparent addresses carry no memo at all.
         case .zcash: .onChainPrivate
         // MoneroKit stores the memo via MONERO_Wallet_setUserNote — a local note on this device's
@@ -71,7 +71,7 @@ public extension BlockchainType {
     // a Zcash memo field holds 512. TON stays within one comment cell; Monero's 120 is a local note.
     var memoMaxBytes: Int? {
         switch self {
-        case .bitcoin, .litecoin, .dash: 80
+        case .bitcoin, .litecoin, .dash, .dogecoin: 80
         case .bitcoinCash, .ecash: 220
         case .stellar: 28
         case .zcash: 512
@@ -89,7 +89,7 @@ public extension BlockchainType {
     // them into ZEC.
     var memoRidesOpReturn: Bool {
         switch self {
-        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash: true
+        case .bitcoin, .bitcoinCash, .ecash, .litecoin, .dash, .dogecoin: true
         case .zcash, .monero, .zano, .ton, .stellar, .thorChain, .mayaChain, .near, .xrp,
              .ethereum, .binanceSmartChain, .polygon, .avalanche, .optimism, .arbitrumOne,
              .gnosis, .fantom, .base, .zkSync, .robinhood, .arc, .tron, .solana, .unsupported: false
